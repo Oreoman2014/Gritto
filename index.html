@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FormFix">
+<meta name="theme-color" content="#181C1F">
+<title>FormFix — Sports Mechanics Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --turf:#2F8F4E;
+    --turf-dark:#1F5F35;
+    --charcoal:#181C1F;
+    --chalk:#F5F3EC;
+    --energy:#FF6A1A;
+    --court:#1E56A0;
+    --line:#E1DDD0;
+    --ink:#22262A;
+    --ink-soft:#6B6F66;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--chalk);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  .stripe{
+    position:fixed;
+    top:0; left:0; right:0;
+    height:6px;
+    background:repeating-linear-gradient(135deg,var(--energy) 0 24px,var(--turf) 24px 48px);
+    z-index:10;
+  }
+  header{
+    padding:52px 24px 36px;
+    background:var(--charcoal);
+    color:var(--chalk);
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:'';
+    position:absolute;
+    right:-60px; top:-60px;
+    width:280px; height:280px;
+    background:repeating-linear-gradient(135deg,rgba(255,106,26,0.15) 0 16px,transparent 16px 32px);
+    transform:rotate(12deg);
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--turf);
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    font-size:clamp(38px,7vw,58px);
+    line-height:0.95;
+    margin:0 0 12px;
+    letter-spacing:0.01em;
+    text-transform:uppercase;
+  }
+  header p.sub{
+    max-width:520px;
+    color:#C8CCC2;
+    font-size:15px;
+    line-height:1.5;
+    margin:0;
+  }
+  main{
+    max-width:720px;
+    margin:0 auto;
+    padding:36px 24px 80px;
+  }
+  .section-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin-bottom:12px;
+  }
+  .sport-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+    gap:10px;
+    margin-bottom:32px;
+  }
+  .sport-chip{
+    border:2px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:14px 8px 10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:12px;
+    color:var(--ink);
+    transition:all 0.15s ease;
+  }
+  .sport-chip svg{width:26px;height:26px;color:var(--turf-dark);}
+  .sport-chip:hover{border-color:var(--turf);transform:translateY(-2px);}
+  .sport-chip.active{
+    background:var(--turf);
+    border-color:var(--turf);
+    color:#fff;
+  }
+  .sport-chip.active svg{color:#fff;}
+
+  .input-block{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:24px;
+  }
+  .input-block label{
+    display:block;
+    font-weight:600;
+    font-size:14px;
+    margin-bottom:8px;
+  }
+  .input-block textarea{
+    width:100%;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    resize:vertical;
+    min-height:64px;
+    color:var(--ink);
+  }
+  .input-block textarea:focus{outline:2px solid var(--turf); outline-offset:1px;}
+  .hint-text{font-size:12px; color:var(--ink-soft); margin-top:6px;}
+
+  .go-btn{
+    width:100%;
+    background:var(--energy);
+    color:#fff;
+    border:none;
+    font-family:'Anton',sans-serif;
+    font-size:18px;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    padding:16px;
+    border-radius:12px;
+    cursor:pointer;
+    transition:transform 0.12s ease, opacity 0.12s ease;
+  }
+  .go-btn:active{transform:scale(0.98);}
+  .go-btn:disabled{opacity:0.55; cursor:default;}
+
+  .status{
+    text-align:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:14px;
+    min-height:16px;
+  }
+
+  .results{margin-top:32px;}
+  .result-head{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .result-head h2{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:24px;
+    margin:0;
+  }
+  .drill-card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-left:5px solid var(--turf);
+    border-radius:12px;
+    padding:16px 18px;
+    margin-bottom:12px;
+    animation:in 0.35s ease both;
+  }
+  .drill-card:nth-child(2n){border-left-color:var(--court);}
+  .drill-card:nth-child(3n){border-left-color:var(--energy);}
+  @keyframes in{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .drill-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-bottom:4px;
+  }
+  .drill-title{
+    font-weight:700;
+    font-size:15px;
+    margin-bottom:4px;
+  }
+  .drill-desc{
+    font-size:14px;
+    line-height:1.55;
+    color:var(--ink);
+  }
+  .drill-cue{
+    margin-top:8px;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--turf-dark);
+    background:#EAF6EE;
+    display:inline-block;
+    padding:4px 10px;
+    border-radius:20px;
+  }
+  .error-box{
+    background:#FFF1EC;
+    border:1px solid #FFC9B3;
+    color:#B4401A;
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-top:14px;
+  }
+  footer{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:20px;
+  }
+
+  .mode-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:28px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:5px;
+  }
+  .mode-tab{
+    flex:1;
+    text-align:center;
+    padding:11px 8px;
+    border-radius:8px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border:none;
+    background:none;
+  }
+  .mode-tab.active{
+    background:var(--turf);
+    color:#fff;
+  }
+  .mode-section.hidden{display:none;}
+
+  .video-drop{
+    border:2px dashed var(--line);
+    border-radius:16px;
+    background:#fff;
+    padding:28px 20px;
+    text-align:center;
+    margin-bottom:20px;
+    cursor:pointer;
+  }
+  .video-drop:hover{border-color:var(--turf);}
+  .video-drop svg{width:34px;height:34px;color:var(--turf-dark); margin-bottom:8px;}
+  .video-drop .vd-title{font-weight:700; font-size:14px; margin-bottom:4px;}
+  .video-drop .vd-sub{font-size:12px; color:var(--ink-soft);}
+
+  .frame-strip{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    margin-bottom:20px;
+  }
+  .frame-strip img{
+    width:96px;
+    height:72px;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid var(--line);
+    flex-shrink:0;
+  }
+
+  .obs-list{list-style:none; margin:0 0 4px; padding:0;}
+  .obs-list li{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    font-size:13.5px;
+    line-height:1.5;
+    margin-bottom:8px;
+  }
+  .obs-list li svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;}
+  .obs-good svg{color:var(--turf-dark);}
+  .obs-fix svg{color:var(--energy);}
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<header>
+  <div class="eyebrow">FormFix · AI Mechanics Coach</div>
+  <h1>Fix your<br>form.</h1>
+  <p class="sub">Pick a sport, then either describe what you're working on or upload a clip — get real drills and cues built for exactly your skill level.</p>
+</header>
+
+<main>
+  <div class="section-label">1 · Pick a sport</div>
+  <div class="sport-grid" id="sport-grid"></div>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">Describe it</button>
+    <button class="mode-tab" data-mode="video" onclick="switchMode('video')">Upload a video</button>
+  </div>
+
+  <div class="mode-section" id="mode-text">
+    <div class="input-block">
+      <label for="skill-input">2 · What are you working on?</label>
+      <textarea id="skill-input" placeholder="e.g. my basketball free throw keeps missing short, or my baseball swing feels off timing-wise"></textarea>
+      <div class="hint-text">Be specific if you can — what it feels like, what's going wrong, or what you want to improve.</div>
+    </div>
+    <button class="go-btn" id="go-btn" onclick="getDrills()">Get my drills</button>
+    <div class="status" id="status"></div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <div class="mode-section hidden" id="mode-video">
+    <div class="section-label">2 · Upload a clip</div>
+    <div class="video-drop" id="video-drop" onclick="document.getElementById('video-input').click()">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/></svg>
+      <div class="vd-title" id="vd-title">Tap to choose a video</div>
+      <div class="vd-sub">A short clip (5–15 seconds) of your swing, shot, or motion works best</div>
+    </div>
+    <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
+
+    <div class="frame-strip" id="frame-strip"></div>
+
+    <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
+    <div class="status" id="video-status"></div>
+    <div class="results" id="video-results"></div>
+  </div>
+</main>
+
+<footer>Prototype — advice is general coaching info, not a substitute for an in-person coach.</footer>
+
+<script>
+// ---- SETUP: paste your Supabase function address here ----
+// It looks like: https://YOUR-PROJECT-ID.functions.supabase.co/formfix-ai
+const AI_HELPER_URL = "https://iplvvkvttumbrlueowou.supabase.co/functions/v1/formfix-ai";
+
+const sports = [
+  {name:'Basketball', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3C9.5 6 9.5 18 12 21M4.5 7c4 2.2 11 2.2 15 0M4.5 17c4-2.2 11-2.2 15 0" stroke="currentColor" stroke-width="1.3" fill="none"/>'},
+  {name:'Baseball', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M7 5c-2 3-2 11 0 14M17 5c2 3 2 11 0 14" stroke="currentColor" stroke-width="1.3" fill="none"/>'},
+  {name:'Soccer', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 7l3.5 2.5-1.3 4.1H9.8l-1.3-4.1L12 7z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>'},
+  {name:'Golf', icon:'<path d="M6 21V4l11 4-7 3v10" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><ellipse cx="6" cy="21" rx="4" ry="1.2" stroke="currentColor" stroke-width="1.3" fill="none"/>'},
+  {name:'Tennis', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M4.5 8c4 2.5 11 2.5 15 0M4.5 16c4-2.5 11-2.5 15 0" stroke="currentColor" stroke-width="1.3" fill="none"/>'},
+  {name:'Swimming', icon:'<path d="M3 15c1.5 1.3 3 1.3 4.5 0s3-1.3 4.5 0 3 1.3 4.5 0 3-1.3 4.5 0M6 10l9-4 3 3-4 2M9 8l4 2" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'},
+  {name:'Running', icon:'<circle cx="14.5" cy="4.5" r="1.6" fill="currentColor"/><path d="M9 21l2-5 3-2-1-5-4 1-2 4M13 14l4 2 2 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'},
+  {name:'Volleyball', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 3c3 3 3 15 0 18M5 7c4 3 10 3 14 0M4 15c5-2 11-2 16 1" stroke="currentColor" stroke-width="1.2" fill="none"/>'},
+  {name:'Football', icon:'<ellipse cx="12" cy="12" rx="9" ry="6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M6 12h12M9 9.5v5M12 9v6M15 9.5v5" stroke="currentColor" stroke-width="1.2"/>'},
+  {name:'Other', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'}
+];
+
+let selectedSport = null;
+const grid = document.getElementById('sport-grid');
+sports.forEach(s => {
+  const chip = document.createElement('div');
+  chip.className = 'sport-chip';
+  chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${s.icon}</svg><span>${s.name}</span>`;
+  chip.onclick = () => {
+    document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    selectedSport = s.name;
+  };
+  grid.appendChild(chip);
+});
+
+async function getDrills(){
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+  const btn = document.getElementById('go-btn');
+  const skillText = document.getElementById('skill-input').value.trim();
+
+  resultsEl.innerHTML = '';
+  if(!selectedSport){
+    statusEl.textContent = 'Pick a sport first.';
+    return;
+  }
+  if(!skillText){
+    statusEl.textContent = "Tell it what you're working on first.";
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Building your drills…';
+
+  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+{"summary": "one encouraging sentence about what you'll help with", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete","cue":"a short 3-6 word coaching cue to remember during play"}]}
+Include exactly 4 drills, ordered from most foundational to more advanced. Keep language age-appropriate, positive, and safe (no advice that risks injury). Be specific and actionable, not generic.`;
+
+  const userMsg = `Sport: ${selectedSport}\\nWhat I'm working on: ${skillText}`;
+
+  try{
+    const response = await fetch(AI_HELPER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMsg }]
+      })
+    });
+    const data = await response.json();
+    const textBlock = data.content.find(b => b.type === 'text');
+    if(!textBlock) throw new Error('No response text');
+    const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(cleaned);
+
+    statusEl.textContent = '';
+    const head = document.createElement('div');
+    head.className = 'result-head';
+    head.innerHTML = `<h2>${selectedSport} drills</h2>`;
+    resultsEl.appendChild(head);
+
+    const summaryP = document.createElement('p');
+    summaryP.style.cssText = 'font-size:14px;color:var(--ink-soft);margin:-8px 0 16px;';
+    summaryP.textContent = parsed.summary || '';
+    resultsEl.appendChild(summaryP);
+
+    parsed.drills.forEach((d, i) => {
+      const card = document.createElement('div');
+      card.className = 'drill-card';
+      card.style.animationDelay = (i * 0.06) + 's';
+      card.innerHTML = `
+        <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
+        <div class="drill-title">${d.title}</div>
+        <div class="drill-desc">${d.description}</div>
+        ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
+      `;
+      resultsEl.appendChild(card);
+    });
+  }catch(err){
+    statusEl.textContent = '';
+    const errBox = document.createElement('div');
+    errBox.className = 'error-box';
+    errBox.textContent = 'Something went wrong getting your drills. Try again in a moment.';
+    resultsEl.appendChild(errBox);
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+}
+</script>
+
+<script>
+function switchMode(mode){
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  document.getElementById('mode-text').classList.toggle('hidden', mode !== 'text');
+  document.getElementById('mode-video').classList.toggle('hidden', mode !== 'video');
+}
+
+let extractedFrames = []; // base64 strings, no data: prefix
+
+function handleVideoSelect(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  document.getElementById('vd-title').textContent = file.name;
+  document.getElementById('frame-strip').innerHTML = '';
+  document.getElementById('video-go-btn').disabled = true;
+  document.getElementById('video-status').textContent = 'Reading frames from your clip…';
+  extractFrames(file);
+}
+
+function extractFrames(file){
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.src = URL.createObjectURL(file);
+
+  video.addEventListener('loadedmetadata', async () => {
+    const duration = video.duration;
+    const count = 5;
+    const timestamps = Array.from({length: count}, (_, i) => (duration * (i + 0.5)) / count);
+    const canvas = document.createElement('canvas');
+    canvas.width = 480;
+    canvas.height = 480 * (video.videoHeight / video.videoWidth || 0.75);
+    const ctx = canvas.getContext('2d');
+    extractedFrames = [];
+    const strip = document.getElementById('frame-strip');
+    strip.innerHTML = '';
+
+    for(const t of timestamps){
+      await new Promise(resolve => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          extractedFrames.push(dataUrl.split(',')[1]);
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          strip.appendChild(img);
+          resolve();
+        };
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = Math.min(t, duration - 0.05);
+      });
+    }
+
+    document.getElementById('video-status').textContent = extractedFrames.length + ' frames captured. Ready to analyze.';
+    document.getElementById('video-go-btn').disabled = false;
+    URL.revokeObjectURL(video.src);
+  });
+
+  video.addEventListener('error', () => {
+    document.getElementById('video-status').textContent = 'Could not read that video file — try a different format (MP4 works best).';
+  });
+}
+
+async function analyzeVideo(){
+  const statusEl = document.getElementById('video-status');
+  const resultsEl = document.getElementById('video-results');
+  const btn = document.getElementById('video-go-btn');
+
+  resultsEl.innerHTML = '';
+  if(!selectedSport){
+    statusEl.textContent = 'Pick a sport up top first.';
+    return;
+  }
+  if(!extractedFrames.length){
+    statusEl.textContent = 'Upload a video first.';
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Looking at your form…';
+
+  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. You will be shown several frames pulled evenly from a video clip of a young athlete performing a ${selectedSport} motion, in time order. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+{"summary": "one encouraging sentence about what you observed", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue"}]}
+Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate, positive, and safe (no advice that risks injury).`;
+
+  const content = [
+    ...extractedFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
+    { type: "text", text: `Sport: ${selectedSport}. These frames are in time order from one clip. Give me feedback on my form.` }
+  ];
+
+  try{
+    const response = await fetch(AI_HELPER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 1200,
+        system: systemPrompt,
+        messages: [{ role: "user", content }]
+      })
+    });
+    const data = await response.json();
+    const textBlock = data.content.find(b => b.type === 'text');
+    if(!textBlock) throw new Error('No response text');
+    const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(cleaned);
+
+    statusEl.textContent = '';
+    const head = document.createElement('div');
+    head.className = 'result-head';
+    head.innerHTML = `<h2>${selectedSport} form check</h2>`;
+    resultsEl.appendChild(head);
+
+    const summaryP = document.createElement('p');
+    summaryP.style.cssText = 'font-size:14px;color:var(--ink-soft);margin:-8px 0 16px;';
+    summaryP.textContent = parsed.summary || '';
+    resultsEl.appendChild(summaryP);
+
+    const obsCard = document.createElement('div');
+    obsCard.className = 'input-block';
+    obsCard.style.marginBottom = '20px';
+    const goodItems = (parsed.good || []).map(g => `<li class="obs-good"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${g}</li>`).join('');
+    const fixItems = (parsed.fix || []).map(f => `<li class="obs-fix"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>${f}</li>`).join('');
+    obsCard.innerHTML = `
+      <label>What's looking good</label>
+      <ul class="obs-list">${goodItems}</ul>
+      <label style="margin-top:14px;">What to work on</label>
+      <ul class="obs-list">${fixItems}</ul>
+    `;
+    resultsEl.appendChild(obsCard);
+
+    (parsed.drills || []).forEach((d, i) => {
+      const card = document.createElement('div');
+      card.className = 'drill-card';
+      card.style.animationDelay = (i * 0.06) + 's';
+      card.innerHTML = `
+        <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
+        <div class="drill-title">${d.title}</div>
+        <div class="drill-desc">${d.description}</div>
+        ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
+      `;
+      resultsEl.appendChild(card);
+    });
+  }catch(err){
+    statusEl.textContent = '';
+    const errBox = document.createElement('div');
+    errBox.className = 'error-box';
+    errBox.textContent = 'Something went wrong analyzing your video. Try again in a moment.';
+    resultsEl.appendChild(errBox);
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
