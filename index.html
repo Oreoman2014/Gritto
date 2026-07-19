@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="FormFix">
+<meta name="apple-mobile-web-app-title" content="Gritto">
 <meta name="theme-color" content="#181C1F">
-<title>FormFix — Sports Mechanics Coach</title>
+<title>Gritto — Sports Mechanics Coach</title>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -308,15 +308,78 @@
   .obs-list li svg{width:16px;height:16px;flex-shrink:0;margin-top:2px;}
   .obs-good svg{color:var(--turf-dark);}
   .obs-fix svg{color:var(--energy);}
+
+  .login-overlay{
+    position:fixed;
+    inset:0;
+    background:var(--charcoal);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .login-overlay.hidden{display:none;}
+  .login-card{
+    background:#fff;
+    border-radius:18px;
+    padding:32px 28px;
+    width:100%;
+    max-width:340px;
+  }
+  .login-card h2{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:24px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .login-card .login-sub{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+  .login-card input{
+    width:100%;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:11px 13px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    margin-bottom:12px;
+    color:var(--ink);
+  }
+  .login-card input:focus{outline:2px solid var(--turf); outline-offset:1px;}
+  .login-card .go-btn{margin-top:4px;}
+  .login-error{
+    color:#B4401A;
+    font-size:12.5px;
+    margin-top:10px;
+    min-height:16px;
+  }
 </style>
 </head>
 <body>
+
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <h2>Gritto</h2>
+    <p class="login-sub">Testing mode — enter your username and password to continue.</p>
+    <input type="text" id="login-username" placeholder="Username" autocomplete="username">
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    <button class="go-btn" onclick="tryLogin()">Enter</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
 <div class="stripe"></div>
 <header>
-  <div class="eyebrow">FormFix · AI Mechanics Coach</div>
+  <div class="eyebrow">Gritto · AI Mechanics Coach</div>
   <h1>Fix your<br>form.</h1>
   <p class="sub">Pick a sport, then either describe what you're working on or upload a clip — get real drills and cues built for exactly your skill level.</p>
 </header>
+
 
 <main>
   <div class="section-label">1 · Pick a sport</div>
@@ -356,6 +419,50 @@
 </main>
 
 <footer>Prototype — advice is general coaching info, not a substitute for an in-person coach.</footer>
+
+<script>
+// ---- Simple login gate for testing mode ----
+// Checks against SITE_USERNAME / SITE_PASSWORD you set in Vercel's
+// Environment Variables — the real values never appear in this file.
+(function(){
+  if(sessionStorage.getItem('gritto_auth') === '1'){
+    document.getElementById('login-overlay').classList.add('hidden');
+  }
+})();
+
+async function tryLogin(){
+  const username = document.getElementById('login-username').value;
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  errorEl.textContent = '';
+
+  try{
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if(data.ok){
+      sessionStorage.setItem('gritto_auth', '1');
+      document.getElementById('login-overlay').classList.add('hidden');
+    }else{
+      errorEl.textContent = data.error || 'Wrong username or password.';
+    }
+  }catch(err){
+    errorEl.textContent = 'Something went wrong — try again.';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const pw = document.getElementById('login-password');
+  if(pw){
+    pw.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') tryLogin();
+    });
+  }
+});
+</script>
 
 <script>
 // ---- SETUP: paste your Supabase function address here ----
