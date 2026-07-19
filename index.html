@@ -657,11 +657,34 @@ async function signOutGoogle(){
 async function checkGoogleSession(){
   const { data: { session } } = await sb.auth.getSession();
   if(session && session.user){
+    const email = session.user.email;
+    const allowed = await isEmailAllowed(email);
+    if(!allowed){
+      await sb.auth.signOut();
+      const errorEl = document.getElementById('login-error');
+      if(errorEl) errorEl.textContent = "That Google account isn't approved for the beta yet.";
+      return null;
+    }
     document.getElementById('login-overlay').classList.add('hidden');
     showProgressBar(session.user);
     await loadProgress(session.user.id);
   }
   return session;
+}
+
+async function isEmailAllowed(email){
+  try{
+    const res = await fetch('/api/check-access', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    return data.allowed === true;
+  }catch(err){
+    console.error('Access check failed:', err.message);
+    return false;
+  }
 }
 
 function showProgressBar(user){
