@@ -596,9 +596,33 @@ function extractFrames(file){
   const video = document.createElement('video');
   video.muted = true;
   video.playsInline = true;
+  video.preload = 'metadata';
   video.src = URL.createObjectURL(file);
 
-  video.addEventListener('loadedmetadata', async () => {
+  const statusEl = document.getElementById('video-status');
+  const safetyTimer = setTimeout(() => {
+    statusEl.textContent = "This video is taking too long to read — try a shorter clip (under 15 seconds) or a different video.";
+  }, 15000);
+
+  video.addEventListener('loadedmetadata', () => {
+    // Safari on iPhone sometimes reports the video length as "infinite"
+    // right after picking a file. Seeking once forces it to calculate
+    // the real length before we try to grab frames.
+    if(!isFinite(video.duration)){
+      const fixDuration = () => {
+        video.removeEventListener('durationchange', fixDuration);
+        video.currentTime = 0;
+        beginExtraction();
+      };
+      video.addEventListener('durationchange', fixDuration);
+      video.currentTime = 1e7;
+    }else{
+      beginExtraction();
+    }
+  });
+
+  async function beginExtraction(){
+    clearTimeout(safetyTimer);
     const duration = video.duration;
     const count = 5;
     const timestamps = Array.from({length: count}, (_, i) => (duration * (i + 0.5)) / count);
@@ -610,27 +634,32 @@ function extractFrames(file){
     const strip = document.getElementById('frame-strip');
     strip.innerHTML = '';
 
-    for(const t of timestamps){
-      await new Promise(resolve => {
-        const onSeeked = () => {
-          video.removeEventListener('seeked', onSeeked);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          extractedFrames.push(dataUrl.split(',')[1]);
-          const img = document.createElement('img');
-          img.src = dataUrl;
-          strip.appendChild(img);
-          resolve();
-        };
-        video.addEventListener('seeked', onSeeked);
-        video.currentTime = Math.min(t, duration - 0.05);
-      });
+    try{
+      for(const t of timestamps){
+        await new Promise((resolve, reject) => {
+          const onSeeked = () => {
+            video.removeEventListener('seeked', onSeeked);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            extractedFrames.push(dataUrl.split(',')[1]);
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            strip.appendChild(img);
+            resolve();
+          };
+          video.addEventListener('seeked', onSeeked);
+          video.currentTime = Math.min(t, duration - 0.05);
+        });
+      }
+      statusEl.textContent = extractedFrames.length + ' frames captured. Ready to analyze.';
+      document.getElementById('video-go-btn').disabled = false;
+    }catch(err){
+      statusEl.textContent = "Couldn't read that video — try a different clip or format (MP4 works best).";
+      console.error(err);
+    }finally{
+      URL.revokeObjectURL(video.src);
     }
-
-    document.getElementById('video-status').textContent = extractedFrames.length + ' frames captured. Ready to analyze.';
-    document.getElementById('video-go-btn').disabled = false;
-    URL.revokeObjectURL(video.src);
-  });
+  }
 
   video.addEventListener('error', () => {
     document.getElementById('video-status').textContent = 'Could not read that video file — try a different format (MP4 works best).';
