@@ -352,6 +352,79 @@
   }
   .login-card input:focus{outline:2px solid var(--turf); outline-offset:1px;}
   .login-card .go-btn{margin-top:4px;}
+  .login-divider{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:16px 0;
+    color:var(--ink-soft);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .login-divider::before, .login-divider::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+  .google-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:11px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .google-btn:hover{border-color:#c7c2b3;}
+  .google-btn svg{width:18px;height:18px;}
+
+  .progress-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--charcoal);
+    border-radius:14px;
+    padding:14px 18px;
+    margin-bottom:24px;
+    color:#fff;
+  }
+  .progress-bar.hidden{display:none;}
+  .progress-stat{text-align:center;}
+  .progress-stat .num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:22px;
+    font-weight:500;
+    color:var(--mint, #4ECDC4);
+  }
+  .progress-stat .lbl{
+    font-size:10px;
+    color:#9AA6C4;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-top:2px;
+  }
+  .progress-user{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12.5px;
+    color:#C8CCC2;
+  }
+  .progress-user img{width:24px; height:24px; border-radius:50%;}
+  .signout-link{
+    background:none; border:none; color:#9AA6C4;
+    font-size:11px; text-decoration:underline; cursor:pointer;
+    font-family:'Inter',sans-serif; padding:0; margin-left:8px;
+  }
   .login-error{
     color:#B4401A;
     font-size:12.5px;
@@ -452,6 +525,7 @@
   .debug-line.lvl-log{color:#B9E4D5;}
   .debug-empty{color:#6B7488; font-size:12px;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -463,6 +537,12 @@
     <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
     <button class="go-btn" onclick="tryLogin()">Enter</button>
     <div class="login-error" id="login-error"></div>
+
+    <div class="login-divider">or</div>
+    <button class="google-btn" onclick="signInWithGoogle()">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.43.34-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 12 1 11 11 0 0 0 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+      Sign in with Google
+    </button>
   </div>
 </div>
 
@@ -475,6 +555,28 @@
 
 
 <main>
+  <div class="progress-bar hidden" id="progress-bar">
+    <div class="progress-user">
+      <img id="progress-avatar" src="" alt="">
+      <span id="progress-name"></span>
+      <button class="signout-link" onclick="signOutGoogle()">Sign out</button>
+    </div>
+    <div style="display:flex; gap:22px;">
+      <div class="progress-stat">
+        <div class="num" id="stat-streak">0</div>
+        <div class="lbl">Day streak</div>
+      </div>
+      <div class="progress-stat">
+        <div class="num" id="stat-longest">0</div>
+        <div class="lbl">Best streak</div>
+      </div>
+      <div class="progress-stat">
+        <div class="num" id="stat-total">0</div>
+        <div class="lbl">Drills total</div>
+      </div>
+    </div>
+  </div>
+
   <div class="section-label">1 · Pick a sport</div>
   <div class="sport-grid" id="sport-grid"></div>
 
@@ -531,6 +633,111 @@
     <div class="debug-empty">No logs yet — this fills up as you use the app.</div>
   </div>
 </div>
+
+<script>
+// ---- Google login + progress tracking (via Supabase) ----
+const SUPABASE_URL = "https://iplvvkvttumbrlueowou.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwbHZ2a3Z0dHVtYnJsdWVvd291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0MjI5MTMsImV4cCI6MjA5OTk5ODkxM30.xr2SHqUdIc6GpvKtrXC8DBKq_Nnlt3V0jmO70fEWEqo";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function signInWithGoogle(){
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+  if(error) console.error('Google sign-in failed:', error.message);
+}
+
+async function signOutGoogle(){
+  await sb.auth.signOut();
+  document.getElementById('progress-bar').classList.add('hidden');
+  document.getElementById('login-overlay').classList.remove('hidden');
+}
+
+async function checkGoogleSession(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session && session.user){
+    document.getElementById('login-overlay').classList.add('hidden');
+    showProgressBar(session.user);
+    await loadProgress(session.user.id);
+  }
+  return session;
+}
+
+function showProgressBar(user){
+  const bar = document.getElementById('progress-bar');
+  bar.classList.remove('hidden');
+  document.getElementById('progress-name').textContent = user.user_metadata?.full_name || user.email || 'Athlete';
+  const avatar = document.getElementById('progress-avatar');
+  if(user.user_metadata?.avatar_url){
+    avatar.src = user.user_metadata.avatar_url;
+    avatar.style.display = 'block';
+  }else{
+    avatar.style.display = 'none';
+  }
+}
+
+async function loadProgress(userId){
+  const { data, error } = await sb.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
+  if(error){ console.error('Could not load progress:', error.message); return; }
+  if(data){
+    document.getElementById('stat-streak').textContent = data.current_streak;
+    document.getElementById('stat-longest').textContent = data.longest_streak;
+    document.getElementById('stat-total').textContent = data.total_drills_completed;
+  }else{
+    document.getElementById('stat-streak').textContent = '0';
+    document.getElementById('stat-longest').textContent = '0';
+    document.getElementById('stat-total').textContent = '0';
+  }
+}
+
+// Called after every successful drill result (text or video) to log
+// the session and update the person's streak.
+async function recordDrillCompletion(sport, source, summary){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return; // not signed in with Google — nothing to save
+
+  const userId = session.user.id;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: existing } = await sb.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
+
+  let newStreak = 1;
+  let newLongest = 1;
+  let newTotal = 1;
+
+  if(existing){
+    newTotal = existing.total_drills_completed + 1;
+    newLongest = existing.longest_streak;
+
+    if(existing.last_active_date === today){
+      newStreak = existing.current_streak; // already logged today, streak unchanged
+    }else{
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      newStreak = (existing.last_active_date === yesterday) ? existing.current_streak + 1 : 1;
+    }
+    newLongest = Math.max(newLongest, newStreak);
+  }
+
+  await sb.from('user_progress').upsert({
+    user_id: userId,
+    current_streak: newStreak,
+    longest_streak: newLongest,
+    total_drills_completed: newTotal,
+    last_active_date: today,
+    updated_at: new Date().toISOString()
+  });
+
+  await sb.from('drill_history').insert({
+    user_id: userId,
+    sport,
+    source,
+    summary: summary || null
+  });
+
+  await loadProgress(userId);
+}
+</script>
 
 <script>
 // ---- Diagnostic panel for testing mode ----
@@ -643,6 +850,7 @@ function copyDebugLogs(){
     document.getElementById('login-overlay').classList.add('hidden');
   }
 })();
+checkGoogleSession();
 
 async function tryLogin(){
   const username = document.getElementById('login-username').value;
@@ -774,6 +982,8 @@ Include exactly 4 drills, ordered from most foundational to more advanced. Keep 
       `;
       resultsEl.appendChild(card);
     });
+
+    recordDrillCompletion(selectedSport, 'text', parsed.summary);
   }catch(err){
     statusEl.textContent = '';
     const errBox = document.createElement('div');
@@ -959,6 +1169,8 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       `;
       resultsEl.appendChild(card);
     });
+
+    recordDrillCompletion(selectedSport, 'video', parsed.summary);
   }catch(err){
     statusEl.textContent = '';
     const errBox = document.createElement('div');
