@@ -1,5 +1,9 @@
 # Gritto — Version Log
 
+## v3.0.1 — Better Settings icon + fixed wrong video frames
+- Replaced the muddy, hard-to-read gear icon with a simpler, bolder one that reads clearly at small nav size
+- Fixed a real bug causing wrong/unrelated frames during video upload: the app was only loading minimal video info upfront, which on some phones let the browser report a frame "ready" before it had actually finished decoding the correct one — fixed by buffering more upfront and waiting for the real frame to actually paint before capturing it
+
 ## v3.0.0 — New Settings page
 - Added a 4th bottom-nav tab: **Settings**
 - Profile card (name, email, photo) with a proper Sign Out button
