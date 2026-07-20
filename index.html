@@ -1752,6 +1752,28 @@ async function saveVideoHistory(sport, role, parsed){
 </script>
 
 <script>
+// ---- Keep the bottom nav genuinely pinned on iOS ----
+// CSS position:fixed alone isn't reliable on iOS Safari when the file
+// picker or keyboard opens/closes — the browser's "layout viewport" can
+// get out of sync with what's actually visible. The VisualViewport API
+// reports the true visible area, so we use it to actively correct the
+// nav's position instead of just hoping CSS keeps up.
+(function(){
+  const nav = document.querySelector('.bottom-nav');
+  if(!nav || !window.visualViewport) return;
+
+  function pinNav(){
+    const vv = window.visualViewport;
+    const offset = window.innerHeight - (vv.height + vv.offsetTop);
+    nav.style.transform = `translate3d(0, ${Math.max(0, Math.round(offset)) * -1}px, 0)`;
+  }
+
+  window.visualViewport.addEventListener('resize', pinNav);
+  window.visualViewport.addEventListener('scroll', pinNav);
+  window.addEventListener('scroll', pinNav);
+  pinNav();
+})();
+
 // ---- Diagnostic panel for testing mode ----
 // Catches console messages, uncaught errors, and fetch calls so you can
 // see (and copy/share) exactly what happened without needing dev tools.
@@ -1767,6 +1789,17 @@ function formatArg(a){
 
 function pushDebugLog(level, args){
   const msg = args.map(formatArg).join(' ');
+
+  // MediaPipe (the video silhouette feature) prints a lot of normal,
+  // harmless startup chatter — filter it out so the panel stays focused
+  // on things that might actually be wrong.
+  const noisyPatterns = [
+    'gl_context', 'gl_context_webgl', 'GL version', 'OpenGL error checking',
+    'mediapipe_wasm', 'selfie_segmentation', 'INFO: Created TensorFlow Lite',
+    'XNNPACK', 'Graph successfully started'
+  ];
+  if(noisyPatterns.some(p => msg.includes(p))) return;
+
   debugLogs.push({ level, msg, time: new Date().toLocaleTimeString() });
   if(debugLogs.length > 300) debugLogs.shift();
   renderDebugLogs();
@@ -1795,10 +1828,16 @@ window.fetch = function(...args){
   const start = performance.now();
   return originalFetch.apply(this, args).then(res => {
     const ms = Math.round(performance.now() - start);
-    pushDebugLog(res.ok ? 'log' : 'error', [`fetch ${url} → ${res.status} (${ms}ms)`]);
+    // Skip logging MediaPipe's own internal asset loading (wasm/model
+    // files) — noisy and not something you'd ever need to act on.
+    if(!url.includes('mediapipe')){
+      pushDebugLog(res.ok ? 'log' : 'error', [`fetch ${url} → ${res.status} (${ms}ms)`]);
+    }
     return res;
   }).catch(err => {
-    pushDebugLog('error', [`fetch ${url} failed: ${err.message}`]);
+    if(!url.includes('mediapipe')){
+      pushDebugLog('error', [`fetch ${url} failed: ${err.message}`]);
+    }
     throw err;
   });
 };
@@ -3197,30 +3236,60 @@ function extractFrames(file){
     const strip = document.getElementById('frame-strip');
     strip.innerHTML = '';
 
+    // Checks whether a captured frame looks suspiciously blank/flat —
+    // like plain sky, an overexposed wall, or a stuck/blurred frame —
+    // by sampling pixel brightness and measuring how much it varies.
+    // Real footage of a person moving has a lot of variation; a blank
+    // frame doesn't.
+    function looksBlank(){
+      const w = canvas.width, h = canvas.height;
+      const sampleSize = 40;
+      const data = ctx.getImageData(0, 0, w, h).data;
+      const step = Math.max(1, Math.floor((w * h) / (sampleSize * sampleSize)));
+      let sum = 0, sumSq = 0, n = 0;
+      for(let i = 0; i < data.length; i += step * 4){
+        const lum = (data[i] + data[i+1] + data[i+2]) / 3;
+        sum += lum; sumSq += lum * lum; n++;
+      }
+      const mean = sum / n;
+      const variance = (sumSq / n) - (mean * mean);
+      return variance < 120; // very low variation = likely a blank/flat frame
+    }
+
+    async function captureAt(t){
+      return new Promise((resolve) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              resolve();
+            });
+          });
+        };
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = Math.max(0, Math.min(t, duration - 0.05));
+      });
+    }
+
     try{
       for(const t of timestamps){
-        await new Promise((resolve, reject) => {
-          const onSeeked = () => {
-            video.removeEventListener('seeked', onSeeked);
-            // On some phones the "seeked" event can fire just before the
-            // real frame is actually painted, capturing a stale/wrong
-            // one instead. Waiting two animation frames first fixes it.
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                extractedFrames.push(dataUrl.split(',')[1]);
-                rawDataUrls.push(dataUrl);
-                const img = document.createElement('img');
-                img.src = dataUrl;
-                strip.appendChild(img);
-                resolve();
-              });
-            });
-          };
-          video.addEventListener('seeked', onSeeked);
-          video.currentTime = Math.min(t, duration - 0.05);
-        });
+        await captureAt(t);
+        // If the frame looks blank, nudge forward a bit and try again —
+        // up to 3 total attempts before just accepting whatever we have.
+        let attempts = 1;
+        const nudges = [0.35, 0.7, -0.35];
+        while(looksBlank() && attempts <= nudges.length){
+          await captureAt(t + nudges[attempts - 1]);
+          attempts++;
+        }
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        extractedFrames.push(dataUrl.split(',')[1]);
+        rawDataUrls.push(dataUrl);
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        strip.appendChild(img);
       }
       statusEl.textContent = extractedFrames.length + ' frames captured. Pick your role below.';
       renderRoleOptions(selectedSport);
