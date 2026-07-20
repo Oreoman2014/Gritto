@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v2.9.2 — Clarify older video entries + widen match window
+- Confirmed: your earliest video checks predate the video history feature (v2.7.0), so there's genuinely no thumbnail/breakdown to link to for those — not a bug, just missing historical data we can't recreate
+- The app now says so directly instead of silently falling back to plain text, so it's clear why
+- Widened the matching time window (1 min → 5 min) between a Recent Activity entry and its Video History record, in case a slow connection ever pushed the two save times further apart than expected
+
 ## v2.9.1 — Video activity taps into the full video view
 - Tapping a "Video check" entry in Recent Activity now scrolls to and opens that session in the "Your video history" section — same rich view with the thumbnail, good/fix breakdown, and drills — instead of a plain text box
 - Added the thumbnail image itself to that detail view (it only showed text before)
