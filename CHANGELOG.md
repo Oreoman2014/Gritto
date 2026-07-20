@@ -1,5 +1,16 @@
 # Gritto — Version Log
 
+## v3.0.0 — New Settings page
+- Added a 4th bottom-nav tab: **Settings**
+- Profile card (name, email, photo) with a proper Sign Out button
+- App info: current version number, beta status
+- "How Gritto works" — a short explanation of each page, plus the coaching disclaimer
+- Manage my data: clear video history or clear your whole activity log, each with a confirmation first
+- Send feedback / report a bug — a simple message box that saves your note (viewable later in Supabase's Table Editor)
+- New database table: feedback_reports (write-only for users — you view submissions directly as the owner)
+- Fixed a missing permission: drill_history was missing a delete policy, needed for "Clear my activity log" to actually work
+- Note: Premium/payments and an admin analytics dashboard were intentionally left out of this — that's a bigger, separate project involving real payment processing, planned for later
+
 ## v2.9.2 — Clarify older video entries + widen match window
 - Confirmed: your earliest video checks predate the video history feature (v2.7.0), so there's genuinely no thumbnail/breakdown to link to for those — not a bug, just missing historical data we can't recreate
 - The app now says so directly instead of silently falling back to plain text, so it's clear why
