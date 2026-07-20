@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v1.9.0 — Fixed blurry "Your motion" + added equipment
+- Fixed the blurry/smoky "Your motion" silhouette: the person-detector was returning a soft, semi-transparent shape instead of a hard yes/no cutout — now every pixel is cleanly thresholded to solid figure or fully transparent
+- Added a quality check: if a frame's detection looks unreliable (way too little or way too much marked as "person"), it's skipped instead of shown broken; if too many frames fail, the whole section is hidden rather than showing something bad
+- Bumped the captured video frame resolution (480px → 640px) for cleaner detection
+- Added simple sport equipment to the drill figures: bat (baseball), ball (basketball/soccer/volleyball), football, golf club, tennis racket — attached to the hand so it moves with the swing
+
 ## v1.8.0 — Bigger white/black line-art figures
 - Redesigned the generic drill figure: much bigger (150×180 instead of 60×78), white body fill with bold black outlines — original line-art style, not a copy of any reference image
 - Each drill now gets its own full card with the figure front and center
