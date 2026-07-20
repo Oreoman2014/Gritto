@@ -1963,6 +1963,14 @@ function closeVideoHistoryDetail(){
 }
 
 async function loadHomeData(){
+  // The routine's streak/stats only exist in memory once the Daily
+  // Routine page has loaded them. If Home loads first (it's the default
+  // landing page), make sure that happens now instead of showing 0.
+  if(!routineLoadAttempted){
+    routineLoadAttempted = true;
+    await loadSavedRoutine();
+  }
+
   document.getElementById('home-drills-streak').textContent = drillProgress.current_streak || 0;
   document.getElementById('home-routine-streak').textContent = (currentRoutine && currentRoutine.current_streak) || 0;
 
