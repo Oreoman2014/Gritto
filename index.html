@@ -954,6 +954,66 @@
     margin-top:14px;
   }
 
+  .video-history-strip{
+    display:flex;
+    gap:10px;
+    overflow-x:auto;
+    padding-bottom:4px;
+  }
+  .video-history-thumb{
+    flex-shrink:0;
+    width:90px;
+    cursor:pointer;
+    text-align:center;
+  }
+  .video-history-thumb img{
+    width:90px; height:90px;
+    object-fit:cover;
+    border-radius:12px;
+    border:2px solid var(--line);
+    display:block;
+  }
+  .video-history-thumb.active img{border-color:var(--turf);}
+  .video-history-thumb .vh-sport{
+    font-size:11px;
+    font-weight:700;
+    color:var(--ink);
+    margin-top:5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .video-history-thumb .vh-date{
+    font-size:10px;
+    color:var(--ink-soft);
+    font-family:'IBM Plex Mono',monospace;
+  }
+  #video-history-detail{margin-top:14px;}
+  .vh-detail-card{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+  }
+  .vh-detail-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:10px;
+  }
+  .vh-detail-head h4{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:16px;
+    margin:0;
+    color:var(--ink);
+  }
+  .vh-close-btn{
+    background:none; border:none; color:var(--ink-soft);
+    font-size:20px; line-height:1; cursor:pointer; padding:0 0 0 10px;
+  }
+
   .bottom-nav{
     position:fixed;
     bottom:0; left:0; right:0;
@@ -1177,6 +1237,10 @@
         <div class="home-stat-lbl" id="home-stat-bigday-lbl">Biggest practice day</div>
       </div>
     </div>
+
+    <div class="section-label" style="margin-top:20px;">Your video history</div>
+    <div class="video-history-strip" id="video-history-strip"></div>
+    <div id="video-history-detail"></div>
 
     <div class="section-label" style="margin-top:20px;">Recent activity</div>
     <div id="home-activity-list"></div>
@@ -1429,6 +1493,29 @@ async function recordDrillCompletion(sport, source, summary){
   });
 
   await loadProgress(userId);
+}
+
+// Saves one thumbnail frame + the AI's written breakdown so past video
+// checks can be browsed later, without storing the whole video.
+async function saveVideoHistory(sport, role, parsed){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session || !extractedFrames.length) return;
+
+  const midFrame = extractedFrames[Math.floor(extractedFrames.length / 2)];
+  try{
+    await sb.from('video_analysis_history').insert({
+      user_id: session.user.id,
+      sport,
+      role,
+      summary: parsed.summary || null,
+      good: parsed.good || [],
+      fix: parsed.fix || [],
+      drills: parsed.drills || [],
+      thumbnail: `data:image/jpeg;base64,${midFrame}`
+    });
+  }catch(err){
+    console.error('Could not save video history:', err.message);
+  }
 }
 </script>
 
@@ -1798,6 +1885,83 @@ function timeAgo(dateStr){
   return new Date(dateStr).toLocaleDateString();
 }
 
+// ---- Video history ----
+let videoHistoryCache = [];
+
+async function loadVideoHistory(){
+  const { data: { session } } = await sb.auth.getSession();
+  const stripEl = document.getElementById('video-history-strip');
+  if(!session) return;
+
+  try{
+    const { data, error } = await sb.from('video_analysis_history')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if(error){ console.error('Could not load video history:', error.message); return; }
+
+    videoHistoryCache = data || [];
+    if(videoHistoryCache.length === 0){
+      stripEl.innerHTML = '<div class="home-empty" style="width:100%;">Upload a video on the Drills page to start building your history here.</div>';
+      return;
+    }
+
+    stripEl.innerHTML = videoHistoryCache.map((v, i) => `
+      <div class="video-history-thumb" id="vh-thumb-${i}" onclick="selectVideoHistoryItem(${i})">
+        <img src="${v.thumbnail}" alt="${v.sport} video check">
+        <div class="vh-sport">${v.sport}</div>
+        <div class="vh-date">${new Date(v.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+      </div>
+    `).join('');
+  }catch(err){
+    console.error('Video history load failed:', err.message);
+  }
+}
+
+function selectVideoHistoryItem(i){
+  const v = videoHistoryCache[i];
+  if(!v) return;
+
+  document.querySelectorAll('.video-history-thumb').forEach(el => el.classList.remove('active'));
+  const thumb = document.getElementById(`vh-thumb-${i}`);
+  if(thumb) thumb.classList.add('active');
+
+  const goodItems = (v.good || []).map(g => `<li class="obs-good"><svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>${g}</li>`).join('');
+  const fixItems = (v.fix || []).map(f => `<li class="obs-fix"><svg viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>${f}</li>`).join('');
+  const drillsHtml = (v.drills || []).map(d => `
+    <div class="drill-card">
+      <div class="drill-title">${d.title}</div>
+      ${buildDrillDemo(d.motion, d.focus, v.sport)}
+      <div class="drill-desc">${d.description}</div>
+      ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
+    </div>
+  `).join('');
+
+  document.getElementById('video-history-detail').innerHTML = `
+    <div class="vh-detail-card">
+      <div class="vh-detail-head">
+        <div>
+          <h4>${v.sport}${v.role ? ' · ' + v.role : ''}</h4>
+          <div class="vh-date">${new Date(v.created_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+        </div>
+        <button class="vh-close-btn" onclick="closeVideoHistoryDetail()">&times;</button>
+      </div>
+      <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 12px;">${v.summary || ''}</p>
+      <label>What's looking good</label>
+      <ul class="obs-list">${goodItems}</ul>
+      <label style="margin-top:10px;">What to work on</label>
+      <ul class="obs-list">${fixItems}</ul>
+      ${drillsHtml}
+    </div>
+  `;
+}
+
+function closeVideoHistoryDetail(){
+  document.getElementById('video-history-detail').innerHTML = '';
+  document.querySelectorAll('.video-history-thumb').forEach(el => el.classList.remove('active'));
+}
+
 async function loadHomeData(){
   document.getElementById('home-drills-streak').textContent = drillProgress.current_streak || 0;
   document.getElementById('home-routine-streak').textContent = (currentRoutine && currentRoutine.current_streak) || 0;
@@ -1807,12 +1971,15 @@ async function loadHomeData(){
   if(!session){
     signinNote.textContent = 'Sign in with Google to see your stats and activity here.';
     document.getElementById('home-activity-list').innerHTML = '';
+    document.getElementById('video-history-strip').innerHTML = '';
+    document.getElementById('video-history-detail').innerHTML = '';
     document.getElementById('home-stat-days').textContent = '—';
     document.getElementById('home-stat-drills').textContent = '—';
     document.getElementById('home-stat-bigday').textContent = '—';
     return;
   }
   signinNote.textContent = '';
+  loadVideoHistory();
 
   try{
     const { data, error } = await sb.from('drill_history')
@@ -2593,6 +2760,7 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
     });
 
     recordDrillCompletion(selectedSport, 'video', parsed.summary);
+    saveVideoHistory(selectedSport, selectedRole, parsed);
   }catch(err){
     statusEl.textContent = '';
     const errBox = document.createElement('div');
