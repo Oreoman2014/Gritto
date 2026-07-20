@@ -961,7 +961,9 @@
     border-radius:12px;
     padding:11px 14px;
     margin-bottom:8px;
+    cursor:pointer;
   }
+  .home-activity-item.active{border-color:var(--turf);}
   .home-activity-icon{
     width:34px; height:34px;
     border-radius:9px;
@@ -977,6 +979,21 @@
   .home-activity-title{font-size:13.5px; font-weight:600; color:var(--ink);}
   .home-activity-sub{font-size:11.5px; color:var(--ink-soft); margin-top:1px;}
   .home-activity-time{font-size:11px; color:var(--ink-soft); white-space:nowrap; font-family:'IBM Plex Mono',monospace;}
+  #home-activity-detail{margin-bottom:14px;}
+  .ha-detail-step{
+    padding:9px 0;
+    border-top:1px solid var(--line);
+  }
+  .ha-detail-step:first-child{border-top:none;}
+  .ha-detail-step-title{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .ha-detail-step-cue{font-size:12px; color:var(--ink-soft); margin-top:2px;}
   .home-empty{
     background:#fff;
     border:1.5px dashed var(--line);
@@ -1289,6 +1306,7 @@
 
     <div class="section-label" style="margin-top:20px;">Recent activity</div>
     <div id="home-activity-list"></div>
+    <div id="home-activity-detail"></div>
     <div class="home-signin-note" id="home-signin-note"></div>
   </div>
 
@@ -1923,10 +1941,67 @@ const activityIcons = {
   routine: '<circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/>'
 };
 
+let homeActivityRows = [];
+
 function truncateText(text, maxLen){
   if(!text) return '';
   if(text.length <= maxLen) return text;
   return text.slice(0, maxLen).trim() + '…';
+}
+
+function selectActivityItem(i){
+  const r = homeActivityRows[i];
+  if(!r) return;
+
+  document.querySelectorAll('.home-activity-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`ha-item-${i}`);
+  if(el) el.classList.add('active');
+
+  const detail = document.getElementById('home-activity-detail');
+  const dateStr = new Date(r.created_at).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  if(r.source === 'routine' && r.items && r.items.length){
+    const itemsHtml = r.items.map(it => `
+      <div class="ha-detail-step">
+        <div class="ha-detail-step-title">
+          <span>${it.name}</span>
+          <span class="routine-item-min">${it.reps ? `${it.reps} reps` : `${it.minutes} min`}</span>
+        </div>
+        ${it.cue ? `<div class="ha-detail-step-cue">${it.cue}</div>` : ''}
+      </div>
+    `).join('');
+    detail.innerHTML = `
+      <div class="vh-detail-card">
+        <div class="vh-detail-head">
+          <div>
+            <h4>${r.sport} routine</h4>
+            <div class="vh-date">${dateStr}${r.minutes ? ' · ' + r.minutes + ' min' : ''}</div>
+          </div>
+          <button class="vh-close-btn" onclick="closeActivityDetail()">&times;</button>
+        </div>
+        <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 10px;">${r.summary || ''}</p>
+        ${itemsHtml}
+      </div>
+    `;
+  }else{
+    detail.innerHTML = `
+      <div class="vh-detail-card">
+        <div class="vh-detail-head">
+          <div>
+            <h4>${r.sport}</h4>
+            <div class="vh-date">${dateStr}</div>
+          </div>
+          <button class="vh-close-btn" onclick="closeActivityDetail()">&times;</button>
+        </div>
+        <p style="font-size:13.5px; color:var(--ink); margin:0; line-height:1.5;">${r.summary || 'No details saved for this one.'}</p>
+      </div>
+    `;
+  }
+}
+
+function closeActivityDetail(){
+  document.getElementById('home-activity-detail').innerHTML = '';
+  document.querySelectorAll('.home-activity-item').forEach(el => el.classList.remove('active'));
 }
 
 function timeAgo(dateStr){
@@ -2084,15 +2159,17 @@ async function loadHomeData(){
 
     // Recent activity feed
     const listEl = document.getElementById('home-activity-list');
-    if(rows.length === 0){
+    homeActivityRows = rows.slice(0, 8);
+    document.getElementById('home-activity-detail').innerHTML = '';
+    if(homeActivityRows.length === 0){
       listEl.innerHTML = '<div class="home-empty">Nothing yet — get some drills or complete your daily routine to see it here.</div>';
     }else{
-      listEl.innerHTML = rows.slice(0, 8).map(r => {
+      listEl.innerHTML = homeActivityRows.map((r, i) => {
         const icon = activityIcons[r.source] || activityIcons.text;
         const titleMap = { text: 'Drills · ', video: 'Video check · ', routine: 'Daily routine · ' };
         const title = (titleMap[r.source] || '') + r.sport;
         return `
-          <div class="home-activity-item">
+          <div class="home-activity-item" id="ha-item-${i}" onclick="selectActivityItem(${i})">
             <div class="home-activity-icon"><svg viewBox="0 0 24 24" fill="none">${icon}</svg></div>
             <div class="home-activity-body">
               <div class="home-activity-title">${title}</div>
@@ -2552,7 +2629,8 @@ async function finalizeRoutineCompletion(minutesPracticed){
         sport: currentRoutine.sport,
         source: 'routine',
         summary: currentRoutine.goal,
-        minutes: minutesPracticed
+        minutes: minutesPracticed,
+        items: currentRoutine.items
       }).select().single();
       if(data) todayRoutineHistoryId = data.id;
     }catch(err){
