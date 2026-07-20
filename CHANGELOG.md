@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v2.9.1 — Video activity taps into the full video view
+- Tapping a "Video check" entry in Recent Activity now scrolls to and opens that session in the "Your video history" section — same rich view with the thumbnail, good/fix breakdown, and drills — instead of a plain text box
+- Added the thumbnail image itself to that detail view (it only showed text before)
+- Drill/Routine entries in Recent Activity are unaffected — still expand in place as before
+
 ## v2.9.0 — Tap Recent Activity for full details
 - Tapping any Recent Activity item now expands it to show more
 - For Drills/Video entries: shows the full, untruncated text instead of the cut-off preview
