@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v2.3.0 — Split stats by page + practice-time tracking
+- Drills page now shows only: day streak, drills total
+- Daily Routine page shows its own separate stats: current streak, best streak, and total time practiced — tracked independently from Drills
+- After marking a routine complete, it now asks "About how long did you practice today?" with a minutes input, or a "Not sure? Just use the estimated time" option that falls back to the routine's own estimated total
+- New database columns on user_routine: current_streak, longest_streak, total_minutes_practiced
+- Rebuilding a routine's content no longer resets your streak or time practiced — those stay tied to you, not the specific routine
+
 ## v2.2.0 — Sport picker back on Daily Routine page
 - Added the sport grid to the Daily Routine page too, so you don't have to jump to Drills first
 - Picking a sport on either page instantly syncs to the other
