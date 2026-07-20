@@ -1,5 +1,18 @@
 # Gritto — Version Log
 
+## v2.1.0 — Bottom nav + Daily Routine redesigned as a path
+- Replaced the 3-way top tabs with a fixed bottom menu (like a real app): **Drills** and **Daily Routine**
+- **Drills** page is the familiar home experience — sport picker, "Describe it" / "Upload a video"
+- **Daily Routine** is now its own full page, redesigned as a connected path: numbered steps linked by a line, each showing either minutes or reps next to it
+- Routine items now use minutes OR reps (whichever fits the activity) instead of always minutes
+- Sport selection stays in sync between both pages
+
+## v2.0.0 — Daily Routine feature
+- New feature: build a short 5-10 minute daily routine around a goal
+- Routine saved per-user in Supabase, persists across sessions
+- Checklist UI with daily reset; completing it feeds the existing streak system
+- New database table: user_routine (RLS locked to each user's own row)
+
 ## v1.9.0 — Fixed blurry "Your motion" + added equipment
 - Fixed the blurry/smoky "Your motion" silhouette: the person-detector was returning a soft, semi-transparent shape instead of a hard yes/no cutout — now every pixel is cleanly thresholded to solid figure or fully transparent
 - Added a quality check: if a frame's detection looks unreliable (way too little or way too much marked as "person"), it's skipped instead of shown broken; if too many frames fail, the whole section is hidden rather than showing something bad
