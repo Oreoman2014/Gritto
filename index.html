@@ -1127,10 +1127,34 @@ const AI_HELPER_URL = "https://iplvvkvttumbrlueowou.supabase.co/functions/v1/for
 const validMotions = ['squat','swing','throw','jump','lunge','rotate','run'];
 const validFocuses = ['knees','hips','shoulders','elbow','wrist','feet','core','eyes'];
 
-function buildSilhouetteFigureSVG(){
+// Simple equipment drawn attached to the right hand, positioned so it
+// rotates naturally with the forearm since it's nested inside that group.
+function getEquipmentSVG(sport, S, F){
+  switch(sport){
+    case 'Baseball':
+      return `<rect x="-2" y="24" width="4" height="16" rx="2" fill="${F}" stroke="${S}" stroke-width="2"/><rect x="-4.5" y="39" width="9" height="18" rx="4.5" fill="${F}" stroke="${S}" stroke-width="2"/>`;
+    case 'Basketball':
+      return `<circle cx="9" cy="30" r="10" fill="${F}" stroke="${S}" stroke-width="2.5"/><path d="M 9 20 V 40 M -1 30 H 19 M 1.5 23 Q 9 30 1.5 37 M 16.5 23 Q 9 30 16.5 37" stroke="${S}" stroke-width="1.5" fill="none"/>`;
+    case 'Soccer':
+      return `<circle cx="9" cy="30" r="10" fill="${F}" stroke="${S}" stroke-width="2.5"/><path d="M9 23 L4 27 L6 34 L12 34 L14 27 Z" fill="${S}"/>`;
+    case 'Volleyball':
+      return `<circle cx="9" cy="30" r="10" fill="${F}" stroke="${S}" stroke-width="2.5"/><path d="M 2 24 Q 9 30 2 36 M 16 24 Q 9 30 16 36 M 9 20 Q 5 30 9 40" stroke="${S}" stroke-width="1.5" fill="none"/>`;
+    case 'Football':
+      return `<ellipse cx="9" cy="30" rx="11" ry="7" fill="${F}" stroke="${S}" stroke-width="2.5" transform="rotate(35 9 30)"/><line x1="4" y1="27" x2="14" y2="33" stroke="${S}" stroke-width="1.5" transform="rotate(35 9 30)"/>`;
+    case 'Golf':
+      return `<line x1="0" y1="25" x2="11" y2="72" stroke="${S}" stroke-width="3" stroke-linecap="round"/><path d="M9 68 L18 74 L13 79 L4 72 Z" fill="${F}" stroke="${S}" stroke-width="2" stroke-linejoin="round"/>`;
+    case 'Tennis':
+      return `<circle cx="5" cy="18" r="10" fill="none" stroke="${S}" stroke-width="2.5"/><path d="M5 8 V28 M-5 18 H15" stroke="${S}" stroke-width="1.2"/><line x1="5" y1="28" x2="5" y2="52" stroke="${S}" stroke-width="4" stroke-linecap="round"/>`;
+    default:
+      return '';
+  }
+}
+
+function buildSilhouetteFigureSVG(sport){
   const S = '#181C1F'; // stroke (outline)
   const F = '#FFFFFF'; // fill (white body, like the reference style)
   const W = 3;         // stroke width
+  const equipment = getEquipmentSVG(sport, S, F);
   return `
     <svg viewBox="0 0 120 172">
       <ellipse cx="60" cy="166" rx="34" ry="4" fill="#E4E9EF"/>
@@ -1147,7 +1171,7 @@ function buildSilhouetteFigureSVG(){
           <g transform="translate(14,-45)">
             <g class="sf-uarm-r">
               <path d="M 6 0 Q 11 14 9 29 L 0 29 Q 0 14 -3 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>
-              <g transform="translate(4,29)"><g class="sf-farm-r"><path d="M 5 0 Q 7 13 5 25 L -4 25 Q -4 13 -4 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/></g></g>
+              <g transform="translate(4,29)"><g class="sf-farm-r"><path d="M 5 0 Q 7 13 5 25 L -4 25 Q -4 13 -4 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>${equipment}</g></g>
             </g>
           </g>
         </g>
@@ -1168,14 +1192,14 @@ function buildSilhouetteFigureSVG(){
   `;
 }
 
-function buildDrillDemo(motion, focus){
+function buildDrillDemo(motion, focus, sport){
   const m = validMotions.includes(motion) ? motion : 'rotate';
   const f = validFocuses.includes(focus) ? focus : 'core';
   return `
     <div class="drill-demo">
       <div class="demo-stage motion-${m}">
         <div class="demo-figure" style="position:relative; width:100%; height:100%;">
-          ${buildSilhouetteFigureSVG()}
+          ${buildSilhouetteFigureSVG(sport)}
           <div class="focus-dot demo-focus-pos-${f}"></div>
         </div>
       </div>
@@ -1336,7 +1360,7 @@ Include exactly 4 drills, ordered from most foundational to more advanced. The "
       card.innerHTML = `
         <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
         <div class="drill-title">${d.title}</div>
-        ${buildDrillDemo(d.motion, d.focus)}
+        ${buildDrillDemo(d.motion, d.focus, selectedSport)}
         <div class="drill-desc">${d.description}</div>
         ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
       `;
@@ -1417,21 +1441,56 @@ async function processSilhouettes(rawDataUrls){
       const img = await loadImageFromDataUrl(dataUrl);
       latestSegResult = null;
       await seg.send({ image: img });
-      if(!latestSegResult){
-        await new Promise(r => setTimeout(r, 80));
+
+      // Poll briefly for the result instead of one fixed short wait —
+      // more reliable across devices/browsers than a single 80ms guess.
+      let waited = 0;
+      while(!latestSegResult && waited < 600){
+        await new Promise(r => setTimeout(r, 30));
+        waited += 30;
       }
       if(!latestSegResult || !latestSegResult.segmentationMask) continue;
 
       const w = img.naturalWidth, h = img.naturalHeight;
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(latestSegResult.segmentationMask, 0, 0, w, h);
-      ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = '#181C1F';
-      ctx.fillRect(0, 0, w, h);
-      silhouetteFrames.push(canvas.toDataURL('image/png'));
+
+      // Draw the raw mask (a soft, semi-transparent confidence map) onto
+      // its own canvas so we can read and clean up its pixel values.
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = w; maskCanvas.height = h;
+      const maskCtx = maskCanvas.getContext('2d');
+      maskCtx.drawImage(latestSegResult.segmentationMask, 0, 0, w, h);
+      const maskData = maskCtx.getImageData(0, 0, w, h);
+
+      // Threshold every pixel to a hard yes/no — this is what turns a
+      // smoky, semi-transparent blob into a crisp, clean silhouette.
+      const out = maskCtx.createImageData(w, h);
+      let personPixels = 0;
+      for(let i = 0; i < maskData.data.length; i += 4){
+        const confidence = maskData.data[i]; // R channel carries the mask value
+        const isPerson = confidence > 140;
+        if(isPerson){
+          out.data[i] = 24; out.data[i+1] = 28; out.data[i+2] = 31; out.data[i+3] = 255;
+          personPixels++;
+        }else{
+          out.data[i+3] = 0;
+        }
+      }
+
+      // Quality gate: if almost nothing (or almost everything) got
+      // detected as "person", the mask is unreliable for this frame —
+      // skip it rather than show a broken smear.
+      const ratio = personPixels / (w * h);
+      if(ratio < 0.03 || ratio > 0.75) continue;
+
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      outCanvas.getContext('2d').putImageData(out, 0, 0);
+      silhouetteFrames.push(outCanvas.toDataURL('image/png'));
     }
+
+    // If most frames failed the quality gate, don't show a section
+    // built from only 1-2 shaky frames — better to skip it cleanly.
+    if(silhouetteFrames.length < 3) silhouetteFrames = [];
   }catch(err){
     console.error('Silhouette processing skipped:', err.message);
     silhouetteFrames = [];
@@ -1473,8 +1532,8 @@ function extractFrames(file){
     const count = 5;
     const timestamps = Array.from({length: count}, (_, i) => (duration * (i + 0.5)) / count);
     const canvas = document.createElement('canvas');
-    canvas.width = 480;
-    canvas.height = 480 * (video.videoHeight / video.videoWidth || 0.75);
+    canvas.width = 640;
+    canvas.height = 640 * (video.videoHeight / video.videoWidth || 0.75);
     const ctx = canvas.getContext('2d');
     extractedFrames = [];
     const rawDataUrls = [];
@@ -1598,7 +1657,7 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       card.innerHTML = `
         <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
         <div class="drill-title">${d.title}</div>
-        ${buildDrillDemo(d.motion, d.focus)}
+        ${buildDrillDemo(d.motion, d.focus, selectedSport)}
         <div class="drill-desc">${d.description}</div>
         ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
       `;
