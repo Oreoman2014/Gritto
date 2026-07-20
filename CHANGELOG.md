@@ -1,5 +1,24 @@
 # Gritto — Version Log
 
+## v1.7.0 — Real silhouette from your own video + solid generic figure
+- Superseded v1.6.0's Lottie plan — dropped it entirely, no external files to source
+- **Video flow:** when you upload a clip, the app now runs your own frames through a free, browser-based person-detector (MediaPipe Selfie Segmentation) and builds a small looping "Your motion" silhouette animation from YOUR real movement — shown above the drills, labeled "Built from the actual clip you uploaded — this is really you."
+- **Text flow (no video to draw from):** drill cards now show a solid, filled human-silhouette figure instead of the old thin stick figure — same real-joint bending animations as before, just looks like an actual person-shaped silhouette
+- If silhouette processing fails or isn't supported on a device, the app just quietly skips that section — nothing breaks
+- No `animations/` folder or ADDING_ANIMATIONS.md needed anymore
+
+## v1.6.0 — Real animated drill demos (Lottie) — superseded, see v1.7.0
+- Each drill card now tries to load a professionally-animated character (via Lottie) matching the drill's motion, instead of the hand-built stick figure
+- If a Lottie file isn't added yet (or fails to load), it automatically falls back to the stick-figure animation — the app never breaks
+- Added `ADDING_ANIMATIONS.md` — a guide for finding and uploading the 7 animation files (squat, swing, throw, jump, lunge, rotate, run)
+- New `animations/` folder expected in the repo, holding one `.json` file per motion
+
+## v1.5.2 — Fixed animations on iPhone/Safari
+- Found the real cause of your recording: Safari doesn't support the CSS trick (`transform-box: view-box`) the previous fix relied on — it's a documented Safari limitation, confirmed by checking browser compatibility data
+- Rebuilt every joint using plain SVG positioning instead, which works identically across Chrome, Safari, and every other browser
+- Verified the rest pose and mid-motion frames render correctly before shipping
+- Could not test in an actual Safari engine in this environment (no network access to download it) — please test on your iPhone and let me know if it looks right now
+
 ## v1.5.1 — Fixed animations to bend at real joints
 - Found and fixed the root cause of the "dance move" look: joints were rotating around the wrong coordinate system, so limbs orbited instead of bending
 - Rebuilt every limb as two connected segments (upper arm + forearm, thigh + shin) that bend at a real elbow/knee, instead of one rigid rotating piece
