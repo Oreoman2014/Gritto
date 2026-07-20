@@ -223,6 +223,100 @@
     padding:4px 10px;
     border-radius:20px;
   }
+
+  /* ---- Silhouette drill animation ---- */
+  .drill-demo{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background:var(--charcoal);
+    border-radius:12px;
+    padding:10px 14px;
+    margin:10px 0;
+  }
+  .demo-stage{
+    width:64px; height:74px; flex-shrink:0; position:relative;
+  }
+  .demo-stage svg{width:100%; height:100%; overflow:visible;}
+  .sf-arm-l, .sf-arm-r, .sf-leg-l, .sf-leg-r{transform-box:fill-box;}
+  .sf-arm-l{transform-origin:top center;}
+  .sf-arm-r{transform-origin:top center;}
+  .sf-leg-l{transform-origin:top center;}
+  .sf-leg-r{transform-origin:top center;}
+  .sf-torso-grp{transform-box:fill-box; transform-origin:bottom center;}
+
+  .focus-dot{
+    position:absolute;
+    width:12px; height:12px;
+    border-radius:50%;
+    background:var(--energy);
+    box-shadow:0 0 0 0 rgba(255,106,26,0.6);
+    animation:dotPulse 1.4s ease-out infinite;
+  }
+  @keyframes dotPulse{
+    0%{box-shadow:0 0 0 0 rgba(255,106,26,0.55);}
+    70%{box-shadow:0 0 0 10px rgba(255,106,26,0);}
+    100%{box-shadow:0 0 0 0 rgba(255,106,26,0);}
+  }
+  .demo-focus-pos-knees{top:57%; left:52%;}
+  .demo-focus-pos-hips{top:44%; left:52%;}
+  .demo-focus-pos-shoulders{top:24%; left:60%;}
+  .demo-focus-pos-elbow{top:33%; left:70%;}
+  .demo-focus-pos-wrist{top:38%; left:82%;}
+  .demo-focus-pos-feet{top:96%; left:50%;}
+  .demo-focus-pos-core{top:38%; left:50%;}
+  .demo-focus-pos-eyes{top:12%; left:56%;}
+
+  .demo-label{font-size:11.5px; color:#C8CCC2;}
+  .demo-label b{color:#fff; text-transform:capitalize;}
+
+  /* Motion: squat — torso/hips bob down and up */
+  .motion-squat .sf-torso-grp{animation:sqTorso 1.6s ease-in-out infinite;}
+  .motion-squat .sf-leg-l{animation:sqLegL 1.6s ease-in-out infinite;}
+  .motion-squat .sf-leg-r{animation:sqLegR 1.6s ease-in-out infinite;}
+  @keyframes sqTorso{0%,100%{transform:translateY(0);} 50%{transform:translateY(9px);}}
+  @keyframes sqLegL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-18deg);}}
+  @keyframes sqLegR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(18deg);}}
+
+  /* Motion: swing — arm arcs like a bat/racket/club */
+  .motion-swing .sf-arm-r{animation:swArm 1.3s ease-in-out infinite;}
+  .motion-swing .sf-torso-grp{animation:swTorso 1.3s ease-in-out infinite;}
+  @keyframes swArm{0%{transform:rotate(60deg);} 50%{transform:rotate(-70deg);} 100%{transform:rotate(60deg);}}
+  @keyframes swTorso{0%{transform:rotate(12deg);} 50%{transform:rotate(-12deg);} 100%{transform:rotate(12deg);}}
+
+  /* Motion: throw — arm raises overhead and releases */
+  .motion-throw .sf-arm-r{animation:thArm 1.4s ease-in-out infinite;}
+  @keyframes thArm{0%{transform:rotate(-150deg);} 50%{transform:rotate(30deg);} 100%{transform:rotate(-150deg);}}
+
+  /* Motion: jump — whole figure hops, legs tuck */
+  .motion-jump .demo-figure{animation:jmpFig 1.1s ease-in-out infinite;}
+  .motion-jump .sf-leg-l{animation:jmpLegL 1.1s ease-in-out infinite;}
+  .motion-jump .sf-leg-r{animation:jmpLegR 1.1s ease-in-out infinite;}
+  @keyframes jmpFig{0%,100%{transform:translateY(0);} 40%{transform:translateY(-11px);} 60%{transform:translateY(-11px);}}
+  @keyframes jmpLegL{0%,100%{transform:rotate(0deg);} 40%,60%{transform:rotate(-14deg);}}
+  @keyframes jmpLegR{0%,100%{transform:rotate(0deg);} 40%,60%{transform:rotate(14deg);}}
+
+  /* Motion: lunge — one leg steps forward and back */
+  .motion-lunge .sf-leg-r{animation:lgLegR 1.6s ease-in-out infinite;}
+  .motion-lunge .sf-torso-grp{animation:lgTorso 1.6s ease-in-out infinite;}
+  @keyframes lgLegR{0%,100%{transform:rotate(0deg) translateY(0);} 50%{transform:rotate(35deg) translateY(6px);}}
+  @keyframes lgTorso{0%,100%{transform:translateY(0);} 50%{transform:translateY(7px);}}
+
+  /* Motion: rotate — torso twists (e.g. swing follow-through, pivot) */
+  .motion-rotate .sf-torso-grp{animation:rtTorso 1.5s ease-in-out infinite;}
+  .motion-rotate .sf-arm-l{animation:rtArmL 1.5s ease-in-out infinite;}
+  @keyframes rtTorso{0%,100%{transform:rotate(-18deg);} 50%{transform:rotate(18deg);}}
+  @keyframes rtArmL{0%,100%{transform:rotate(10deg);} 50%{transform:rotate(-30deg);}}
+
+  /* Motion: run — arms and legs alternate */
+  .motion-run .sf-arm-l{animation:rnArmL 0.7s ease-in-out infinite;}
+  .motion-run .sf-arm-r{animation:rnArmR 0.7s ease-in-out infinite;}
+  .motion-run .sf-leg-l{animation:rnLegL 0.7s ease-in-out infinite;}
+  .motion-run .sf-leg-r{animation:rnLegR 0.7s ease-in-out infinite;}
+  @keyframes rnArmL{0%,100%{transform:rotate(35deg);} 50%{transform:rotate(-35deg);}}
+  @keyframes rnArmR{0%,100%{transform:rotate(-35deg);} 50%{transform:rotate(35deg);}}
+  @keyframes rnLegL{0%,100%{transform:rotate(-30deg);} 50%{transform:rotate(30deg);}}
+  @keyframes rnLegR{0%,100%{transform:rotate(30deg);} 50%{transform:rotate(-30deg);}}
   .error-box{
     background:#FFF1EC;
     border:1px solid #FFC9B3;
@@ -945,6 +1039,43 @@ document.addEventListener('DOMContentLoaded', () => {
 // It looks like: https://YOUR-PROJECT-ID.functions.supabase.co/formfix-ai
 const AI_HELPER_URL = "https://iplvvkvttumbrlueowou.supabase.co/functions/v1/formfix-ai";
 
+// ---- Builds the little animated silhouette demo for a drill ----
+const validMotions = ['squat','swing','throw','jump','lunge','rotate','run'];
+const validFocuses = ['knees','hips','shoulders','elbow','wrist','feet','core','eyes'];
+
+function buildDrillDemo(motion, focus){
+  const m = validMotions.includes(motion) ? motion : 'rotate';
+  const f = validFocuses.includes(focus) ? focus : 'core';
+  return `
+    <div class="drill-demo">
+      <div class="demo-stage motion-${m}">
+        <div class="demo-figure" style="position:relative; width:100%; height:100%;">
+          <svg viewBox="0 0 64 74">
+            <g class="sf-torso-grp">
+              <circle cx="32" cy="12" r="7" fill="#F5F3EC"/>
+              <rect x="26" y="20" width="12" height="26" rx="5" fill="#F5F3EC"/>
+              <g class="sf-arm-l" style="transform-box:fill-box; transform-origin:32px 22px;">
+                <rect x="20" y="20" width="6" height="20" rx="3" fill="#4ECDC4"/>
+              </g>
+              <g class="sf-arm-r" style="transform-box:fill-box; transform-origin:38px 22px;">
+                <rect x="38" y="20" width="6" height="20" rx="3" fill="#4ECDC4"/>
+              </g>
+            </g>
+            <g class="sf-leg-l" style="transform-box:fill-box; transform-origin:29px 46px;">
+              <rect x="24" y="46" width="7" height="24" rx="3" fill="#F5F3EC"/>
+            </g>
+            <g class="sf-leg-r" style="transform-box:fill-box; transform-origin:35px 46px;">
+              <rect x="33" y="46" width="7" height="24" rx="3" fill="#F5F3EC"/>
+            </g>
+          </svg>
+          <div class="focus-dot demo-focus-pos-${f}"></div>
+        </div>
+      </div>
+      <div class="demo-label">Watch the<br><b>${f}</b></div>
+    </div>
+  `;
+}
+
 const sports = [
   {name:'Basketball', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3C9.5 6 9.5 18 12 21M4.5 7c4 2.2 11 2.2 15 0M4.5 17c4-2.2 11-2.2 15 0" stroke="currentColor" stroke-width="1.3" fill="none"/>'},
   {name:'Baseball', icon:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M7 5c-2 3-2 11 0 14M17 5c2 3 2 11 0 14" stroke="currentColor" stroke-width="1.3" fill="none"/>'},
@@ -1036,8 +1167,8 @@ async function getDrills(){
   statusEl.textContent = 'Building your drills…';
 
   const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one encouraging sentence about what you'll help with", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete","cue":"a short 3-6 word coaching cue to remember during play"}]}
-Include exactly 4 drills, ordered from most foundational to more advanced. Keep language age-appropriate, positive, and safe (no advice that risks injury). Be specific and actionable, not generic.`;
+{"summary": "one encouraging sentence about what you'll help with", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+Include exactly 4 drills, ordered from most foundational to more advanced. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate, positive, and safe (no advice that risks injury). Be specific and actionable, not generic.`;
 
   const userMsg = `Sport: ${selectedSport}\\nWhat I'm working on: ${skillText}`;
 
@@ -1075,6 +1206,7 @@ Include exactly 4 drills, ordered from most foundational to more advanced. Keep 
       card.innerHTML = `
         <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
         <div class="drill-title">${d.title}</div>
+        ${buildDrillDemo(d.motion, d.focus)}
         <div class="drill-desc">${d.description}</div>
         ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
       `;
@@ -1214,8 +1346,8 @@ async function analyzeVideo(){
 
   const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one encouraging sentence about what you observed, specifically about the ${selectedRole}", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue"}]}
-Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate, positive, and safe (no advice that risks injury).`;
+{"summary": "one encouraging sentence about what you observed, specifically about the ${selectedRole}", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate, positive, and safe (no advice that risks injury).`;
 
   const content = [
     ...extractedFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
@@ -1269,6 +1401,7 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       card.innerHTML = `
         <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
         <div class="drill-title">${d.title}</div>
+        ${buildDrillDemo(d.motion, d.focus)}
         <div class="drill-desc">${d.description}</div>
         ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
       `;
