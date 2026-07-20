@@ -573,6 +573,62 @@
     margin-top:12px;
   }
 
+  .time-prompt{
+    background:var(--charcoal);
+    border-radius:14px;
+    padding:18px;
+    text-align:center;
+    color:#fff;
+  }
+  .time-prompt h4{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:16px;
+    margin:0 0 4px;
+  }
+  .time-prompt p{
+    font-size:12.5px;
+    color:#C8CCC2;
+    margin:0 0 14px;
+  }
+  .time-prompt-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .time-prompt-row input{
+    flex:1;
+    border:1.5px solid #3A4152;
+    background:#0E1116;
+    color:#fff;
+    border-radius:10px;
+    padding:11px 13px;
+    font-size:15px;
+    font-family:'IBM Plex Mono',monospace;
+    text-align:center;
+  }
+  .time-prompt-row button{
+    background:var(--energy);
+    color:#fff;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    padding:0 18px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .time-prompt-estimate{
+    background:none;
+    border:none;
+    color:#9AA6C4;
+    font-size:12px;
+    text-decoration:underline;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+
   .video-drop{
     border:2px dashed var(--line);
     border-radius:16px;
@@ -925,16 +981,16 @@
     </div>
     <div style="display:flex; gap:22px;">
       <div class="progress-stat">
-        <div class="num" id="stat-streak">0</div>
-        <div class="lbl">Day streak</div>
+        <div class="num" id="pstat-1-num">0</div>
+        <div class="lbl" id="pstat-1-lbl">Day streak</div>
+      </div>
+      <div class="progress-stat" id="pstat-2-wrap">
+        <div class="num" id="pstat-2-num">0</div>
+        <div class="lbl" id="pstat-2-lbl">Best streak</div>
       </div>
       <div class="progress-stat">
-        <div class="num" id="stat-longest">0</div>
-        <div class="lbl">Best streak</div>
-      </div>
-      <div class="progress-stat">
-        <div class="num" id="stat-total">0</div>
-        <div class="lbl">Drills total</div>
+        <div class="num" id="pstat-3-num">0</div>
+        <div class="lbl" id="pstat-3-lbl">Drills total</div>
       </div>
     </div>
   </div>
@@ -1094,17 +1150,43 @@ function showProgressBar(user){
   }
 }
 
+let drillProgress = { current_streak: 0, longest_streak: 0, total_drills_completed: 0 };
+
 async function loadProgress(userId){
   const { data, error } = await sb.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
   if(error){ console.error('Could not load progress:', error.message); return; }
-  if(data){
-    document.getElementById('stat-streak').textContent = data.current_streak;
-    document.getElementById('stat-longest').textContent = data.longest_streak;
-    document.getElementById('stat-total').textContent = data.total_drills_completed;
+  if(data) drillProgress = data;
+  renderProgressStats();
+}
+
+function formatMinutes(mins){
+  mins = mins || 0;
+  if(mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+// Shows different stats depending on which bottom-nav page is active:
+// Drills gets day streak + total drills; Daily Routine gets its own
+// best/current streak plus total time practiced.
+function renderProgressStats(){
+  const onRoutinePage = !document.getElementById('page-routine').classList.contains('hidden');
+
+  if(onRoutinePage){
+    const r = currentRoutine || { current_streak: 0, longest_streak: 0, total_minutes_practiced: 0 };
+    document.getElementById('pstat-1-lbl').textContent = 'Current streak';
+    document.getElementById('pstat-1-num').textContent = r.current_streak || 0;
+    document.getElementById('pstat-2-wrap').classList.remove('hidden');
+    document.getElementById('pstat-2-lbl').textContent = 'Best streak';
+    document.getElementById('pstat-2-num').textContent = r.longest_streak || 0;
+    document.getElementById('pstat-3-lbl').textContent = 'Time practiced';
+    document.getElementById('pstat-3-num').textContent = formatMinutes(r.total_minutes_practiced);
   }else{
-    document.getElementById('stat-streak').textContent = '0';
-    document.getElementById('stat-longest').textContent = '0';
-    document.getElementById('stat-total').textContent = '0';
+    document.getElementById('pstat-1-lbl').textContent = 'Day streak';
+    document.getElementById('pstat-1-num').textContent = drillProgress.current_streak || 0;
+    document.getElementById('pstat-2-wrap').classList.add('hidden');
+    document.getElementById('pstat-3-lbl').textContent = 'Drills total';
+    document.getElementById('pstat-3-num').textContent = drillProgress.total_drills_completed || 0;
   }
 }
 
@@ -1501,6 +1583,7 @@ function selectSport(name){
 let routineLoadAttempted = false;
 let currentRoutine = null; // { sport, goal, items: [{name, minutes, cue}], last_completed_date }
 let routineChecks = new Set(); // indexes of checked items, resets each day
+let showTimePromptFlag = false;
 
 function todayStr(){
   return new Date().toISOString().slice(0, 10);
@@ -1518,11 +1601,13 @@ async function loadSavedRoutine(){
     if(data){
       currentRoutine = data;
       routineChecks = new Set();
+      showTimePromptFlag = false;
       document.getElementById('routine-goal-input').value = data.goal;
       if(!selectedSport){
         selectSport(data.sport);
       }
       renderRoutine();
+      renderProgressStats();
     }
   }catch(err){
     console.error('Routine load failed:', err.message);
@@ -1572,11 +1657,16 @@ Include 3 to 5 items, ordered from warm-up-style activities to more focused ones
       sport: selectedSport,
       goal: goalText,
       items: parsed.items,
-      last_completed_date: null
+      last_completed_date: currentRoutine ? currentRoutine.last_completed_date : null,
+      current_streak: currentRoutine ? (currentRoutine.current_streak || 0) : 0,
+      longest_streak: currentRoutine ? (currentRoutine.longest_streak || 0) : 0,
+      total_minutes_practiced: currentRoutine ? (currentRoutine.total_minutes_practiced || 0) : 0
     };
     routineChecks = new Set();
+    showTimePromptFlag = false;
     statusEl.textContent = '';
     renderRoutine();
+    renderProgressStats();
     await saveRoutine();
   }catch(err){
     statusEl.textContent = '';
@@ -1604,6 +1694,9 @@ async function saveRoutine(){
       goal: currentRoutine.goal,
       items: currentRoutine.items,
       last_completed_date: currentRoutine.last_completed_date,
+      current_streak: currentRoutine.current_streak || 0,
+      longest_streak: currentRoutine.longest_streak || 0,
+      total_minutes_practiced: currentRoutine.total_minutes_practiced || 0,
       updated_at: new Date().toISOString()
     });
   }catch(err){
@@ -1643,6 +1736,25 @@ function renderRoutine(){
 
   const allChecked = currentRoutine.items.every((_, i) => doneToday || routineChecks.has(i));
 
+  const estimateNote = totalMin > 0 ? ` (~${totalMin} min)` : '';
+  const completionArea = showTimePromptFlag ? `
+    <div class="time-prompt">
+      <h4>Nice work! 🎉</h4>
+      <p>About how long did you practice today?</p>
+      <div class="time-prompt-row">
+        <input type="number" min="1" id="practice-minutes-input" placeholder="Minutes">
+        <button onclick="submitPracticeTime()">Save</button>
+      </div>
+      <button class="time-prompt-estimate" onclick="useEstimatedTime()">Not sure? Just use the estimated time${estimateNote}</button>
+    </div>
+  ` : `
+    <button class="routine-complete-btn ${doneToday ? 'done' : ''}" id="routine-complete-btn"
+      onclick="markRoutineComplete()" ${(!allChecked || doneToday) ? 'disabled' : ''}>
+      ${doneToday ? "Done for today! 🎉" : 'Mark today complete'}
+    </button>
+    <div class="routine-signin-note" id="routine-signin-note"></div>
+  `;
+
   wrap.innerHTML = `
     <div class="routine-summary">
       <div class="routine-head">
@@ -1652,18 +1764,17 @@ function renderRoutine(){
       <p class="routine-goal">${currentRoutine.goal}</p>
     </div>
     <div class="routine-path">${stepsHtml}</div>
-    <button class="routine-complete-btn ${doneToday ? 'done' : ''}" id="routine-complete-btn"
-      onclick="markRoutineComplete()" ${(!allChecked || doneToday) ? 'disabled' : ''}>
-      ${doneToday ? "Done for today! 🎉" : 'Mark today complete'}
-    </button>
-    <div class="routine-signin-note" id="routine-signin-note"></div>
+    ${completionArea}
   `;
 
-  sb.auth.getSession().then(({ data: { session } }) => {
-    if(!session){
-      document.getElementById('routine-signin-note').textContent = 'Sign in with Google to save this routine and track your streak.';
-    }
-  });
+  const signinNote = document.getElementById('routine-signin-note');
+  if(signinNote){
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if(!session){
+        signinNote.textContent = 'Sign in with Google to save this routine and track your streak.';
+      }
+    });
+  }
 }
 
 function toggleRoutineItem(i){
@@ -1674,11 +1785,45 @@ function toggleRoutineItem(i){
   renderRoutine();
 }
 
-async function markRoutineComplete(){
-  currentRoutine.last_completed_date = todayStr();
+function markRoutineComplete(){
+  showTimePromptFlag = true;
   renderRoutine();
+}
+
+function submitPracticeTime(){
+  const input = document.getElementById('practice-minutes-input');
+  const minutes = parseInt(input.value, 10);
+  if(!minutes || minutes <= 0){
+    input.focus();
+    return;
+  }
+  finalizeRoutineCompletion(minutes);
+}
+
+function useEstimatedTime(){
+  const totalMin = currentRoutine.items.reduce((sum, it) => sum + (it.minutes || 0), 0);
+  finalizeRoutineCompletion(totalMin || 5);
+}
+
+async function finalizeRoutineCompletion(minutesPracticed){
+  const today = todayStr();
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  let newStreak = 1;
+  if(currentRoutine.last_completed_date === yesterday){
+    newStreak = (currentRoutine.current_streak || 0) + 1;
+  }
+  const newLongest = Math.max(currentRoutine.longest_streak || 0, newStreak);
+
+  currentRoutine.last_completed_date = today;
+  currentRoutine.current_streak = newStreak;
+  currentRoutine.longest_streak = newLongest;
+  currentRoutine.total_minutes_practiced = (currentRoutine.total_minutes_practiced || 0) + minutesPracticed;
+
+  showTimePromptFlag = false;
+  renderRoutine();
+  renderProgressStats();
   await saveRoutine();
-  await recordDrillCompletion(currentRoutine.sport, 'routine', currentRoutine.goal);
 }
 
 async function getDrills(){
@@ -1776,6 +1921,7 @@ function switchPage(page){
     routineLoadAttempted = true;
     loadSavedRoutine();
   }
+  renderProgressStats();
 }
 
 let extractedFrames = []; // base64 strings, no data: prefix, sent to the AI
