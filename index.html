@@ -281,6 +281,32 @@
   .video-drop .vd-title{font-weight:700; font-size:14px; margin-bottom:4px;}
   .video-drop .vd-sub{font-size:12px; color:var(--ink-soft);}
 
+  .role-section{
+    margin-bottom:20px;
+    animation:in 0.3s ease both;
+  }
+  .role-section.hidden{display:none;}
+  .role-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+    gap:10px;
+  }
+  .role-chip{
+    border:2px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:14px 10px;
+    text-align:center;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    color:var(--ink);
+    transition:all 0.15s ease;
+  }
+  .role-chip:hover{border-color:var(--turf); transform:translateY(-1px);}
+  .role-chip.active{background:var(--turf); border-color:var(--turf); color:#fff;}
+
   .frame-strip{
     display:flex;
     gap:8px;
@@ -607,6 +633,11 @@
 
     <div class="frame-strip" id="frame-strip"></div>
 
+    <div class="role-section hidden" id="role-section">
+      <div class="section-label">3 · Who are you in this play?</div>
+      <div class="role-grid" id="role-grid"></div>
+    </div>
+
     <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
     <div class="status" id="video-status"></div>
     <div class="results" id="video-results"></div>
@@ -928,6 +959,49 @@ const sports = [
 ];
 
 let selectedSport = null;
+let selectedRole = null;
+
+const sportRoles = {
+  Basketball: ['Shooter', 'Ball handler', 'Defender', 'Passer', 'Rebounder'],
+  Baseball: ['Hitter', 'Pitcher', 'Fielder', 'Catcher', 'Base runner'],
+  Soccer: ['Shooter', 'Passer', 'Defender', 'Goalkeeper', 'Dribbler'],
+  Golf: ['Golfer (the one swinging)'],
+  Tennis: ['Server', 'Returner', 'At the net'],
+  Swimming: ['Swimmer (that\'s me)'],
+  Running: ['Runner (that\'s me)'],
+  Volleyball: ['Server', 'Hitter/Spiker', 'Setter', 'Passer', 'Blocker'],
+  Football: ['Quarterback', 'Receiver', 'Running back', 'Lineman', 'Defender'],
+  Other: ['I\'m the one doing the main move']
+};
+
+function renderRoleOptions(sport){
+  const roleSection = document.getElementById('role-section');
+  const roleGrid = document.getElementById('role-grid');
+  selectedRole = null;
+  document.getElementById('video-go-btn').disabled = true;
+
+  if(!sport || extractedFrames.length === 0){
+    roleSection.classList.add('hidden');
+    return;
+  }
+
+  const roles = sportRoles[sport] || sportRoles.Other;
+  roleGrid.innerHTML = '';
+  roles.forEach(role => {
+    const chip = document.createElement('div');
+    chip.className = 'role-chip';
+    chip.textContent = role;
+    chip.onclick = () => {
+      document.querySelectorAll('#role-grid .role-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      selectedRole = role;
+      document.getElementById('video-go-btn').disabled = false;
+    };
+    roleGrid.appendChild(chip);
+  });
+  roleSection.classList.remove('hidden');
+}
+
 const grid = document.getElementById('sport-grid');
 sports.forEach(s => {
   const chip = document.createElement('div');
@@ -937,6 +1011,7 @@ sports.forEach(s => {
     document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
     selectedSport = s.name;
+    renderRoleOptions(selectedSport);
   };
   grid.appendChild(chip);
 });
@@ -1036,6 +1111,8 @@ function handleVideoSelect(evt){
   document.getElementById('frame-strip').innerHTML = '';
   document.getElementById('video-go-btn').disabled = true;
   document.getElementById('video-status').textContent = 'Reading frames from your clip…';
+  document.getElementById('role-section').classList.add('hidden');
+  selectedRole = null;
   extractFrames(file);
 }
 
@@ -1098,8 +1175,8 @@ function extractFrames(file){
           video.currentTime = Math.min(t, duration - 0.05);
         });
       }
-      statusEl.textContent = extractedFrames.length + ' frames captured. Ready to analyze.';
-      document.getElementById('video-go-btn').disabled = false;
+      statusEl.textContent = extractedFrames.length + ' frames captured. Pick your role below.';
+      renderRoleOptions(selectedSport);
     }catch(err){
       statusEl.textContent = "Couldn't read that video — try a different clip or format (MP4 works best).";
       console.error(err);
@@ -1127,17 +1204,22 @@ async function analyzeVideo(){
     statusEl.textContent = 'Upload a video first.';
     return;
   }
+  if(!selectedRole){
+    statusEl.textContent = 'Pick who you are in the play first (step 3 above).';
+    return;
+  }
 
   btn.disabled = true;
   statusEl.textContent = 'Looking at your form…';
 
-  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. You will be shown several frames pulled evenly from a video clip of a young athlete performing a ${selectedSport} motion, in time order. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one encouraging sentence about what you observed", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue"}]}
+  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
+Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+{"summary": "one encouraging sentence about what you observed, specifically about the ${selectedRole}", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue"}]}
 Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate, positive, and safe (no advice that risks injury).`;
 
   const content = [
     ...extractedFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
-    { type: "text", text: `Sport: ${selectedSport}. These frames are in time order from one clip. Give me feedback on my form.` }
+    { type: "text", text: `Sport: ${selectedSport}. My role in this play: ${selectedRole}. These frames are in time order from one clip. Give me feedback on MY form only — I'm the ${selectedRole}, not anyone else in the frame.` }
   ];
 
   try{
