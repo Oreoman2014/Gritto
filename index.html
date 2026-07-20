@@ -1061,6 +1061,12 @@
     border-top:1px solid var(--line);
     padding:6px 0 max(6px, env(safe-area-inset-bottom));
     z-index:150;
+    /* Forces iOS Safari to keep this pinned to the true bottom instead
+       of "floating" mid-screen after the file picker or keyboard opens
+       and closes — a known iOS quirk with position:fixed elements. */
+    transform:translateZ(0);
+    -webkit-transform:translateZ(0);
+    -webkit-backface-visibility:hidden;
   }
   .bottom-nav-btn{
     flex:1;
@@ -1914,8 +1920,14 @@ function setHomeGreeting(user){
 const activityIcons = {
   text: '<path d="M4 5h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8l-4 3V6a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
   video: '<path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/>',
-  routine: '<circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+  routine: '<circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.6"/>'
 };
+
+function truncateText(text, maxLen){
+  if(!text) return '';
+  if(text.length <= maxLen) return text;
+  return text.slice(0, maxLen).trim() + '…';
+}
 
 function timeAgo(dateStr){
   const diffMs = Date.now() - new Date(dateStr).getTime();
@@ -2084,7 +2096,7 @@ async function loadHomeData(){
             <div class="home-activity-icon"><svg viewBox="0 0 24 24" fill="none">${icon}</svg></div>
             <div class="home-activity-body">
               <div class="home-activity-title">${title}</div>
-              <div class="home-activity-sub">${(r.summary || '').slice(0, 60)}${r.minutes ? ` · ${r.minutes} min` : ''}</div>
+              <div class="home-activity-sub">${truncateText(r.summary, 60)}${r.minutes ? ` · ${r.minutes} min` : ''}</div>
             </div>
             <div class="home-activity-time">${timeAgo(r.created_at)}</div>
           </div>
