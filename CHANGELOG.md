@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v2.6.0 — Logo wired in (home screen icon + header)
+- Cropped the icon mark (the double arrow) into a proper square, since home-screen icons need to be square — using the full tall logo would have looked wrong once added to a phone's home screen
+- This square icon is now what shows up when someone adds Gritto to their home screen (via the browser's Share menu)
+- Also added it as the browser tab favicon
+- Added the icon into the app's own header, next to "Gritto · AI Mechanics Coach"
+- Everything is embedded directly in index.html (no separate image files to upload)
+
 ## v2.5.0 — Edit today's logged practice time
 - Once you've completed today's routine, you'll now see "Logged X min today · Edit"
 - Tapping Edit lets you fix a mistyped number (like 72 instead of 7) without double-counting it in your total time practiced
