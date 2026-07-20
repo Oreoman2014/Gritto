@@ -982,12 +982,11 @@
   </div>
 
   <div id="page-routine" class="hidden">
-    <div class="input-block" id="routine-sport-note">
-      <div class="hint-text" id="routine-sport-hint">Pick a sport on the Drills page first, then come back here.</div>
-    </div>
+    <div class="section-label">1 · Pick a sport</div>
+    <div class="sport-grid" id="sport-grid-routine"></div>
 
     <div class="input-block">
-      <label for="routine-goal-input">What do you want a daily path for?</label>
+      <label for="routine-goal-input">2 · What do you want a daily path for?</label>
       <textarea id="routine-goal-input" placeholder="e.g. improving my basketball ball handling, or building a stronger baseball swing"></textarea>
       <div class="hint-text">This builds a short path of drills (about 5–10 minutes total) you can repeat every day.</div>
     </div>
@@ -1475,27 +1474,27 @@ function renderRoleOptions(sport){
   roleSection.classList.remove('hidden');
 }
 
-const grid = document.getElementById('sport-grid');
-sports.forEach(s => {
-  const chip = document.createElement('div');
-  chip.className = 'sport-chip';
-  chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${s.icon}</svg><span>${s.name}</span>`;
-  chip.onclick = () => {
-    document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    selectedSport = s.name;
-    renderRoleOptions(selectedSport);
-    updateRoutineSportNote();
-  };
-  grid.appendChild(chip);
+const gridIds = ['sport-grid', 'sport-grid-routine'];
+gridIds.forEach(gridId => {
+  const grid = document.getElementById(gridId);
+  if(!grid) return;
+  sports.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'sport-chip';
+    chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${s.icon}</svg><span>${s.name}</span>`;
+    chip.onclick = () => {
+      selectSport(s.name);
+    };
+    grid.appendChild(chip);
+  });
 });
 
-function updateRoutineSportNote(){
-  const hint = document.getElementById('routine-sport-hint');
-  if(!hint) return;
-  hint.textContent = selectedSport
-    ? `Building a path for: ${selectedSport}`
-    : 'Pick a sport on the Drills page first, then come back here.';
+function selectSport(name){
+  selectedSport = name;
+  document.querySelectorAll('.sport-chip').forEach(c => {
+    c.classList.toggle('active', c.textContent.trim() === name);
+  });
+  renderRoleOptions(selectedSport);
 }
 
 // ---- Daily Routine feature ----
@@ -1521,11 +1520,8 @@ async function loadSavedRoutine(){
       routineChecks = new Set();
       document.getElementById('routine-goal-input').value = data.goal;
       if(!selectedSport){
-        selectedSport = data.sport;
-        const match = Array.from(document.getElementById('sport-grid').children).find(c => c.textContent.trim() === data.sport);
-        if(match) match.classList.add('active');
+        selectSport(data.sport);
       }
-      updateRoutineSportNote();
       renderRoutine();
     }
   }catch(err){
@@ -1539,7 +1535,7 @@ async function buildRoutine(){
   const btn = document.getElementById('routine-go-btn');
 
   if(!selectedSport){
-    statusEl.textContent = 'Pick a sport on the Drills page first.';
+    statusEl.textContent = 'Pick a sport up top first.';
     return;
   }
   if(!goalText){
@@ -1776,12 +1772,9 @@ function switchPage(page){
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   document.getElementById('page-drills').classList.toggle('hidden', page !== 'drills');
   document.getElementById('page-routine').classList.toggle('hidden', page !== 'routine');
-  if(page === 'routine'){
-    updateRoutineSportNote();
-    if(!routineLoadAttempted){
-      routineLoadAttempted = true;
-      loadSavedRoutine();
-    }
+  if(page === 'routine' && !routineLoadAttempted){
+    routineLoadAttempted = true;
+    loadSavedRoutine();
   }
 }
 
