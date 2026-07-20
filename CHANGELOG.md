@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v1.5.1 — Fixed animations to bend at real joints
+- Found and fixed the root cause of the "dance move" look: joints were rotating around the wrong coordinate system, so limbs orbited instead of bending
+- Rebuilt every limb as two connected segments (upper arm + forearm, thigh + shin) that bend at a real elbow/knee, instead of one rigid rotating piece
+- Rewrote all 7 motions with more realistic timing: squat now sinks straight down with knees bending forward and arms reaching for balance; throw has a proper elbow-leads-forearm-lags whip; run has a full alternating gait with knee drive; jump has a crouch → explode → tuck → land sequence
+- Verified visually with rendering tests before shipping
+
 ## v1.5.0 — Animated silhouette demos
 - Every drill card now shows a small looping silhouette animation (squat, swing, throw, jump, lunge, rotate, or run) matched to that drill's motion
 - A pulsing highlight dot shows exactly which body part to focus on (knees, hips, shoulders, elbow, wrist, feet, core, or eyes)
