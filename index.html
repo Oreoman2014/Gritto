@@ -235,19 +235,32 @@
     margin:10px 0;
   }
   .demo-stage{
-    width:64px; height:74px; flex-shrink:0; position:relative;
+    width:60px; height:78px; flex-shrink:0; position:relative;
   }
   .demo-stage svg{width:100%; height:100%; overflow:visible;}
-  .sf-arm-l, .sf-arm-r, .sf-leg-l, .sf-leg-r{transform-box:fill-box;}
-  .sf-arm-l{transform-origin:top center;}
-  .sf-arm-r{transform-origin:top center;}
-  .sf-leg-l{transform-origin:top center;}
-  .sf-leg-r{transform-origin:top center;}
-  .sf-torso-grp{transform-box:fill-box; transform-origin:bottom center;}
+
+  /* transform-box:view-box means transform-origin uses the SAME
+     coordinates as the viewBox, so joints rotate around their true
+     anatomical point (shoulder/elbow/hip/knee) instead of the
+     element's own corner — this is what makes limbs bend, not wave. */
+  .sf-uarm-l, .sf-farm-l, .sf-uarm-r, .sf-farm-r,
+  .sf-thigh-l, .sf-shin-l, .sf-thigh-r, .sf-shin-r,
+  .sf-torso-grp{
+    transform-box: view-box;
+  }
+  .sf-uarm-l{transform-origin:26px 20px;}
+  .sf-farm-l{transform-origin:23.5px 34px;}
+  .sf-uarm-r{transform-origin:38px 20px;}
+  .sf-farm-r{transform-origin:40.5px 34px;}
+  .sf-thigh-l{transform-origin:29px 42px;}
+  .sf-shin-l{transform-origin:28.5px 59px;}
+  .sf-thigh-r{transform-origin:35px 42px;}
+  .sf-shin-r{transform-origin:35.5px 59px;}
+  .sf-torso-grp{transform-origin:32px 42px;}
 
   .focus-dot{
     position:absolute;
-    width:12px; height:12px;
+    width:11px; height:11px;
     border-radius:50%;
     background:var(--energy);
     box-shadow:0 0 0 0 rgba(255,106,26,0.6);
@@ -255,68 +268,118 @@
   }
   @keyframes dotPulse{
     0%{box-shadow:0 0 0 0 rgba(255,106,26,0.55);}
-    70%{box-shadow:0 0 0 10px rgba(255,106,26,0);}
+    70%{box-shadow:0 0 0 9px rgba(255,106,26,0);}
     100%{box-shadow:0 0 0 0 rgba(255,106,26,0);}
   }
-  .demo-focus-pos-knees{top:57%; left:52%;}
-  .demo-focus-pos-hips{top:44%; left:52%;}
+  .demo-focus-pos-knees{top:70%; left:56%;}
+  .demo-focus-pos-hips{top:52%; left:52%;}
   .demo-focus-pos-shoulders{top:24%; left:60%;}
-  .demo-focus-pos-elbow{top:33%; left:70%;}
-  .demo-focus-pos-wrist{top:38%; left:82%;}
+  .demo-focus-pos-elbow{top:41%; left:70%;}
+  .demo-focus-pos-wrist{top:56%; left:76%;}
   .demo-focus-pos-feet{top:96%; left:50%;}
   .demo-focus-pos-core{top:38%; left:50%;}
-  .demo-focus-pos-eyes{top:12%; left:56%;}
+  .demo-focus-pos-eyes{top:11%; left:56%;}
 
   .demo-label{font-size:11.5px; color:#C8CCC2;}
   .demo-label b{color:#fff; text-transform:capitalize;}
 
-  /* Motion: squat — torso/hips bob down and up */
-  .motion-squat .sf-torso-grp{animation:sqTorso 1.6s ease-in-out infinite;}
-  .motion-squat .sf-leg-l{animation:sqLegL 1.6s ease-in-out infinite;}
-  .motion-squat .sf-leg-r{animation:sqLegR 1.6s ease-in-out infinite;}
-  @keyframes sqTorso{0%,100%{transform:translateY(0);} 50%{transform:translateY(9px);}}
-  @keyframes sqLegL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-18deg);}}
-  @keyframes sqLegR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(18deg);}}
+  /* ---- Motion: squat — hips sink straight down, knees bend forward,
+     shins stay closer to vertical, arms reach forward to counterbalance ---- */
+  .motion-squat .sf-torso-grp{animation:sqTorso 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-squat .sf-thigh-l{animation:sqThighL 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-squat .sf-thigh-r{animation:sqThighR 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-squat .sf-shin-l{animation:sqShinL 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-squat .sf-shin-r{animation:sqShinR 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-squat .sf-uarm-l{animation:sqArmL 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-squat .sf-uarm-r{animation:sqArmR 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  @keyframes sqTorso{0%,100%{transform:translateY(0);} 50%{transform:translateY(11px);}}
+  @keyframes sqThighL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-42deg);}}
+  @keyframes sqThighR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(42deg);}}
+  @keyframes sqShinL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(38deg);}}
+  @keyframes sqShinR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-38deg);}}
+  @keyframes sqArmL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-60deg);}}
+  @keyframes sqArmR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(60deg);}}
 
-  /* Motion: swing — arm arcs like a bat/racket/club */
-  .motion-swing .sf-arm-r{animation:swArm 1.3s ease-in-out infinite;}
-  .motion-swing .sf-torso-grp{animation:swTorso 1.3s ease-in-out infinite;}
-  @keyframes swArm{0%{transform:rotate(60deg);} 50%{transform:rotate(-70deg);} 100%{transform:rotate(60deg);}}
-  @keyframes swTorso{0%{transform:rotate(12deg);} 50%{transform:rotate(-12deg);} 100%{transform:rotate(12deg);}}
+  /* ---- Motion: swing — hip/torso rotation drives the swing, arm
+     trails behind then whips through, forearm lags the upper arm ---- */
+  .motion-swing .sf-torso-grp{animation:swTorso 1.2s cubic-bezier(.5,0,.15,1) infinite;}
+  .motion-swing .sf-uarm-r{animation:swUarm 1.2s cubic-bezier(.5,0,.15,1) infinite;}
+  .motion-swing .sf-farm-r{animation:swFarm 1.2s cubic-bezier(.5,0,.15,1) infinite;}
+  @keyframes swTorso{0%{transform:rotate(-26deg);} 55%{transform:rotate(30deg);} 100%{transform:rotate(-26deg);}}
+  @keyframes swUarm{0%{transform:rotate(-70deg);} 55%{transform:rotate(75deg);} 100%{transform:rotate(-70deg);}}
+  @keyframes swFarm{0%{transform:rotate(-25deg);} 45%{transform:rotate(-45deg);} 65%{transform:rotate(20deg);} 100%{transform:rotate(-25deg);}}
 
-  /* Motion: throw — arm raises overhead and releases */
-  .motion-throw .sf-arm-r{animation:thArm 1.4s ease-in-out infinite;}
-  @keyframes thArm{0%{transform:rotate(-150deg);} 50%{transform:rotate(30deg);} 100%{transform:rotate(-150deg);}}
+  /* ---- Motion: throw — classic whip: elbow leads while forearm lags
+     behind, then the forearm snaps through at release ---- */
+  .motion-throw .sf-torso-grp{animation:thTorso 1.5s cubic-bezier(.5,0,.15,1) infinite;}
+  .motion-throw .sf-uarm-r{animation:thUarm 1.5s cubic-bezier(.5,0,.15,1) infinite;}
+  .motion-throw .sf-farm-r{animation:thFarm 1.5s cubic-bezier(.5,0,.15,1) infinite;}
+  .motion-throw .sf-thigh-l{animation:thThighL 1.5s cubic-bezier(.5,0,.15,1) infinite;}
+  @keyframes thTorso{0%{transform:rotate(-14deg);} 60%{transform:rotate(18deg);} 100%{transform:rotate(-14deg);}}
+  @keyframes thUarm{0%{transform:rotate(-165deg);} 55%{transform:rotate(-40deg);} 70%{transform:rotate(10deg);} 100%{transform:rotate(-165deg);}}
+  @keyframes thFarm{0%{transform:rotate(15deg);} 50%{transform:rotate(70deg);} 68%{transform:rotate(-15deg);} 100%{transform:rotate(15deg);}}
+  @keyframes thThighL{0%,100%{transform:rotate(0deg);} 55%{transform:rotate(-22deg);}}
 
-  /* Motion: jump — whole figure hops, legs tuck */
-  .motion-jump .demo-figure{animation:jmpFig 1.1s ease-in-out infinite;}
-  .motion-jump .sf-leg-l{animation:jmpLegL 1.1s ease-in-out infinite;}
-  .motion-jump .sf-leg-r{animation:jmpLegR 1.1s ease-in-out infinite;}
-  @keyframes jmpFig{0%,100%{transform:translateY(0);} 40%{transform:translateY(-11px);} 60%{transform:translateY(-11px);}}
-  @keyframes jmpLegL{0%,100%{transform:rotate(0deg);} 40%,60%{transform:rotate(-14deg);}}
-  @keyframes jmpLegR{0%,100%{transform:rotate(0deg);} 40%,60%{transform:rotate(14deg);}}
+  /* ---- Motion: jump — crouch, explode upward with legs tucked,
+     land back into a soft crouch ---- */
+  .motion-jump .demo-figure{animation:jmpFig 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  .motion-jump .sf-thigh-l{animation:jmpThighL 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  .motion-jump .sf-thigh-r{animation:jmpThighR 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  .motion-jump .sf-shin-l{animation:jmpShinL 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  .motion-jump .sf-shin-r{animation:jmpShinR 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  .motion-jump .sf-uarm-l{animation:jmpArmL 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  .motion-jump .sf-uarm-r{animation:jmpArmR 1.3s cubic-bezier(.3,0,.2,1) infinite;}
+  @keyframes jmpFig{0%,100%{transform:translateY(0);} 20%{transform:translateY(6px);} 55%{transform:translateY(-14px);} 80%{transform:translateY(3px);}}
+  @keyframes jmpThighL{0%,100%{transform:rotate(0deg);} 20%{transform:rotate(-30deg);} 55%{transform:rotate(-45deg);} 80%{transform:rotate(-15deg);}}
+  @keyframes jmpThighR{0%,100%{transform:rotate(0deg);} 20%{transform:rotate(30deg);} 55%{transform:rotate(45deg);} 80%{transform:rotate(15deg);}}
+  @keyframes jmpShinL{0%,100%{transform:rotate(0deg);} 55%{transform:rotate(55deg);} 80%{transform:rotate(20deg);}}
+  @keyframes jmpShinR{0%,100%{transform:rotate(0deg);} 55%{transform:rotate(-55deg);} 80%{transform:rotate(-20deg);}}
+  @keyframes jmpArmL{0%,100%{transform:rotate(0deg);} 20%{transform:rotate(-30deg);} 55%{transform:rotate(-140deg);}}
+  @keyframes jmpArmR{0%,100%{transform:rotate(0deg);} 20%{transform:rotate(30deg);} 55%{transform:rotate(140deg);}}
 
-  /* Motion: lunge — one leg steps forward and back */
-  .motion-lunge .sf-leg-r{animation:lgLegR 1.6s ease-in-out infinite;}
-  .motion-lunge .sf-torso-grp{animation:lgTorso 1.6s ease-in-out infinite;}
-  @keyframes lgLegR{0%,100%{transform:rotate(0deg) translateY(0);} 50%{transform:rotate(35deg) translateY(6px);}}
-  @keyframes lgTorso{0%,100%{transform:translateY(0);} 50%{transform:translateY(7px);}}
+  /* ---- Motion: lunge — front leg steps forward and bends to ~90°,
+     back leg drops toward the ground, shins stay upright ---- */
+  .motion-lunge .sf-torso-grp{animation:lgTorso 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-lunge .sf-thigh-r{animation:lgThighR 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-lunge .sf-shin-r{animation:lgShinR 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-lunge .sf-thigh-l{animation:lgThighL 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  .motion-lunge .sf-shin-l{animation:lgShinL 1.8s cubic-bezier(.4,0,.2,1) infinite;}
+  @keyframes lgTorso{0%,100%{transform:translateY(0);} 50%{transform:translateY(9px);}}
+  @keyframes lgThighR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(48deg);}}
+  @keyframes lgShinR{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-42deg);}}
+  @keyframes lgThighL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(-22deg);}}
+  @keyframes lgShinL{0%,100%{transform:rotate(0deg);} 50%{transform:rotate(70deg);}}
 
-  /* Motion: rotate — torso twists (e.g. swing follow-through, pivot) */
-  .motion-rotate .sf-torso-grp{animation:rtTorso 1.5s ease-in-out infinite;}
-  .motion-rotate .sf-arm-l{animation:rtArmL 1.5s ease-in-out infinite;}
-  @keyframes rtTorso{0%,100%{transform:rotate(-18deg);} 50%{transform:rotate(18deg);}}
-  @keyframes rtArmL{0%,100%{transform:rotate(10deg);} 50%{transform:rotate(-30deg);}}
+  /* ---- Motion: rotate — trunk pivots side to side, trailing arm
+     counter-swings for balance (e.g. follow-through, plant-and-pivot) ---- */
+  .motion-rotate .sf-torso-grp{animation:rtTorso 1.6s ease-in-out infinite;}
+  .motion-rotate .sf-uarm-l{animation:rtArmL 1.6s ease-in-out infinite;}
+  .motion-rotate .sf-uarm-r{animation:rtArmR 1.6s ease-in-out infinite;}
+  @keyframes rtTorso{0%,100%{transform:rotate(-22deg);} 50%{transform:rotate(22deg);}}
+  @keyframes rtArmL{0%,100%{transform:rotate(15deg);} 50%{transform:rotate(-45deg);}}
+  @keyframes rtArmR{0%,100%{transform:rotate(-45deg);} 50%{transform:rotate(15deg);}}
 
-  /* Motion: run — arms and legs alternate */
-  .motion-run .sf-arm-l{animation:rnArmL 0.7s ease-in-out infinite;}
-  .motion-run .sf-arm-r{animation:rnArmR 0.7s ease-in-out infinite;}
-  .motion-run .sf-leg-l{animation:rnLegL 0.7s ease-in-out infinite;}
-  .motion-run .sf-leg-r{animation:rnLegR 0.7s ease-in-out infinite;}
-  @keyframes rnArmL{0%,100%{transform:rotate(35deg);} 50%{transform:rotate(-35deg);}}
-  @keyframes rnArmR{0%,100%{transform:rotate(-35deg);} 50%{transform:rotate(35deg);}}
-  @keyframes rnLegL{0%,100%{transform:rotate(-30deg);} 50%{transform:rotate(30deg);}}
-  @keyframes rnLegR{0%,100%{transform:rotate(30deg);} 50%{transform:rotate(-30deg);}}
+  /* ---- Motion: run — full gait cycle: knee drives up with a bent
+     shin during recovery, then extends back straight during push-off,
+     opposite arm/leg pairs move together like a real stride ---- */
+  .motion-run .sf-torso-grp{animation:rnTorso 0.62s ease-in-out infinite;}
+  .motion-run .sf-uarm-l{animation:rnUarmL 0.62s ease-in-out infinite;}
+  .motion-run .sf-farm-l{animation:rnFarmL 0.62s ease-in-out infinite;}
+  .motion-run .sf-uarm-r{animation:rnUarmR 0.62s ease-in-out infinite;}
+  .motion-run .sf-farm-r{animation:rnFarmR 0.62s ease-in-out infinite;}
+  .motion-run .sf-thigh-l{animation:rnThighL 0.62s ease-in-out infinite;}
+  .motion-run .sf-shin-l{animation:rnShinL 0.62s ease-in-out infinite;}
+  .motion-run .sf-thigh-r{animation:rnThighR 0.62s ease-in-out infinite;}
+  .motion-run .sf-shin-r{animation:rnShinR 0.62s ease-in-out infinite;}
+  @keyframes rnTorso{0%,100%{transform:rotate(-4deg);} 50%{transform:rotate(4deg);}}
+  @keyframes rnUarmL{0%,100%{transform:rotate(45deg);} 50%{transform:rotate(-40deg);}}
+  @keyframes rnFarmL{0%,100%{transform:rotate(20deg);} 50%{transform:rotate(70deg);}}
+  @keyframes rnUarmR{0%,100%{transform:rotate(-40deg);} 50%{transform:rotate(45deg);}}
+  @keyframes rnFarmR{0%,100%{transform:rotate(70deg);} 50%{transform:rotate(20deg);}}
+  @keyframes rnThighL{0%,100%{transform:rotate(-38deg);} 50%{transform:rotate(38deg);}}
+  @keyframes rnShinL{0%,100%{transform:rotate(5deg);} 25%{transform:rotate(85deg);} 50%{transform:rotate(5deg);} 75%{transform:rotate(15deg);}}
+  @keyframes rnThighR{0%,100%{transform:rotate(38deg);} 50%{transform:rotate(-38deg);}}
+  @keyframes rnShinR{0%,100%{transform:rotate(5deg);} 25%{transform:rotate(15deg);} 50%{transform:rotate(5deg);} 75%{transform:rotate(85deg);}}
   .error-box{
     background:#FFF1EC;
     border:1px solid #FFC9B3;
@@ -1050,22 +1113,40 @@ function buildDrillDemo(motion, focus){
     <div class="drill-demo">
       <div class="demo-stage motion-${m}">
         <div class="demo-figure" style="position:relative; width:100%; height:100%;">
-          <svg viewBox="0 0 64 74">
+          <svg viewBox="0 0 64 84">
+            <line x1="12" y1="79" x2="52" y2="79" stroke="#2A3142" stroke-width="1.5" stroke-linecap="round"/>
+
             <g class="sf-torso-grp">
-              <circle cx="32" cy="12" r="7" fill="#F5F3EC"/>
-              <rect x="26" y="20" width="12" height="26" rx="5" fill="#F5F3EC"/>
-              <g class="sf-arm-l" style="transform-box:fill-box; transform-origin:32px 22px;">
-                <rect x="20" y="20" width="6" height="20" rx="3" fill="#4ECDC4"/>
+              <circle cx="32" cy="10" r="7" fill="#F5F3EC"/>
+              <rect x="26" y="17" width="12" height="25" rx="5" fill="#F5F3EC"/>
+
+              <g class="sf-uarm-l">
+                <rect x="21" y="20" width="5" height="14" rx="2.5" fill="#4ECDC4"/>
+                <g class="sf-farm-l">
+                  <rect x="21" y="34" width="5" height="13" rx="2.5" fill="#4ECDC4"/>
+                </g>
               </g>
-              <g class="sf-arm-r" style="transform-box:fill-box; transform-origin:38px 22px;">
-                <rect x="38" y="20" width="6" height="20" rx="3" fill="#4ECDC4"/>
+
+              <g class="sf-uarm-r">
+                <rect x="38" y="20" width="5" height="14" rx="2.5" fill="#4ECDC4"/>
+                <g class="sf-farm-r">
+                  <rect x="38" y="34" width="5" height="13" rx="2.5" fill="#4ECDC4"/>
+                </g>
               </g>
             </g>
-            <g class="sf-leg-l" style="transform-box:fill-box; transform-origin:29px 46px;">
-              <rect x="24" y="46" width="7" height="24" rx="3" fill="#F5F3EC"/>
+
+            <g class="sf-thigh-l">
+              <rect x="25" y="42" width="7" height="17" rx="3" fill="#F5F3EC"/>
+              <g class="sf-shin-l">
+                <rect x="25" y="59" width="7" height="17" rx="2" fill="#F5F3EC"/>
+              </g>
             </g>
-            <g class="sf-leg-r" style="transform-box:fill-box; transform-origin:35px 46px;">
-              <rect x="33" y="46" width="7" height="24" rx="3" fill="#F5F3EC"/>
+
+            <g class="sf-thigh-r">
+              <rect x="32" y="42" width="7" height="17" rx="3" fill="#F5F3EC"/>
+              <g class="sf-shin-r">
+                <rect x="32" y="59" width="7" height="17" rx="2" fill="#F5F3EC"/>
+              </g>
             </g>
           </svg>
           <div class="focus-dot demo-focus-pos-${f}"></div>
