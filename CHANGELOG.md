@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v2.2.0 — Sport picker back on Daily Routine page
+- Added the sport grid to the Daily Routine page too, so you don't have to jump to Drills first
+- Picking a sport on either page instantly syncs to the other
+- Simplified the sync logic into one shared function (selectSport) used everywhere sport selection happens
+
 ## v2.1.2 — Fixed both pages showing at once (real bug)
 - Found the cause: the CSS only had "hidden" rules scoped to specific components (like `.mode-section.hidden`), not a general-purpose one — so adding the plain `hidden` class to the new Drills/Daily Routine page containers did nothing visually, and both pages stayed on screen at the same time
 - Added one general `.hidden{display:none}` rule that works on any element — now switching the bottom nav actually shows only one page at a time, like it's supposed to
