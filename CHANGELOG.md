@@ -1,5 +1,13 @@
 # Gritto — Version Log
 
+## v2.8.0 — Multiple daily routines
+- You can now save more than one daily routine — one per sport, or several goals for the same sport, whatever you want
+- New chip selector at the top of the Daily Routine page: tap between your saved routines, or hit "+ New" to build another
+- Each routine tracks its own independent streak, best streak, and time practiced — completing your basketball routine doesn't affect your baseball routine's streak
+- Added a delete button (trash icon) to remove a routine you don't want anymore
+- Home page now shows your single best streak across all routines
+- Database change: user_routine now supports many rows per person instead of just one — migration preserves your existing routine and streak data, nothing is lost
+
 ## v2.7.1 — Fixed routine streak showing 0 on Home
 - Found the cause: Home is the default landing page, but your routine's streak data only gets loaded into the app once you visit the Daily Routine page — so if Home loaded first, it showed 0 even though the real streak was saved correctly in the database
 - Home now makes sure the routine data is loaded before showing the streak, so it displays the real number right away
