@@ -1,5 +1,15 @@
 # Gritto — Version Log
 
+## v2.4.0 — New Home page
+- Added a third bottom-nav tab: **Home**, now the default landing page
+- Personal greeting with your first name
+- Combined streak snapshot: Drills streak and Routine streak shown side by side
+- Quick-start buttons that jump straight into Get Drills or Today's Routine
+- Real stats pulled from your history: total active days, drills completed, and your single biggest practice day (by time)
+- Recent activity feed showing your last 8 actions across Drills, Video, and Routine
+- New database column: drill_history.minutes (so routine sessions log how long you practiced)
+- The shared streak header now hides on the Home page to avoid showing streaks twice
+
 ## v2.3.0 — Split stats by page + practice-time tracking
 - Drills page now shows only: day streak, drills total
 - Daily Routine page shows its own separate stats: current streak, best streak, and total time practiced — tracked independently from Drills
