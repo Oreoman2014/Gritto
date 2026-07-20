@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v2.9.0 — Tap Recent Activity for full details
+- Tapping any Recent Activity item now expands it to show more
+- For Drills/Video entries: shows the full, untruncated text instead of the cut-off preview
+- For Daily Routine entries: shows the actual steps you did that day (name, time/reps, and cue for each), not just the goal text
+- New database column: drill_history.items — saves a snapshot of the routine's steps at the moment you complete it, so it stays accurate even if you later edit or delete that routine
+
 ## v2.8.1 — Three bug fixes
 - Fixed bottom nav floating/detaching from the bottom of the screen on iOS during video upload — a known iOS Safari quirk with fixed-position elements, fixed by forcing the nav onto its own GPU layer
 - Fixed the Daily Routine icon in Recent Activity — it was literally missing two pieces (a copy-paste mistake when it was first built), so it looked broken/incomplete
