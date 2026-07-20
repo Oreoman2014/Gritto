@@ -1,5 +1,9 @@
 # Gritto — Version Log
 
+## v2.7.1 — Fixed routine streak showing 0 on Home
+- Found the cause: Home is the default landing page, but your routine's streak data only gets loaded into the app once you visit the Daily Routine page — so if Home loaded first, it showed 0 even though the real streak was saved correctly in the database
+- Home now makes sure the routine data is loaded before showing the streak, so it displays the real number right away
+
 ## v2.7.0 — Video history
 - Every video form check now gets saved: sport, role, a thumbnail frame, the summary, what's-good/what-to-fix, and the drills — not the whole video, just a lightweight snapshot
 - New "Your video history" strip on the Home page — scroll through past sessions, tap one to see its full breakdown again
