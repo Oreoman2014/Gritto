@@ -616,6 +616,98 @@
   .routine-delete-btn svg{width:17px; height:17px;}
   .routine-delete-btn:hover{color:var(--energy);}
 
+  .settings-signin-prompt{
+    background:#fff;
+    border:1.5px dashed var(--line);
+    border-radius:14px;
+    padding:20px;
+    text-align:center;
+  }
+  .settings-signin-prompt p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+  }
+  .settings-profile-card{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--charcoal);
+    border-radius:14px;
+    padding:16px;
+  }
+  .settings-profile-card.hidden{display:none;}
+  .settings-profile-card img{
+    width:48px; height:48px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+  .settings-name{font-weight:700; font-size:15px; color:#fff;}
+  .settings-email{font-size:12px; color:#9AA6C4; margin-top:1px;}
+  .settings-signout-btn{
+    margin-left:auto;
+    background:none;
+    border:1.5px solid #3A4152;
+    color:#fff;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:12px;
+    padding:8px 14px;
+    border-radius:9px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+
+  .settings-card{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+  }
+  .settings-row{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    color:var(--ink);
+    padding:8px 0;
+    border-top:1px solid var(--line);
+  }
+  .settings-row:first-child{border-top:none; padding-top:0;}
+  .settings-row-value{color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; font-size:12.5px;}
+  .settings-help p{
+    font-size:13px;
+    color:var(--ink);
+    line-height:1.5;
+    margin:0 0 12px;
+  }
+  .settings-help p:last-of-type{margin-bottom:0;}
+  .settings-action-btn{
+    display:block;
+    width:100%;
+    background:#FFF1EC;
+    color:#B4401A;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    padding:12px;
+    border-radius:10px;
+    cursor:pointer;
+    text-align:left;
+    margin-bottom:8px;
+  }
+  .settings-action-btn:last-child{margin-bottom:0;}
+  .settings-card textarea{
+    width:100%;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:12px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    min-height:80px;
+    resize:vertical;
+  }
+
   .routine-signin-note{
     font-size:12px;
     color:#8D97B8;
@@ -1378,6 +1470,53 @@
 
     <div id="routine-display"></div>
   </div>
+
+  <div id="page-settings" class="hidden">
+    <div class="settings-profile" id="settings-profile">
+      <div class="settings-signin-prompt" id="settings-signin-prompt">
+        <p>Sign in with Google to see your profile and manage your data.</p>
+        <button class="google-btn" onclick="signInWithGoogle()">
+          <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.43.34-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 12 1 11 11 0 0 0 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+          Sign in with Google
+        </button>
+      </div>
+      <div class="settings-profile-card hidden" id="settings-profile-card">
+        <img id="settings-avatar" src="" alt="">
+        <div>
+          <div class="settings-name" id="settings-name"></div>
+          <div class="settings-email" id="settings-email"></div>
+        </div>
+        <button class="settings-signout-btn" onclick="signOutGoogle()">Sign out</button>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">App info</div>
+    <div class="settings-card">
+      <div class="settings-row"><span>Version</span><span class="settings-row-value" id="settings-version">Gritto</span></div>
+      <div class="settings-row"><span>Status</span><span class="settings-row-value">Beta / testing mode</span></div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">How Gritto works</div>
+    <div class="settings-card settings-help">
+      <p><b>Drills</b> — pick a sport, then describe what you're working on or upload a short video. Gritto gives you real drills with a cue and an animated demo for each.</p>
+      <p><b>Daily Routine</b> — build a short 5–10 minute routine around one goal. Check it off each day to build a streak, and log how long you practiced.</p>
+      <p><b>Home</b> — your greeting, both streaks, recent activity, and your video history all in one place.</p>
+      <p style="color:var(--ink-soft); font-size:12px; margin-top:10px;">Prototype — advice is general coaching info, not a substitute for an in-person coach.</p>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">Manage my data</div>
+    <div class="settings-card">
+      <button class="settings-action-btn" onclick="clearVideoHistoryData()">Clear my video history</button>
+      <button class="settings-action-btn" onclick="clearActivityLogData()">Clear my activity log</button>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">Report a bug or send feedback</div>
+    <div class="settings-card">
+      <textarea id="feedback-input" placeholder="Found something broken, or have an idea? Tell me about it here."></textarea>
+      <button class="go-btn" style="margin-top:10px;" onclick="submitFeedback()">Send</button>
+      <div class="status" id="feedback-status"></div>
+    </div>
+  </div>
 </main>
 
 <nav class="bottom-nav">
@@ -1392,6 +1531,10 @@
   <button class="bottom-nav-btn" data-page="routine" onclick="switchPage('routine')">
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
     <span>Daily Routine</span>
+  </button>
+  <button class="bottom-nav-btn" data-page="settings" onclick="switchPage('settings')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.5a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H2.5a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H8.6a1.7 1.7 0 0 0 1-1.55V2.5a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55c.62.26 1.34.14 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.09c.26.62.83 1.04 1.55 1H21.5a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+    <span>Settings</span>
   </button>
 </nav>
 
@@ -1937,6 +2080,92 @@ function selectSport(name){
 }
 
 // ---- Home page ----
+
+// ---- Settings page ----
+const APP_VERSION = '3.0.0';
+
+async function renderSettingsPage(){
+  document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
+
+  const { data: { session } } = await sb.auth.getSession();
+  const prompt = document.getElementById('settings-signin-prompt');
+  const card = document.getElementById('settings-profile-card');
+
+  if(!session){
+    prompt.classList.remove('hidden');
+    card.classList.add('hidden');
+    return;
+  }
+
+  prompt.classList.add('hidden');
+  card.classList.remove('hidden');
+  const user = session.user;
+  document.getElementById('settings-name').textContent = user.user_metadata?.full_name || 'Athlete';
+  document.getElementById('settings-email').textContent = user.email || '';
+  const avatar = document.getElementById('settings-avatar');
+  if(user.user_metadata?.avatar_url){
+    avatar.src = user.user_metadata.avatar_url;
+    avatar.style.display = 'block';
+  }else{
+    avatar.style.display = 'none';
+  }
+}
+
+async function clearVideoHistoryData(){
+  if(!confirm("Delete all of your video history? This can't be undone.")) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  try{
+    await sb.from('video_analysis_history').delete().eq('user_id', session.user.id);
+    videoHistoryCache = [];
+    alert('Video history cleared.');
+  }catch(err){
+    console.error('Could not clear video history:', err.message);
+    alert('Something went wrong — try again in a moment.');
+  }
+}
+
+async function clearActivityLogData(){
+  if(!confirm("Delete your whole activity log? This can't be undone, and will also affect your Drills streak and Home page stats.")) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  try{
+    await sb.from('drill_history').delete().eq('user_id', session.user.id);
+    alert('Activity log cleared.');
+  }catch(err){
+    console.error('Could not clear activity log:', err.message);
+    alert('Something went wrong — try again in a moment.');
+  }
+}
+
+async function submitFeedback(){
+  const input = document.getElementById('feedback-input');
+  const statusEl = document.getElementById('feedback-status');
+  const message = input.value.trim();
+  if(!message){
+    statusEl.textContent = 'Type something first.';
+    return;
+  }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    statusEl.textContent = 'Sign in with Google first so I know who this is from.';
+    return;
+  }
+
+  statusEl.textContent = 'Sending…';
+  try{
+    await sb.from('feedback_reports').insert({
+      user_id: session.user.id,
+      message
+    });
+    input.value = '';
+    statusEl.textContent = 'Sent — thank you!';
+  }catch(err){
+    console.error('Could not send feedback:', err.message);
+    statusEl.textContent = 'Something went wrong — try again in a moment.';
+  }
+}
 
 function setHomeGreeting(user){
   const name = (user.user_metadata?.full_name || user.email || 'there').split(' ')[0];
@@ -2788,13 +3017,17 @@ function switchPage(page){
   document.getElementById('page-home').classList.toggle('hidden', page !== 'home');
   document.getElementById('page-drills').classList.toggle('hidden', page !== 'drills');
   document.getElementById('page-routine').classList.toggle('hidden', page !== 'routine');
-  document.getElementById('progress-bar').classList.toggle('page-hide', page === 'home');
+  document.getElementById('page-settings').classList.toggle('hidden', page !== 'settings');
+  document.getElementById('progress-bar').classList.toggle('page-hide', page === 'home' || page === 'settings');
   if(page === 'routine' && !routineLoadAttempted){
     routineLoadAttempted = true;
     loadUserRoutines();
   }
   if(page === 'home'){
     loadHomeData(); // cheap enough to refresh every visit, keeps stats current
+  }
+  if(page === 'settings'){
+    renderSettingsPage();
   }
   renderProgressStats();
 }
