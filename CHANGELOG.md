@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v1.5.0 — Animated silhouette demos
+- Every drill card now shows a small looping silhouette animation (squat, swing, throw, jump, lunge, rotate, or run) matched to that drill's motion
+- A pulsing highlight dot shows exactly which body part to focus on (knees, hips, shoulders, elbow, wrist, feet, core, or eyes)
+- The AI now picks the motion + focus for each drill it generates, for both the text and video flows
+- Not real video — a lightweight, free, built-in animation (no extra cost or generation wait time)
+
 ## v1.4.0 — Role-aware video feedback
 - Added Step 3 to the video flow: "Who are you in this play?" — a role picker specific to each sport (e.g. Hitter/Pitcher for baseball, Shooter/Defender for basketball)
 - The AI is now instructed to only analyze the person in the selected role, ignoring teammates/opponents/other players visible in the frames
