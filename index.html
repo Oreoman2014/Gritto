@@ -1069,6 +1069,14 @@
     background:none; border:none; color:var(--ink-soft);
     font-size:20px; line-height:1; cursor:pointer; padding:0 0 0 10px;
   }
+  .vh-detail-thumb{
+    width:100%;
+    max-height:220px;
+    object-fit:cover;
+    border-radius:10px;
+    margin-bottom:12px;
+    display:block;
+  }
 
   .bottom-nav{
     position:fixed;
@@ -1953,6 +1961,27 @@ function selectActivityItem(i){
   const r = homeActivityRows[i];
   if(!r) return;
 
+  // Video checks get the fuller Video History view (thumbnail + full
+  // breakdown + drills) instead of a plain text box, since that richer
+  // record already exists — find the matching entry by closest timestamp.
+  if(r.source === 'video' && videoHistoryCache.length > 0){
+    let bestIdx = -1, bestDiff = Infinity;
+    videoHistoryCache.forEach((v, vi) => {
+      if(v.sport !== r.sport) return;
+      const diff = Math.abs(new Date(v.created_at) - new Date(r.created_at));
+      if(diff < bestDiff){ bestDiff = diff; bestIdx = vi; }
+    });
+    if(bestIdx > -1 && bestDiff < 60000){ // within a minute — safe match
+      document.getElementById('home-activity-detail').innerHTML = '';
+      document.querySelectorAll('.home-activity-item').forEach(el => el.classList.remove('active'));
+      const el = document.getElementById(`ha-item-${i}`);
+      if(el) el.classList.add('active');
+      document.getElementById('video-history-strip').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      selectVideoHistoryItem(bestIdx);
+      return;
+    }
+  }
+
   document.querySelectorAll('.home-activity-item').forEach(el => el.classList.remove('active'));
   const el = document.getElementById(`ha-item-${i}`);
   if(el) el.classList.add('active');
@@ -2078,6 +2107,7 @@ function selectVideoHistoryItem(i){
         </div>
         <button class="vh-close-btn" onclick="closeVideoHistoryDetail()">&times;</button>
       </div>
+      <img src="${v.thumbnail}" alt="${v.sport} video frame" class="vh-detail-thumb">
       <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 12px;">${v.summary || ''}</p>
       <label>What's looking good</label>
       <ul class="obs-list">${goodItems}</ul>
@@ -2119,7 +2149,7 @@ async function loadHomeData(){
     return;
   }
   signinNote.textContent = '';
-  loadVideoHistory();
+  await loadVideoHistory();
 
   try{
     const { data, error } = await sb.from('drill_history')
