@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v2.7.0 — Video history
+- Every video form check now gets saved: sport, role, a thumbnail frame, the summary, what's-good/what-to-fix, and the drills — not the whole video, just a lightweight snapshot
+- New "Your video history" strip on the Home page — scroll through past sessions, tap one to see its full breakdown again
+- Lets you actually look back over weeks/months and compare how your form has changed
+- New database table: video_analysis_history (RLS locked to each user's own rows)
+
 ## v2.6.0 — Logo wired in (home screen icon + header)
 - Cropped the icon mark (the double arrow) into a proper square, since home-screen icons need to be square — using the full tall logo would have looked wrong once added to a phone's home screen
 - This square icon is now what shows up when someone adds Gritto to their home screen (via the browser's Share menu)
