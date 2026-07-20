@@ -1971,7 +1971,7 @@ function selectActivityItem(i){
       const diff = Math.abs(new Date(v.created_at) - new Date(r.created_at));
       if(diff < bestDiff){ bestDiff = diff; bestIdx = vi; }
     });
-    if(bestIdx > -1 && bestDiff < 60000){ // within a minute — safe match
+    if(bestIdx > -1 && bestDiff < 300000){ // within 5 minutes — safe match
       document.getElementById('home-activity-detail').innerHTML = '';
       document.querySelectorAll('.home-activity-item').forEach(el => el.classList.remove('active'));
       const el = document.getElementById(`ha-item-${i}`);
@@ -2013,6 +2013,9 @@ function selectActivityItem(i){
       </div>
     `;
   }else{
+    const oldVideoNote = r.source === 'video'
+      ? `<p style="font-size:11.5px; color:var(--ink-soft); margin:0 0 10px; font-style:italic;">This one was saved before Gritto started keeping the full video breakdown — here's the written summary only.</p>`
+      : '';
     detail.innerHTML = `
       <div class="vh-detail-card">
         <div class="vh-detail-head">
@@ -2022,6 +2025,7 @@ function selectActivityItem(i){
           </div>
           <button class="vh-close-btn" onclick="closeActivityDetail()">&times;</button>
         </div>
+        ${oldVideoNote}
         <p style="font-size:13.5px; color:var(--ink); margin:0; line-height:1.5;">${r.summary || 'No details saved for this one.'}</p>
       </div>
     `;
