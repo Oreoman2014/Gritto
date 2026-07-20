@@ -442,11 +442,11 @@
   }
   .mode-section.hidden{display:none;}
 
-  .routine-card{
+  .routine-summary{
     background:var(--charcoal);
     border-radius:16px;
-    padding:20px;
-    margin-bottom:20px;
+    padding:18px 20px;
+    margin-bottom:6px;
     color:#fff;
   }
   .routine-head{
@@ -470,53 +470,88 @@
   .routine-goal{
     font-size:13px;
     color:#C8CCC2;
-    margin:0 0 16px;
+    margin:0;
   }
-  .routine-item{
+
+  .routine-path{
+    padding:24px 4px 4px;
+  }
+  .routine-path-step{
     display:flex;
-    align-items:flex-start;
-    gap:12px;
-    padding:12px 0;
-    border-top:1px solid #2A3142;
+    gap:14px;
   }
-  .routine-item:first-of-type{border-top:none;}
-  .routine-check{
-    width:24px; height:24px;
-    border-radius:7px;
-    border:2px solid #4A5468;
+  .routine-path-connector{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
     flex-shrink:0;
-    margin-top:1px;
-    cursor:pointer;
+    width:34px;
+  }
+  .routine-node{
+    width:34px; height:34px;
+    border-radius:50%;
+    background:#fff;
+    border:2.5px solid var(--line);
     display:flex;
     align-items:center;
     justify-content:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:13px;
+    color:var(--slate-soft);
+    cursor:pointer;
+    flex-shrink:0;
     transition:all 0.15s ease;
   }
-  .routine-check.checked{
+  .routine-node.checked{
     background:var(--turf);
     border-color:var(--turf);
+    color:#fff;
   }
-  .routine-check svg{width:14px; height:14px; opacity:0; transition:opacity 0.1s ease;}
-  .routine-check.checked svg{opacity:1;}
-  .routine-item-body{flex:1;}
+  .routine-node svg{width:16px; height:16px; display:none;}
+  .routine-node.checked svg{display:block;}
+  .routine-node.checked .node-number{display:none;}
+  .routine-connector-line{
+    width:3px;
+    flex:1;
+    min-height:26px;
+    background:var(--line);
+    margin:2px 0;
+  }
+  .routine-connector-line.filled{background:var(--turf);}
+  .routine-path-step:last-child .routine-connector-line{display:none;}
+
+  .routine-path-card{
+    flex:1;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:20px;
+  }
+  .routine-path-card.checked{background:#F3F8F5; border-color:#CFE6D8;}
   .routine-item-title{
     font-weight:700;
     font-size:14px;
     display:flex;
     justify-content:space-between;
     gap:8px;
+    color:var(--ink);
   }
-  .routine-item-title.checked{ text-decoration:line-through; color:#7C87AA; }
+  .routine-item-title.checked{ text-decoration:line-through; color:var(--slate-soft); }
   .routine-item-min{
     font-family:'IBM Plex Mono',monospace;
     font-size:11.5px;
-    color:#8D97B8;
+    color:var(--turf-dark, var(--teal));
+    background:#EAF6EE;
+    padding:2px 8px;
+    border-radius:20px;
     white-space:nowrap;
   }
-  .routine-item-cue{font-size:12.5px; color:#9AA6C4; margin-top:2px;}
+  .routine-item-cue{font-size:12.5px; color:var(--slate-soft); margin-top:4px;}
   .routine-complete-btn{
     width:100%;
-    margin-top:14px;
+    margin-top:0;
     background:var(--energy);
     color:#fff;
     border:none;
@@ -728,9 +763,38 @@
     min-height:16px;
   }
 
+  .bottom-nav{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    display:flex;
+    background:#fff;
+    border-top:1px solid var(--line);
+    padding:6px 0 max(6px, env(safe-area-inset-bottom));
+    z-index:150;
+  }
+  .bottom-nav-btn{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+    padding:8px 0 4px;
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:11.5px;
+    cursor:pointer;
+  }
+  .bottom-nav-btn svg{width:23px; height:23px;}
+  .bottom-nav-btn.active{color:var(--turf);}
+
+  main{padding-bottom:78px;}
+
   .debug-toggle{
     position:fixed;
-    bottom:18px;
+    bottom:82px;
     right:18px;
     width:48px;
     height:48px;
@@ -874,58 +938,73 @@
     </div>
   </div>
 
-  <div class="section-label">1 · Pick a sport</div>
-  <div class="sport-grid" id="sport-grid"></div>
+  <div id="page-drills">
+    <div class="section-label">1 · Pick a sport</div>
+    <div class="sport-grid" id="sport-grid"></div>
 
-  <div class="mode-tabs">
-    <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">Describe it</button>
-    <button class="mode-tab" data-mode="video" onclick="switchMode('video')">Upload a video</button>
-    <button class="mode-tab" data-mode="routine" onclick="switchMode('routine')">Daily Routine</button>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">Describe it</button>
+      <button class="mode-tab" data-mode="video" onclick="switchMode('video')">Upload a video</button>
+    </div>
+
+    <div class="mode-section" id="mode-text">
+      <div class="input-block">
+        <label for="skill-input">2 · What are you working on?</label>
+        <textarea id="skill-input" placeholder="e.g. my basketball free throw keeps missing short, or my baseball swing feels off timing-wise"></textarea>
+        <div class="hint-text">Be specific if you can — what it feels like, what's going wrong, or what you want to improve.</div>
+      </div>
+      <button class="go-btn" id="go-btn" onclick="getDrills()">Get my drills</button>
+      <div class="status" id="status"></div>
+      <div class="results" id="results"></div>
+    </div>
+
+    <div class="mode-section hidden" id="mode-video">
+      <div class="section-label">2 · Upload a clip</div>
+      <div class="video-drop" id="video-drop" onclick="document.getElementById('video-input').click()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/></svg>
+        <div class="vd-title" id="vd-title">Tap to choose a video</div>
+        <div class="vd-sub">A short clip (5–15 seconds) of your swing, shot, or motion works best</div>
+      </div>
+      <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
+
+      <div class="frame-strip" id="frame-strip"></div>
+
+      <div class="role-section hidden" id="role-section">
+        <div class="section-label">3 · Who are you in this play?</div>
+        <div class="role-grid" id="role-grid"></div>
+      </div>
+
+      <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
+      <div class="status" id="video-status"></div>
+      <div class="results" id="video-results"></div>
+    </div>
   </div>
 
-  <div class="mode-section" id="mode-text">
+  <div id="page-routine" class="hidden">
+    <div class="section-label">1 · Pick a sport</div>
+    <div class="sport-grid" id="sport-grid-routine"></div>
+
     <div class="input-block">
-      <label for="skill-input">2 · What are you working on?</label>
-      <textarea id="skill-input" placeholder="e.g. my basketball free throw keeps missing short, or my baseball swing feels off timing-wise"></textarea>
-      <div class="hint-text">Be specific if you can — what it feels like, what's going wrong, or what you want to improve.</div>
-    </div>
-    <button class="go-btn" id="go-btn" onclick="getDrills()">Get my drills</button>
-    <div class="status" id="status"></div>
-    <div class="results" id="results"></div>
-  </div>
-
-  <div class="mode-section hidden" id="mode-video">
-    <div class="section-label">2 · Upload a clip</div>
-    <div class="video-drop" id="video-drop" onclick="document.getElementById('video-input').click()">
-      <svg viewBox="0 0 24 24" fill="none"><path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/></svg>
-      <div class="vd-title" id="vd-title">Tap to choose a video</div>
-      <div class="vd-sub">A short clip (5–15 seconds) of your swing, shot, or motion works best</div>
-    </div>
-    <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
-
-    <div class="frame-strip" id="frame-strip"></div>
-
-    <div class="role-section hidden" id="role-section">
-      <div class="section-label">3 · Who are you in this play?</div>
-      <div class="role-grid" id="role-grid"></div>
-    </div>
-
-    <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
-    <div class="status" id="video-status"></div>
-    <div class="results" id="video-results"></div>
-  </div>
-
-  <div class="mode-section hidden" id="mode-routine">
-    <div class="input-block">
-      <label for="routine-goal-input">2 · What do you want a daily routine for?</label>
+      <label for="routine-goal-input">2 · What do you want a daily path for?</label>
       <textarea id="routine-goal-input" placeholder="e.g. improving my basketball ball handling, or building a stronger baseball swing"></textarea>
-      <div class="hint-text">This builds a short routine (about 5–10 minutes) you can repeat every day.</div>
+      <div class="hint-text">This builds a short path of drills (about 5–10 minutes total) you can repeat every day.</div>
     </div>
-    <button class="go-btn" id="routine-go-btn" onclick="buildRoutine()">Build my routine</button>
+    <button class="go-btn" id="routine-go-btn" onclick="buildRoutine()">Build my path</button>
     <div class="status" id="routine-status"></div>
     <div id="routine-display"></div>
   </div>
 </main>
+
+<nav class="bottom-nav">
+  <button class="bottom-nav-btn active" data-page="drills" onclick="switchPage('drills')">
+    <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    <span>Drills</span>
+  </button>
+  <button class="bottom-nav-btn" data-page="routine" onclick="switchPage('routine')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
+    <span>Daily Routine</span>
+  </button>
+</nav>
 
 <footer>Prototype — advice is general coaching info, not a substitute for an in-person coach.</footer>
 
@@ -1394,18 +1473,28 @@ function renderRoleOptions(sport){
   roleSection.classList.remove('hidden');
 }
 
-const grid = document.getElementById('sport-grid');
-sports.forEach(s => {
-  const chip = document.createElement('div');
-  chip.className = 'sport-chip';
-  chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${s.icon}</svg><span>${s.name}</span>`;
-  chip.onclick = () => {
-    document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    selectedSport = s.name;
-    renderRoleOptions(selectedSport);
-  };
-  grid.appendChild(chip);
+const gridIds = ['sport-grid', 'sport-grid-routine'];
+gridIds.forEach(gridId => {
+  const grid = document.getElementById(gridId);
+  if(!grid) return;
+  sports.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'sport-chip';
+    chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${s.icon}</svg><span>${s.name}</span>`;
+    chip.onclick = () => {
+      // Keep both sport pickers (Drills page + Daily Routine page) in sync
+      document.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
+      gridIds.forEach(id => {
+        const g = document.getElementById(id);
+        if(!g) return;
+        const match = Array.from(g.children).find(c => c.textContent.trim() === s.name);
+        if(match) match.classList.add('active');
+      });
+      selectedSport = s.name;
+      renderRoleOptions(selectedSport);
+    };
+    grid.appendChild(chip);
+  });
 });
 
 // ---- Daily Routine feature ----
@@ -1455,8 +1544,8 @@ async function buildRoutine(){
   statusEl.textContent = 'Building your routine…';
 
   const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"items": [{"name":"short activity name","minutes":2,"cue":"one short coaching cue for this activity"}]}
-Include 3 to 5 items. The "minutes" values should be realistic whole numbers that add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment. Order them from warm-up-style activities to more focused ones.`;
+{"items": [{"name":"short activity name","minutes":2,"reps":null,"cue":"one short coaching cue for this activity"}]}
+Include 3 to 5 items, ordered from warm-up-style activities to more focused ones. For EACH item, set exactly one of "minutes" or "reps" to a realistic whole number and set the other to null — use "reps" for countable activities (like "20 dribbles" or "10 throws") and "minutes" for timed activities (like "footwork drill"). The items that use "minutes" should add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment.`;
 
   const userMsg = `Sport: ${selectedSport}\nDaily goal: ${goalText}`;
 
@@ -1526,17 +1615,22 @@ function renderRoutine(){
   const totalMin = currentRoutine.items.reduce((sum, it) => sum + (it.minutes || 0), 0);
   const doneToday = currentRoutine.last_completed_date === todayStr();
 
-  const itemsHtml = currentRoutine.items.map((it, i) => {
+  const stepsHtml = currentRoutine.items.map((it, i) => {
     const isChecked = doneToday || routineChecks.has(i);
+    const duration = it.reps ? `${it.reps} reps` : `${it.minutes} min`;
     return `
-      <div class="routine-item">
-        <div class="routine-check ${isChecked ? 'checked' : ''}" onclick="toggleRoutineItem(${i})">
-          <svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="routine-path-step">
+        <div class="routine-path-connector">
+          <div class="routine-node ${isChecked ? 'checked' : ''}" onclick="toggleRoutineItem(${i})">
+            <span class="node-number">${i + 1}</span>
+            <svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="routine-connector-line ${isChecked ? 'filled' : ''}"></div>
         </div>
-        <div class="routine-item-body">
+        <div class="routine-path-card ${isChecked ? 'checked' : ''}">
           <div class="routine-item-title ${isChecked ? 'checked' : ''}">
             <span>${it.name}</span>
-            <span class="routine-item-min">${it.minutes} min</span>
+            <span class="routine-item-min">${duration}</span>
           </div>
           <div class="routine-item-cue">${it.cue || ''}</div>
         </div>
@@ -1547,19 +1641,19 @@ function renderRoutine(){
   const allChecked = currentRoutine.items.every((_, i) => doneToday || routineChecks.has(i));
 
   wrap.innerHTML = `
-    <div class="routine-card">
+    <div class="routine-summary">
       <div class="routine-head">
-        <h3>${currentRoutine.sport} routine</h3>
+        <h3>${currentRoutine.sport} path</h3>
         <span class="routine-total">~${totalMin} min</span>
       </div>
       <p class="routine-goal">${currentRoutine.goal}</p>
-      ${itemsHtml}
-      <button class="routine-complete-btn ${doneToday ? 'done' : ''}" id="routine-complete-btn"
-        onclick="markRoutineComplete()" ${(!allChecked || doneToday) ? 'disabled' : ''}>
-        ${doneToday ? "Done for today! 🎉" : 'Mark today complete'}
-      </button>
-      <div class="routine-signin-note" id="routine-signin-note"></div>
     </div>
+    <div class="routine-path">${stepsHtml}</div>
+    <button class="routine-complete-btn ${doneToday ? 'done' : ''}" id="routine-complete-btn"
+      onclick="markRoutineComplete()" ${(!allChecked || doneToday) ? 'disabled' : ''}>
+      ${doneToday ? "Done for today! 🎉" : 'Mark today complete'}
+    </button>
+    <div class="routine-signin-note" id="routine-signin-note"></div>
   `;
 
   sb.auth.getSession().then(({ data: { session } }) => {
@@ -1669,8 +1763,13 @@ function switchMode(mode){
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
   document.getElementById('mode-text').classList.toggle('hidden', mode !== 'text');
   document.getElementById('mode-video').classList.toggle('hidden', mode !== 'video');
-  document.getElementById('mode-routine').classList.toggle('hidden', mode !== 'routine');
-  if(mode === 'routine' && !routineLoadAttempted){
+}
+
+function switchPage(page){
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.getElementById('page-drills').classList.toggle('hidden', page !== 'drills');
+  document.getElementById('page-routine').classList.toggle('hidden', page !== 'routine');
+  if(page === 'routine' && !routineLoadAttempted){
     routineLoadAttempted = true;
     loadSavedRoutine();
   }
