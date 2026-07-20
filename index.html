@@ -577,6 +577,45 @@
     margin-top:10px;
   }
   .routine-logged-time .time-prompt-estimate{color:var(--teal); text-decoration:underline;}
+
+  .routine-selector{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    margin-bottom:20px;
+    padding-bottom:2px;
+  }
+  .routine-chip{
+    flex-shrink:0;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:20px;
+    padding:9px 16px;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .routine-chip.active{background:var(--turf); border-color:var(--turf); color:#fff;}
+  .routine-chip.new{color:var(--turf-dark, var(--teal)); border-style:dashed;}
+  .routine-chip.new.active{background:var(--turf); color:#fff; border-style:solid;}
+  #routine-build-form.hidden{display:none;}
+
+  .routine-delete-btn{
+    background:none;
+    border:none;
+    color:#8D97B8;
+    cursor:pointer;
+    padding:4px;
+    display:flex;
+    align-items:center;
+    flex-shrink:0;
+  }
+  .routine-delete-btn svg{width:17px; height:17px;}
+  .routine-delete-btn:hover{color:var(--energy);}
+
   .routine-signin-note{
     font-size:12px;
     color:#8D97B8;
@@ -1290,16 +1329,21 @@
   </div>
 
   <div id="page-routine" class="hidden">
-    <div class="section-label">1 · Pick a sport</div>
-    <div class="sport-grid" id="sport-grid-routine"></div>
+    <div class="routine-selector" id="routine-selector"></div>
 
-    <div class="input-block">
-      <label for="routine-goal-input">2 · What do you want a daily path for?</label>
-      <textarea id="routine-goal-input" placeholder="e.g. improving my basketball ball handling, or building a stronger baseball swing"></textarea>
-      <div class="hint-text">This builds a short path of drills (about 5–10 minutes total) you can repeat every day.</div>
+    <div id="routine-build-form">
+      <div class="section-label">1 · Pick a sport</div>
+      <div class="sport-grid" id="sport-grid-routine"></div>
+
+      <div class="input-block">
+        <label for="routine-goal-input">2 · What do you want a daily path for?</label>
+        <textarea id="routine-goal-input" placeholder="e.g. improving my basketball ball handling, or building a stronger baseball swing"></textarea>
+        <div class="hint-text">This builds a short path of drills (about 5–10 minutes total) you can repeat every day.</div>
+      </div>
+      <button class="go-btn" id="routine-go-btn" onclick="buildRoutine()">Build my path</button>
+      <div class="status" id="routine-status"></div>
     </div>
-    <button class="go-btn" id="routine-go-btn" onclick="buildRoutine()">Build my path</button>
-    <div class="status" id="routine-status"></div>
+
     <div id="routine-display"></div>
   </div>
 </main>
@@ -1968,11 +2012,12 @@ async function loadHomeData(){
   // landing page), make sure that happens now instead of showing 0.
   if(!routineLoadAttempted){
     routineLoadAttempted = true;
-    await loadSavedRoutine();
+    await loadUserRoutines();
   }
 
   document.getElementById('home-drills-streak').textContent = drillProgress.current_streak || 0;
-  document.getElementById('home-routine-streak').textContent = (currentRoutine && currentRoutine.current_streak) || 0;
+  const bestRoutineStreak = userRoutines.reduce((max, r) => Math.max(max, r.current_streak || 0), 0);
+  document.getElementById('home-routine-streak').textContent = bestRoutineStreak;
 
   const { data: { session } } = await sb.auth.getSession();
   const signinNote = document.getElementById('home-signin-note');
@@ -2051,9 +2096,11 @@ async function loadHomeData(){
   }
 }
 
-// ---- Daily Routine feature ----
+// ---- Daily Routine feature (supports multiple saved routines) ----
 let routineLoadAttempted = false;
-let currentRoutine = null; // { sport, goal, items: [{name, minutes, cue}], last_completed_date }
+let userRoutines = []; // every routine this user has saved
+let routineViewMode = 'view'; // 'view' shows the selected routine, 'build' shows the creation form
+let currentRoutine = null; // the routine currently being viewed/edited (has .id once saved)
 let routineChecks = new Set(); // indexes of checked items, resets each day
 let showTimePromptFlag = false;
 let editingTodayEntry = false;
@@ -2064,33 +2111,133 @@ function todayStr(){
   return new Date().toISOString().slice(0, 10);
 }
 
-async function loadSavedRoutine(){
-  const statusEl = document.getElementById('routine-status');
+async function loadUserRoutines(){
   const { data: { session } } = await sb.auth.getSession();
-  if(!session){
-    return; // not signed in — nothing saved to load, they can still build one for this session
-  }
+  if(!session) return; // not signed in — nothing saved to load, they can still build one for this session
+
   try{
-    const { data, error } = await sb.from('user_routine').select('*').eq('user_id', session.user.id).maybeSingle();
-    if(error){ console.error('Could not load routine:', error.message); return; }
-    if(data){
-      currentRoutine = data;
-      routineChecks = new Set();
-      showTimePromptFlag = false;
-      editingTodayEntry = false;
-      document.getElementById('routine-goal-input').value = data.goal;
-      if(!selectedSport){
-        selectSport(data.sport);
-      }
-      if(data.last_completed_date === todayStr()){
+    const { data, error } = await sb.from('user_routine')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('updated_at', { ascending: false });
+    if(error){ console.error('Could not load routines:', error.message); return; }
+
+    userRoutines = data || [];
+    routineChecks = new Set();
+    showTimePromptFlag = false;
+    editingTodayEntry = false;
+    todayRoutineHistoryId = null;
+    todayRoutineMinutesLogged = 0;
+
+    if(userRoutines.length > 0){
+      const stillExists = currentRoutine && userRoutines.find(r => r.id === currentRoutine.id);
+      currentRoutine = stillExists || userRoutines[0];
+      routineViewMode = 'view';
+      if(!selectedSport) selectSport(currentRoutine.sport);
+      if(currentRoutine.last_completed_date === todayStr()){
         await loadTodayRoutineMinutes();
       }
-      renderRoutine();
-      renderProgressStats();
+    }else{
+      routineViewMode = 'build';
     }
+
+    renderRoutinePage();
+    renderProgressStats();
   }catch(err){
-    console.error('Routine load failed:', err.message);
+    console.error('Routines load failed:', err.message);
   }
+}
+
+// Draws the chip row (one per saved routine, plus "+ New") and swaps
+// between the creation form and the selected routine's view.
+function renderRoutinePage(){
+  renderRoutineSelector();
+  const buildForm = document.getElementById('routine-build-form');
+  const display = document.getElementById('routine-display');
+  if(routineViewMode === 'build'){
+    buildForm.classList.remove('hidden');
+    display.innerHTML = '';
+  }else{
+    buildForm.classList.add('hidden');
+    renderRoutine();
+  }
+}
+
+function renderRoutineSelector(){
+  const wrap = document.getElementById('routine-selector');
+  if(!wrap) return;
+  if(userRoutines.length === 0){ wrap.innerHTML = ''; return; }
+
+  const chips = userRoutines.map(r => {
+    const isActive = routineViewMode === 'view' && currentRoutine && currentRoutine.id === r.id;
+    return `<button class="routine-chip ${isActive ? 'active' : ''}" onclick="selectRoutineById('${r.id}')">${r.sport}</button>`;
+  }).join('');
+  const newChip = `<button class="routine-chip new ${routineViewMode === 'build' ? 'active' : ''}" onclick="startNewRoutine()">+ New</button>`;
+  wrap.innerHTML = chips + newChip;
+}
+
+async function selectRoutineById(id){
+  const r = userRoutines.find(x => x.id === id);
+  if(!r) return;
+
+  currentRoutine = r;
+  routineViewMode = 'view';
+  routineChecks = new Set();
+  showTimePromptFlag = false;
+  editingTodayEntry = false;
+  todayRoutineHistoryId = null;
+  todayRoutineMinutesLogged = 0;
+  selectSport(r.sport);
+
+  if(r.last_completed_date === todayStr()){
+    await loadTodayRoutineMinutes();
+  }
+
+  renderRoutinePage();
+  renderProgressStats();
+}
+
+function startNewRoutine(){
+  routineViewMode = 'build';
+  document.getElementById('routine-goal-input').value = '';
+  document.getElementById('routine-status').textContent = '';
+  renderRoutinePage();
+}
+
+async function deleteCurrentRoutine(){
+  if(!currentRoutine) return;
+  if(!confirm(`Delete your ${currentRoutine.sport} path? This can't be undone.`)) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(session && currentRoutine.id){
+    try{
+      await sb.from('user_routine').delete().eq('id', currentRoutine.id);
+    }catch(err){
+      console.error('Could not delete routine:', err.message);
+    }
+  }
+
+  userRoutines = userRoutines.filter(r => r.id !== currentRoutine.id);
+  routineChecks = new Set();
+  showTimePromptFlag = false;
+  editingTodayEntry = false;
+  todayRoutineHistoryId = null;
+  todayRoutineMinutesLogged = 0;
+
+  if(userRoutines.length > 0){
+    currentRoutine = userRoutines[0];
+    routineViewMode = 'view';
+    selectSport(currentRoutine.sport);
+    if(currentRoutine.last_completed_date === todayStr()){
+      await loadTodayRoutineMinutes();
+    }
+  }else{
+    currentRoutine = null;
+    routineViewMode = 'build';
+  }
+
+  renderRoutinePage();
+  renderProgressStats();
 }
 
 async function buildRoutine(){
@@ -2132,52 +2279,80 @@ Include 3 to 5 items, ordered from warm-up-style activities to more focused ones
     const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
-    currentRoutine = {
+    const newRoutine = {
       sport: selectedSport,
       goal: goalText,
       items: parsed.items,
-      last_completed_date: currentRoutine ? currentRoutine.last_completed_date : null,
-      current_streak: currentRoutine ? (currentRoutine.current_streak || 0) : 0,
-      longest_streak: currentRoutine ? (currentRoutine.longest_streak || 0) : 0,
-      total_minutes_practiced: currentRoutine ? (currentRoutine.total_minutes_practiced || 0) : 0
+      last_completed_date: null,
+      current_streak: 0,
+      longest_streak: 0,
+      total_minutes_practiced: 0
     };
+
+    const { data: { session } } = await sb.auth.getSession();
+    if(session){
+      const { data: inserted, error } = await sb.from('user_routine').insert({
+        user_id: session.user.id,
+        sport: newRoutine.sport,
+        goal: newRoutine.goal,
+        items: newRoutine.items,
+        last_completed_date: null,
+        current_streak: 0,
+        longest_streak: 0,
+        total_minutes_practiced: 0,
+        updated_at: new Date().toISOString()
+      }).select().single();
+      if(error) throw error;
+      newRoutine.id = inserted.id;
+      userRoutines.unshift(newRoutine);
+    }else{
+      statusEl.textContent = '';
+    }
+
+    currentRoutine = newRoutine;
+    routineViewMode = 'view';
     routineChecks = new Set();
     showTimePromptFlag = false;
+    todayRoutineHistoryId = null;
+    todayRoutineMinutesLogged = 0;
     statusEl.textContent = '';
-    renderRoutine();
+    renderRoutinePage();
     renderProgressStats();
-    await saveRoutine();
   }catch(err){
     statusEl.textContent = '';
     const errBox = document.createElement('div');
     errBox.className = 'error-box';
     errBox.textContent = "Something went wrong building your routine. Try again in a moment.";
-    document.getElementById('routine-display').prepend(errBox);
+    document.getElementById('routine-build-form').appendChild(errBox);
     console.error(err);
   }finally{
     btn.disabled = false;
   }
 }
 
+// Saves the currently selected routine's completion state/stats. Only
+// used for updating an existing routine — buildRoutine() handles
+// creating brand new ones directly.
 async function saveRoutine(){
   const { data: { session } } = await sb.auth.getSession();
   const statusEl = document.getElementById('routine-status');
   if(!session){
-    statusEl.textContent = 'Sign in with Google to save this routine and track it day to day.';
+    if(statusEl) statusEl.textContent = 'Sign in with Google to save this routine and track it day to day.';
     return;
   }
+  if(!currentRoutine || !currentRoutine.id) return;
+
   try{
-    await sb.from('user_routine').upsert({
-      user_id: session.user.id,
-      sport: currentRoutine.sport,
-      goal: currentRoutine.goal,
-      items: currentRoutine.items,
+    await sb.from('user_routine').update({
       last_completed_date: currentRoutine.last_completed_date,
       current_streak: currentRoutine.current_streak || 0,
       longest_streak: currentRoutine.longest_streak || 0,
       total_minutes_practiced: currentRoutine.total_minutes_practiced || 0,
       updated_at: new Date().toISOString()
-    });
+    }).eq('id', currentRoutine.id);
+
+    const idx = userRoutines.findIndex(r => r.id === currentRoutine.id);
+    if(idx > -1) userRoutines[idx] = { ...userRoutines[idx], ...currentRoutine };
   }catch(err){
     console.error('Could not save routine:', err.message);
   }
@@ -2248,7 +2423,12 @@ function renderRoutine(){
     <div class="routine-summary">
       <div class="routine-head">
         <h3>${currentRoutine.sport} path</h3>
-        <span class="routine-total">~${totalMin} min</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="routine-total">~${totalMin} min</span>
+          <button class="routine-delete-btn" onclick="deleteCurrentRoutine()" title="Delete this routine">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
       </div>
       <p class="routine-goal">${currentRoutine.goal}</p>
     </div>
@@ -2305,16 +2485,19 @@ function useEstimatedTime(){
   finalizeRoutineCompletion(totalMin || 5);
 }
 
-// Finds today's already-logged routine entry (if the page was reloaded
-// after completing today) so editing has something to compare against.
+// Finds today's already-logged entry for THIS routine's sport (if the
+// page was reloaded after completing today) so editing has something
+// to compare against. Filtering by sport keeps this correct even when
+// someone has multiple saved routines for different sports.
 async function loadTodayRoutineMinutes(){
   const { data: { session } } = await sb.auth.getSession();
-  if(!session) return;
+  if(!session || !currentRoutine) return;
   try{
     const { data, error } = await sb.from('drill_history')
       .select('id, minutes, created_at')
       .eq('user_id', session.user.id)
       .eq('source', 'routine')
+      .eq('sport', currentRoutine.sport)
       .order('created_at', { ascending: false })
       .limit(1);
     if(error || !data || data.length === 0) return;
@@ -2387,6 +2570,7 @@ async function updateTodaysPracticeTime(newMinutes){
     }
   }
 }
+
 
 async function getDrills(){
   const statusEl = document.getElementById('status');
@@ -2483,7 +2667,7 @@ function switchPage(page){
   document.getElementById('progress-bar').classList.toggle('page-hide', page === 'home');
   if(page === 'routine' && !routineLoadAttempted){
     routineLoadAttempted = true;
-    loadSavedRoutine();
+    loadUserRoutines();
   }
   if(page === 'home'){
     loadHomeData(); // cheap enough to refresh every visit, keeps stats current
