@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v1.8.0 — Bigger white/black line-art figures
+- Redesigned the generic drill figure: much bigger (150×180 instead of 60×78), white body fill with bold black outlines — original line-art style, not a copy of any reference image
+- Each drill now gets its own full card with the figure front and center
+- The real "Your motion" silhouette (built from your uploaded video) now uses the same white background + dark figure look for visual consistency, and is bigger too
+- Note: the real "Your motion" silhouette is a solid filled shape (not a hand-drawn outline) since it's built from your actual video frames — true black-outline tracing from a real photo isn't practically achievable the same way as a drawn illustration
+
 ## v1.7.0 — Real silhouette from your own video + solid generic figure
 - Superseded v1.6.0's Lottie plan — dropped it entirely, no external files to source
 - **Video flow:** when you upload a clip, the app now runs your own frames through a free, browser-based person-detector (MediaPipe Selfie Segmentation) and builds a small looping "Your motion" silhouette animation from YOUR real movement — shown above the drills, labeled "Built from the actual clip you uploaded — this is really you."
