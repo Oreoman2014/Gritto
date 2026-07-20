@@ -786,6 +786,7 @@
     color:#fff;
   }
   .progress-bar.hidden{display:none;}
+  .progress-bar.page-hide{display:none;}
   .progress-stat{text-align:center;}
   .progress-stat .num{
     font-family:'IBM Plex Mono',monospace;
@@ -818,6 +819,128 @@
     font-size:12.5px;
     margin-top:10px;
     min-height:16px;
+  }
+
+  .home-greeting{margin-bottom:20px;}
+  .home-greeting h2{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:26px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .home-greeting p{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin:0;
+  }
+
+  .home-streak-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .home-streak-card{
+    background:var(--charcoal);
+    border-radius:14px;
+    padding:16px;
+    color:#fff;
+  }
+  .home-streak-card .section-label{color:#9AA6C4;}
+  .home-streak-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:30px;
+    font-weight:500;
+    color:var(--mint, #4ECDC4);
+    line-height:1;
+  }
+  .home-streak-lbl{font-size:11.5px; color:#9AA6C4; margin-top:4px;}
+
+  .home-quickstart{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .home-quickstart-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    padding:16px 10px;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .home-quickstart-btn svg{width:24px; height:24px; color:var(--turf);}
+  .home-quickstart-btn:hover{border-color:var(--turf);}
+
+  .home-stats-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .home-stat-box{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:14px;
+  }
+  .home-stat-box-wide{grid-column:1 / -1;}
+  .home-stat-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:22px;
+    font-weight:500;
+    color:var(--ink);
+  }
+  .home-stat-lbl{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .home-activity-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:11px 14px;
+    margin-bottom:8px;
+  }
+  .home-activity-icon{
+    width:34px; height:34px;
+    border-radius:9px;
+    background:#EAF6EE;
+    color:var(--turf-dark);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .home-activity-icon svg{width:17px; height:17px;}
+  .home-activity-body{flex:1; min-width:0;}
+  .home-activity-title{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .home-activity-sub{font-size:11.5px; color:var(--ink-soft); margin-top:1px;}
+  .home-activity-time{font-size:11px; color:var(--ink-soft); white-space:nowrap; font-family:'IBM Plex Mono',monospace;}
+  .home-empty{
+    background:#fff;
+    border:1.5px dashed var(--line);
+    border-radius:12px;
+    padding:22px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13px;
+  }
+  .home-signin-note{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-align:center;
+    margin-top:14px;
   }
 
   .bottom-nav{
@@ -973,7 +1096,7 @@
 
 
 <main>
-  <div class="progress-bar hidden" id="progress-bar">
+  <div class="progress-bar hidden page-hide" id="progress-bar">
     <div class="progress-user">
       <img id="progress-avatar" src="" alt="">
       <span id="progress-name"></span>
@@ -995,7 +1118,58 @@
     </div>
   </div>
 
-  <div id="page-drills">
+  <div id="page-home">
+    <div class="home-greeting" id="home-greeting">
+      <h2 id="home-greeting-text">Hey there 👋</h2>
+      <p id="home-greeting-sub">Ready to work on something today?</p>
+    </div>
+
+    <div class="home-streak-row">
+      <div class="home-streak-card">
+        <div class="section-label" style="margin-bottom:8px;">Drills streak</div>
+        <div class="home-streak-num" id="home-drills-streak">0</div>
+        <div class="home-streak-lbl">days in a row</div>
+      </div>
+      <div class="home-streak-card">
+        <div class="section-label" style="margin-bottom:8px;">Routine streak</div>
+        <div class="home-streak-num" id="home-routine-streak">0</div>
+        <div class="home-streak-lbl">days in a row</div>
+      </div>
+    </div>
+
+    <div class="home-quickstart">
+      <button class="home-quickstart-btn" onclick="switchPage('drills')">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Get drills
+      </button>
+      <button class="home-quickstart-btn" onclick="switchPage('routine')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
+        Today's routine
+      </button>
+    </div>
+
+    <div class="section-label" style="margin-top:8px;">Your stats</div>
+    <div class="home-stats-grid">
+      <div class="home-stat-box">
+        <div class="home-stat-num" id="home-stat-days">0</div>
+        <div class="home-stat-lbl">Total active days</div>
+      </div>
+      <div class="home-stat-box">
+        <div class="home-stat-num" id="home-stat-drills">0</div>
+        <div class="home-stat-lbl">Drills completed</div>
+      </div>
+      <div class="home-stat-box home-stat-box-wide">
+        <div class="home-stat-num" id="home-stat-bigday">—</div>
+        <div class="home-stat-lbl" id="home-stat-bigday-lbl">Biggest practice day</div>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:20px;">Recent activity</div>
+    <div id="home-activity-list"></div>
+    <div class="home-signin-note" id="home-signin-note"></div>
+  </div>
+
+  <div id="page-drills" class="hidden">
     <div class="section-label">1 · Pick a sport</div>
     <div class="sport-grid" id="sport-grid"></div>
 
@@ -1053,7 +1227,11 @@
 </main>
 
 <nav class="bottom-nav">
-  <button class="bottom-nav-btn active" data-page="drills" onclick="switchPage('drills')">
+  <button class="bottom-nav-btn active" data-page="home" onclick="switchPage('home')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="bottom-nav-btn" data-page="drills" onclick="switchPage('drills')">
     <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
     <span>Drills</span>
   </button>
@@ -1118,6 +1296,8 @@ async function checkGoogleSession(){
     document.getElementById('login-overlay').classList.add('hidden');
     showProgressBar(session.user);
     await loadProgress(session.user.id);
+    setHomeGreeting(session.user);
+    await loadHomeData();
   }
   return session;
 }
@@ -1579,6 +1759,109 @@ function selectSport(name){
   renderRoleOptions(selectedSport);
 }
 
+// ---- Home page ----
+
+function setHomeGreeting(user){
+  const name = (user.user_metadata?.full_name || user.email || 'there').split(' ')[0];
+  document.getElementById('home-greeting-text').textContent = `Hey ${name} 👋`;
+}
+
+const activityIcons = {
+  text: '<path d="M4 5h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8l-4 3V6a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+  video: '<path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/>',
+  routine: '<circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.6"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+};
+
+function timeAgo(dateStr){
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if(hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if(days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
+async function loadHomeData(){
+  document.getElementById('home-drills-streak').textContent = drillProgress.current_streak || 0;
+  document.getElementById('home-routine-streak').textContent = (currentRoutine && currentRoutine.current_streak) || 0;
+
+  const { data: { session } } = await sb.auth.getSession();
+  const signinNote = document.getElementById('home-signin-note');
+  if(!session){
+    signinNote.textContent = 'Sign in with Google to see your stats and activity here.';
+    document.getElementById('home-activity-list').innerHTML = '';
+    document.getElementById('home-stat-days').textContent = '—';
+    document.getElementById('home-stat-drills').textContent = '—';
+    document.getElementById('home-stat-bigday').textContent = '—';
+    return;
+  }
+  signinNote.textContent = '';
+
+  try{
+    const { data, error } = await sb.from('drill_history')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if(error){ console.error('Could not load history:', error.message); return; }
+
+    const rows = data || [];
+
+    // Total distinct days the person did anything at all
+    const distinctDays = new Set(rows.map(r => r.created_at.slice(0, 10)));
+    document.getElementById('home-stat-days').textContent = distinctDays.size;
+
+    // Drills completed = text + video entries only (matches Drills page stat)
+    const drillCount = rows.filter(r => r.source === 'text' || r.source === 'video').length;
+    document.getElementById('home-stat-drills').textContent = drillCount;
+
+    // Biggest practice day, by summed minutes (routine entries carry minutes)
+    const minutesByDay = {};
+    rows.forEach(r => {
+      if(!r.minutes) return;
+      const day = r.created_at.slice(0, 10);
+      minutesByDay[day] = (minutesByDay[day] || 0) + r.minutes;
+    });
+    const bestDayEntry = Object.entries(minutesByDay).sort((a, b) => b[1] - a[1])[0];
+    if(bestDayEntry){
+      const [day, mins] = bestDayEntry;
+      document.getElementById('home-stat-bigday').textContent = formatMinutes(mins);
+      document.getElementById('home-stat-bigday-lbl').textContent =
+        `Biggest day (${new Date(day + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})`;
+    }else{
+      document.getElementById('home-stat-bigday').textContent = '—';
+      document.getElementById('home-stat-bigday-lbl').textContent = 'Biggest practice day';
+    }
+
+    // Recent activity feed
+    const listEl = document.getElementById('home-activity-list');
+    if(rows.length === 0){
+      listEl.innerHTML = '<div class="home-empty">Nothing yet — get some drills or complete your daily routine to see it here.</div>';
+    }else{
+      listEl.innerHTML = rows.slice(0, 8).map(r => {
+        const icon = activityIcons[r.source] || activityIcons.text;
+        const titleMap = { text: 'Drills · ', video: 'Video check · ', routine: 'Daily routine · ' };
+        const title = (titleMap[r.source] || '') + r.sport;
+        return `
+          <div class="home-activity-item">
+            <div class="home-activity-icon"><svg viewBox="0 0 24 24" fill="none">${icon}</svg></div>
+            <div class="home-activity-body">
+              <div class="home-activity-title">${title}</div>
+              <div class="home-activity-sub">${(r.summary || '').slice(0, 60)}${r.minutes ? ` · ${r.minutes} min` : ''}</div>
+            </div>
+            <div class="home-activity-time">${timeAgo(r.created_at)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }catch(err){
+    console.error('Home data load failed:', err.message);
+  }
+}
+
 // ---- Daily Routine feature ----
 let routineLoadAttempted = false;
 let currentRoutine = null; // { sport, goal, items: [{name, minutes, cue}], last_completed_date }
@@ -1824,6 +2107,21 @@ async function finalizeRoutineCompletion(minutesPracticed){
   renderRoutine();
   renderProgressStats();
   await saveRoutine();
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(session){
+    try{
+      await sb.from('drill_history').insert({
+        user_id: session.user.id,
+        sport: currentRoutine.sport,
+        source: 'routine',
+        summary: currentRoutine.goal,
+        minutes: minutesPracticed
+      });
+    }catch(err){
+      console.error('Could not log routine history:', err.message);
+    }
+  }
 }
 
 async function getDrills(){
@@ -1915,11 +2213,16 @@ function switchMode(mode){
 
 function switchPage(page){
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.getElementById('page-home').classList.toggle('hidden', page !== 'home');
   document.getElementById('page-drills').classList.toggle('hidden', page !== 'drills');
   document.getElementById('page-routine').classList.toggle('hidden', page !== 'routine');
+  document.getElementById('progress-bar').classList.toggle('page-hide', page === 'home');
   if(page === 'routine' && !routineLoadAttempted){
     routineLoadAttempted = true;
     loadSavedRoutine();
+  }
+  if(page === 'home'){
+    loadHomeData(); // cheap enough to refresh every visit, keeps stats current
   }
   renderProgressStats();
 }
