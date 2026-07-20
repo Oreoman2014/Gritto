@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v2.8.1 — Three bug fixes
+- Fixed bottom nav floating/detaching from the bottom of the screen on iOS during video upload — a known iOS Safari quirk with fixed-position elements, fixed by forcing the nav onto its own GPU layer
+- Fixed the Daily Routine icon in Recent Activity — it was literally missing two pieces (a copy-paste mistake when it was first built), so it looked broken/incomplete
+- Fixed video check summaries in Recent Activity getting cut off mid-sentence with no indication — now adds "…" whenever text is actually truncated
+
 ## v2.8.0 — Multiple daily routines
 - You can now save more than one daily routine — one per sport, or several goals for the same sport, whatever you want
 - New chip selector at the top of the Daily Routine page: tap between your saved routines, or hit "+ New" to build another
