@@ -566,6 +566,13 @@
   }
   .routine-complete-btn:disabled{opacity:0.5; cursor:default;}
   .routine-complete-btn.done{background:var(--turf);}
+  .routine-logged-time{
+    text-align:center;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:10px;
+  }
+  .routine-logged-time .time-prompt-estimate{color:var(--teal); text-decoration:underline;}
   .routine-signin-note{
     font-size:12px;
     color:#8D97B8;
@@ -1867,6 +1874,9 @@ let routineLoadAttempted = false;
 let currentRoutine = null; // { sport, goal, items: [{name, minutes, cue}], last_completed_date }
 let routineChecks = new Set(); // indexes of checked items, resets each day
 let showTimePromptFlag = false;
+let editingTodayEntry = false;
+let todayRoutineHistoryId = null;
+let todayRoutineMinutesLogged = 0;
 
 function todayStr(){
   return new Date().toISOString().slice(0, 10);
@@ -1885,9 +1895,13 @@ async function loadSavedRoutine(){
       currentRoutine = data;
       routineChecks = new Set();
       showTimePromptFlag = false;
+      editingTodayEntry = false;
       document.getElementById('routine-goal-input').value = data.goal;
       if(!selectedSport){
         selectSport(data.sport);
+      }
+      if(data.last_completed_date === todayStr()){
+        await loadTodayRoutineMinutes();
       }
       renderRoutine();
       renderProgressStats();
@@ -2018,25 +2032,35 @@ function renderRoutine(){
   }).join('');
 
   const allChecked = currentRoutine.items.every((_, i) => doneToday || routineChecks.has(i));
-
   const estimateNote = totalMin > 0 ? ` (~${totalMin} min)` : '';
-  const completionArea = showTimePromptFlag ? `
-    <div class="time-prompt">
-      <h4>Nice work! 🎉</h4>
-      <p>About how long did you practice today?</p>
-      <div class="time-prompt-row">
-        <input type="number" min="1" id="practice-minutes-input" placeholder="Minutes">
-        <button onclick="submitPracticeTime()">Save</button>
+
+  let completionArea;
+  if(showTimePromptFlag){
+    completionArea = `
+      <div class="time-prompt">
+        <h4>${editingTodayEntry ? "Fix today's time" : 'Nice work! 🎉'}</h4>
+        <p>${editingTodayEntry ? 'Enter the correct number of minutes.' : 'About how long did you practice today?'}</p>
+        <div class="time-prompt-row">
+          <input type="number" min="1" id="practice-minutes-input" placeholder="Minutes" value="${editingTodayEntry ? todayRoutineMinutesLogged : ''}">
+          <button onclick="submitPracticeTime()">Save</button>
+        </div>
+        ${editingTodayEntry ? '' : `<button class="time-prompt-estimate" onclick="useEstimatedTime()">Not sure? Just use the estimated time${estimateNote}</button>`}
       </div>
-      <button class="time-prompt-estimate" onclick="useEstimatedTime()">Not sure? Just use the estimated time${estimateNote}</button>
-    </div>
-  ` : `
-    <button class="routine-complete-btn ${doneToday ? 'done' : ''}" id="routine-complete-btn"
-      onclick="markRoutineComplete()" ${(!allChecked || doneToday) ? 'disabled' : ''}>
-      ${doneToday ? "Done for today! 🎉" : 'Mark today complete'}
-    </button>
-    <div class="routine-signin-note" id="routine-signin-note"></div>
-  `;
+    `;
+  }else if(doneToday){
+    completionArea = `
+      <button class="routine-complete-btn done" disabled>Done for today! 🎉</button>
+      <div class="routine-logged-time">
+        Logged ${todayRoutineMinutesLogged} min today ·
+        <button class="time-prompt-estimate" onclick="startEditTodayTime()">Edit</button>
+      </div>
+    `;
+  }else{
+    completionArea = `
+      <button class="routine-complete-btn" onclick="markRoutineComplete()" ${!allChecked ? 'disabled' : ''}>Mark today complete</button>
+      <div class="routine-signin-note" id="routine-signin-note"></div>
+    `;
+  }
 
   wrap.innerHTML = `
     <div class="routine-summary">
@@ -2069,6 +2093,13 @@ function toggleRoutineItem(i){
 }
 
 function markRoutineComplete(){
+  editingTodayEntry = false;
+  showTimePromptFlag = true;
+  renderRoutine();
+}
+
+function startEditTodayTime(){
+  editingTodayEntry = true;
   showTimePromptFlag = true;
   renderRoutine();
 }
@@ -2080,12 +2111,39 @@ function submitPracticeTime(){
     input.focus();
     return;
   }
-  finalizeRoutineCompletion(minutes);
+  if(editingTodayEntry){
+    updateTodaysPracticeTime(minutes);
+  }else{
+    finalizeRoutineCompletion(minutes);
+  }
 }
 
 function useEstimatedTime(){
   const totalMin = currentRoutine.items.reduce((sum, it) => sum + (it.minutes || 0), 0);
   finalizeRoutineCompletion(totalMin || 5);
+}
+
+// Finds today's already-logged routine entry (if the page was reloaded
+// after completing today) so editing has something to compare against.
+async function loadTodayRoutineMinutes(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  try{
+    const { data, error } = await sb.from('drill_history')
+      .select('id, minutes, created_at')
+      .eq('user_id', session.user.id)
+      .eq('source', 'routine')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if(error || !data || data.length === 0) return;
+    const row = data[0];
+    if(row.created_at.slice(0, 10) === todayStr()){
+      todayRoutineHistoryId = row.id;
+      todayRoutineMinutesLogged = row.minutes || 0;
+    }
+  }catch(err){
+    console.error("Could not load today's routine time:", err.message);
+  }
 }
 
 async function finalizeRoutineCompletion(minutesPracticed){
@@ -2102,6 +2160,7 @@ async function finalizeRoutineCompletion(minutesPracticed){
   currentRoutine.current_streak = newStreak;
   currentRoutine.longest_streak = newLongest;
   currentRoutine.total_minutes_practiced = (currentRoutine.total_minutes_practiced || 0) + minutesPracticed;
+  todayRoutineMinutesLogged = minutesPracticed;
 
   showTimePromptFlag = false;
   renderRoutine();
@@ -2111,15 +2170,38 @@ async function finalizeRoutineCompletion(minutesPracticed){
   const { data: { session } } = await sb.auth.getSession();
   if(session){
     try{
-      await sb.from('drill_history').insert({
+      const { data } = await sb.from('drill_history').insert({
         user_id: session.user.id,
         sport: currentRoutine.sport,
         source: 'routine',
         summary: currentRoutine.goal,
         minutes: minutesPracticed
-      });
+      }).select().single();
+      if(data) todayRoutineHistoryId = data.id;
     }catch(err){
       console.error('Could not log routine history:', err.message);
+    }
+  }
+}
+
+// Corrects an already-logged practice time (e.g. typo'd 72 instead of 7)
+// without double-counting it in the running total.
+async function updateTodaysPracticeTime(newMinutes){
+  const delta = newMinutes - todayRoutineMinutesLogged;
+  currentRoutine.total_minutes_practiced = Math.max(0, (currentRoutine.total_minutes_practiced || 0) + delta);
+  todayRoutineMinutesLogged = newMinutes;
+
+  editingTodayEntry = false;
+  showTimePromptFlag = false;
+  renderRoutine();
+  renderProgressStats();
+  await saveRoutine();
+
+  if(todayRoutineHistoryId){
+    try{
+      await sb.from('drill_history').update({ minutes: newMinutes }).eq('id', todayRoutineHistoryId);
+    }catch(err){
+      console.error('Could not update logged time:', err.message);
     }
   }
 }
