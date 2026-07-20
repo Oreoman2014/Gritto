@@ -442,6 +442,101 @@
   }
   .mode-section.hidden{display:none;}
 
+  .routine-card{
+    background:var(--charcoal);
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:20px;
+    color:#fff;
+  }
+  .routine-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:4px;
+  }
+  .routine-head h3{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:20px;
+    margin:0;
+  }
+  .routine-total{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--mint, #4ECDC4);
+  }
+  .routine-goal{
+    font-size:13px;
+    color:#C8CCC2;
+    margin:0 0 16px;
+  }
+  .routine-item{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    padding:12px 0;
+    border-top:1px solid #2A3142;
+  }
+  .routine-item:first-of-type{border-top:none;}
+  .routine-check{
+    width:24px; height:24px;
+    border-radius:7px;
+    border:2px solid #4A5468;
+    flex-shrink:0;
+    margin-top:1px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:all 0.15s ease;
+  }
+  .routine-check.checked{
+    background:var(--turf);
+    border-color:var(--turf);
+  }
+  .routine-check svg{width:14px; height:14px; opacity:0; transition:opacity 0.1s ease;}
+  .routine-check.checked svg{opacity:1;}
+  .routine-item-body{flex:1;}
+  .routine-item-title{
+    font-weight:700;
+    font-size:14px;
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .routine-item-title.checked{ text-decoration:line-through; color:#7C87AA; }
+  .routine-item-min{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:#8D97B8;
+    white-space:nowrap;
+  }
+  .routine-item-cue{font-size:12.5px; color:#9AA6C4; margin-top:2px;}
+  .routine-complete-btn{
+    width:100%;
+    margin-top:14px;
+    background:var(--energy);
+    color:#fff;
+    border:none;
+    font-family:'Anton',sans-serif;
+    font-size:15px;
+    letter-spacing:0.02em;
+    text-transform:uppercase;
+    padding:13px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .routine-complete-btn:disabled{opacity:0.5; cursor:default;}
+  .routine-complete-btn.done{background:var(--turf);}
+  .routine-signin-note{
+    font-size:12px;
+    color:#8D97B8;
+    text-align:center;
+    margin-top:12px;
+  }
+
   .video-drop{
     border:2px dashed var(--line);
     border-radius:16px;
@@ -785,6 +880,7 @@
   <div class="mode-tabs">
     <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">Describe it</button>
     <button class="mode-tab" data-mode="video" onclick="switchMode('video')">Upload a video</button>
+    <button class="mode-tab" data-mode="routine" onclick="switchMode('routine')">Daily Routine</button>
   </div>
 
   <div class="mode-section" id="mode-text">
@@ -817,6 +913,17 @@
     <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
     <div class="status" id="video-status"></div>
     <div class="results" id="video-results"></div>
+  </div>
+
+  <div class="mode-section hidden" id="mode-routine">
+    <div class="input-block">
+      <label for="routine-goal-input">2 · What do you want a daily routine for?</label>
+      <textarea id="routine-goal-input" placeholder="e.g. improving my basketball ball handling, or building a stronger baseball swing"></textarea>
+      <div class="hint-text">This builds a short routine (about 5–10 minutes) you can repeat every day.</div>
+    </div>
+    <button class="go-btn" id="routine-go-btn" onclick="buildRoutine()">Build my routine</button>
+    <div class="status" id="routine-status"></div>
+    <div id="routine-display"></div>
   </div>
 </main>
 
@@ -1301,6 +1408,182 @@ sports.forEach(s => {
   grid.appendChild(chip);
 });
 
+// ---- Daily Routine feature ----
+let routineLoadAttempted = false;
+let currentRoutine = null; // { sport, goal, items: [{name, minutes, cue}], last_completed_date }
+let routineChecks = new Set(); // indexes of checked items, resets each day
+
+function todayStr(){
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function loadSavedRoutine(){
+  const statusEl = document.getElementById('routine-status');
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    return; // not signed in — nothing saved to load, they can still build one for this session
+  }
+  try{
+    const { data, error } = await sb.from('user_routine').select('*').eq('user_id', session.user.id).maybeSingle();
+    if(error){ console.error('Could not load routine:', error.message); return; }
+    if(data){
+      currentRoutine = data;
+      routineChecks = new Set();
+      document.getElementById('routine-goal-input').value = data.goal;
+      renderRoutine();
+    }
+  }catch(err){
+    console.error('Routine load failed:', err.message);
+  }
+}
+
+async function buildRoutine(){
+  const statusEl = document.getElementById('routine-status');
+  const goalText = document.getElementById('routine-goal-input').value.trim();
+  const btn = document.getElementById('routine-go-btn');
+
+  if(!selectedSport){
+    statusEl.textContent = 'Pick a sport up top first.';
+    return;
+  }
+  if(!goalText){
+    statusEl.textContent = "Tell it what you'd like a routine for first.";
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = 'Building your routine…';
+
+  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+{"items": [{"name":"short activity name","minutes":2,"cue":"one short coaching cue for this activity"}]}
+Include 3 to 5 items. The "minutes" values should be realistic whole numbers that add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment. Order them from warm-up-style activities to more focused ones.`;
+
+  const userMsg = `Sport: ${selectedSport}\nDaily goal: ${goalText}`;
+
+  try{
+    const response = await fetch(AI_HELPER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 700,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userMsg }]
+      })
+    });
+    const data = await response.json();
+    const textBlock = data.content.find(b => b.type === 'text');
+    if(!textBlock) throw new Error('No response text');
+    const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(cleaned);
+
+    currentRoutine = {
+      sport: selectedSport,
+      goal: goalText,
+      items: parsed.items,
+      last_completed_date: null
+    };
+    routineChecks = new Set();
+    statusEl.textContent = '';
+    renderRoutine();
+    await saveRoutine();
+  }catch(err){
+    statusEl.textContent = '';
+    const errBox = document.createElement('div');
+    errBox.className = 'error-box';
+    errBox.textContent = "Something went wrong building your routine. Try again in a moment.";
+    document.getElementById('routine-display').prepend(errBox);
+    console.error(err);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function saveRoutine(){
+  const { data: { session } } = await sb.auth.getSession();
+  const statusEl = document.getElementById('routine-status');
+  if(!session){
+    statusEl.textContent = 'Sign in with Google to save this routine and track it day to day.';
+    return;
+  }
+  try{
+    await sb.from('user_routine').upsert({
+      user_id: session.user.id,
+      sport: currentRoutine.sport,
+      goal: currentRoutine.goal,
+      items: currentRoutine.items,
+      last_completed_date: currentRoutine.last_completed_date,
+      updated_at: new Date().toISOString()
+    });
+  }catch(err){
+    console.error('Could not save routine:', err.message);
+  }
+}
+
+function renderRoutine(){
+  const wrap = document.getElementById('routine-display');
+  if(!currentRoutine){ wrap.innerHTML = ''; return; }
+
+  const totalMin = currentRoutine.items.reduce((sum, it) => sum + (it.minutes || 0), 0);
+  const doneToday = currentRoutine.last_completed_date === todayStr();
+
+  const itemsHtml = currentRoutine.items.map((it, i) => {
+    const isChecked = doneToday || routineChecks.has(i);
+    return `
+      <div class="routine-item">
+        <div class="routine-check ${isChecked ? 'checked' : ''}" onclick="toggleRoutineItem(${i})">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M20 6 9 17l-5-5" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="routine-item-body">
+          <div class="routine-item-title ${isChecked ? 'checked' : ''}">
+            <span>${it.name}</span>
+            <span class="routine-item-min">${it.minutes} min</span>
+          </div>
+          <div class="routine-item-cue">${it.cue || ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const allChecked = currentRoutine.items.every((_, i) => doneToday || routineChecks.has(i));
+
+  wrap.innerHTML = `
+    <div class="routine-card">
+      <div class="routine-head">
+        <h3>${currentRoutine.sport} routine</h3>
+        <span class="routine-total">~${totalMin} min</span>
+      </div>
+      <p class="routine-goal">${currentRoutine.goal}</p>
+      ${itemsHtml}
+      <button class="routine-complete-btn ${doneToday ? 'done' : ''}" id="routine-complete-btn"
+        onclick="markRoutineComplete()" ${(!allChecked || doneToday) ? 'disabled' : ''}>
+        ${doneToday ? "Done for today! 🎉" : 'Mark today complete'}
+      </button>
+      <div class="routine-signin-note" id="routine-signin-note"></div>
+    </div>
+  `;
+
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if(!session){
+      document.getElementById('routine-signin-note').textContent = 'Sign in with Google to save this routine and track your streak.';
+    }
+  });
+}
+
+function toggleRoutineItem(i){
+  const doneToday = currentRoutine.last_completed_date === todayStr();
+  if(doneToday) return; // already completed today, nothing to toggle
+  if(routineChecks.has(i)) routineChecks.delete(i);
+  else routineChecks.add(i);
+  renderRoutine();
+}
+
+async function markRoutineComplete(){
+  currentRoutine.last_completed_date = todayStr();
+  renderRoutine();
+  await saveRoutine();
+  await recordDrillCompletion(currentRoutine.sport, 'routine', currentRoutine.goal);
+}
+
 async function getDrills(){
   const statusEl = document.getElementById('status');
   const resultsEl = document.getElementById('results');
@@ -1386,6 +1669,11 @@ function switchMode(mode){
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
   document.getElementById('mode-text').classList.toggle('hidden', mode !== 'text');
   document.getElementById('mode-video').classList.toggle('hidden', mode !== 'video');
+  document.getElementById('mode-routine').classList.toggle('hidden', mode !== 'routine');
+  if(mode === 'routine' && !routineLoadAttempted){
+    routineLoadAttempted = true;
+    loadSavedRoutine();
+  }
 }
 
 let extractedFrames = []; // base64 strings, no data: prefix, sent to the AI
