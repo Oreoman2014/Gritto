@@ -227,15 +227,16 @@
   /* ---- Silhouette drill animation ---- */
   .drill-demo{
     display:flex;
+    flex-direction:column;
     align-items:center;
-    gap:14px;
-    background:var(--charcoal);
-    border-radius:12px;
-    padding:10px 14px;
-    margin:10px 0;
+    background:#FFFFFF;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    padding:14px 10px 10px;
+    margin:12px 0;
   }
   .demo-stage{
-    width:60px; height:78px; flex-shrink:0; position:relative;
+    width:150px; height:180px; flex-shrink:0; position:relative;
   }
   .demo-stage svg{width:100%; height:100%; overflow:visible;}
 
@@ -248,15 +249,16 @@
 
   .focus-dot{
     position:absolute;
-    width:11px; height:11px;
+    width:16px; height:16px;
     border-radius:50%;
     background:var(--energy);
+    border:2px solid #fff;
     box-shadow:0 0 0 0 rgba(255,106,26,0.6);
     animation:dotPulse 1.4s ease-out infinite;
   }
   @keyframes dotPulse{
     0%{box-shadow:0 0 0 0 rgba(255,106,26,0.55);}
-    70%{box-shadow:0 0 0 9px rgba(255,106,26,0);}
+    70%{box-shadow:0 0 0 13px rgba(255,106,26,0);}
     100%{box-shadow:0 0 0 0 rgba(255,106,26,0);}
   }
   .demo-focus-pos-knees{top:70%; left:56%;}
@@ -268,34 +270,36 @@
   .demo-focus-pos-core{top:38%; left:50%;}
   .demo-focus-pos-eyes{top:11%; left:56%;}
 
-  .demo-label{font-size:11.5px; color:#C8CCC2;}
-  .demo-label b{color:#fff; text-transform:capitalize;}
+  .demo-label{font-size:13px; color:var(--slate-soft); margin-top:6px;}
+  .demo-label b{color:var(--ink); text-transform:capitalize;}
 
   .your-motion-block{
-    background:var(--charcoal);
+    background:#FFFFFF;
+    border:1.5px solid var(--line);
     border-radius:14px;
     padding:16px;
     margin-bottom:20px;
   }
-  .your-motion-block .section-label{color:#9AA6C4; margin-bottom:8px;}
+  .your-motion-block .section-label{color:var(--slate-soft); margin-bottom:8px;}
   .your-motion-stage{
     display:flex;
     justify-content:center;
-    background:#0E1116;
+    background:#FFFFFF;
     border-radius:10px;
     padding:10px;
   }
   .your-motion-stage img{
-    height:140px;
+    height:220px;
     width:auto;
     image-rendering:auto;
   }
   .your-motion-note{
     font-size:11.5px;
-    color:#8D97B8;
+    color:var(--slate-soft);
     text-align:center;
     margin:10px 0 0;
   }
+
 
   /* ---- Motion: squat — hips sink straight down, knees bend forward,
      shins stay closer to vertical, arms reach forward to counterbalance ---- */
@@ -1124,37 +1128,40 @@ const validMotions = ['squat','swing','throw','jump','lunge','rotate','run'];
 const validFocuses = ['knees','hips','shoulders','elbow','wrist','feet','core','eyes'];
 
 function buildSilhouetteFigureSVG(){
+  const S = '#181C1F'; // stroke (outline)
+  const F = '#FFFFFF'; // fill (white body, like the reference style)
+  const W = 3;         // stroke width
   return `
-    <svg viewBox="0 0 64 84">
-      <ellipse cx="32" cy="80" rx="20" ry="2.5" fill="#00000030"/>
-      <g transform="translate(32,44)">
+    <svg viewBox="0 0 120 172">
+      <ellipse cx="60" cy="166" rx="34" ry="4" fill="#E4E9EF"/>
+      <g transform="translate(60,88)">
         <g class="sf-torso-grp">
-          <circle cx="0" cy="-34" r="8" fill="#2A3142"/>
-          <path d="M -9 -27 Q -9 -6 -8 0 L 8 0 Q 9 -6 9 -27 Q 0 -31 -9 -27 Z" fill="#2A3142"/>
-          <g transform="translate(-8,-25)">
+          <circle cx="0" cy="-62" r="15" fill="${F}" stroke="${S}" stroke-width="${W}"/>
+          <path d="M -16 -49 Q -16 -11 -14 0 L 14 0 Q 16 -11 16 -49 Q 0 -57 -16 -49 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>
+          <g transform="translate(-14,-45)">
             <g class="sf-uarm-l">
-              <path d="M -3.5 0 Q -6 8 -5 16 L 0 16 Q 0 8 1.5 0 Z" fill="#2A3142"/>
-              <g transform="translate(-2.2,16)"><g class="sf-farm-l"><path d="M -2.8 0 Q -4 7 -3 14 L 2 14 Q 2 7 2.2 0 Z" fill="#2A3142"/></g></g>
+              <path d="M -6 0 Q -11 14 -9 29 L 0 29 Q 0 14 3 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>
+              <g transform="translate(-4,29)"><g class="sf-farm-l"><path d="M -5 0 Q -7 13 -5 25 L 4 25 Q 4 13 4 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/></g></g>
             </g>
           </g>
-          <g transform="translate(8,-25)">
+          <g transform="translate(14,-45)">
             <g class="sf-uarm-r">
-              <path d="M 3.5 0 Q 6 8 5 16 L 0 16 Q 0 8 -1.5 0 Z" fill="#2A3142"/>
-              <g transform="translate(2.2,16)"><g class="sf-farm-r"><path d="M 2.8 0 Q 4 7 3 14 L -2 14 Q -2 7 -2.2 0 Z" fill="#2A3142"/></g></g>
+              <path d="M 6 0 Q 11 14 9 29 L 0 29 Q 0 14 -3 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>
+              <g transform="translate(4,29)"><g class="sf-farm-r"><path d="M 5 0 Q 7 13 5 25 L -4 25 Q -4 13 -4 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/></g></g>
             </g>
           </g>
         </g>
       </g>
-      <g transform="translate(28,44)">
+      <g transform="translate(53,88)">
         <g class="sf-thigh-l">
-          <path d="M -4.5 0 Q -6 10 -4 18 L 4 18 Q 5 10 3.5 0 Z" fill="#2A3142"/>
-          <g transform="translate(0,18)"><g class="sf-shin-l"><path d="M -3.5 0 Q -4 9 -3 17 L 3.5 17 Q 4 9 3 0 Z" fill="#2A3142"/></g></g>
+          <path d="M -8 0 Q -11 18 -7 32 L 7 32 Q 9 18 6 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>
+          <g transform="translate(0,32)"><g class="sf-shin-l"><path d="M -6 0 Q -7 16 -5 31 L 6 31 Q 7 16 5 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/></g></g>
         </g>
       </g>
-      <g transform="translate(36,44)">
+      <g transform="translate(67,88)">
         <g class="sf-thigh-r">
-          <path d="M 4.5 0 Q 6 10 4 18 L -4 18 Q -5 10 -3.5 0 Z" fill="#2A3142"/>
-          <g transform="translate(0,18)"><g class="sf-shin-r"><path d="M 3.5 0 Q 4 9 3 17 L -3.5 17 Q -4 9 -3 0 Z" fill="#2A3142"/></g></g>
+          <path d="M 8 0 Q 11 18 7 32 L -7 32 Q -9 18 -6 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/>
+          <g transform="translate(0,32)"><g class="sf-shin-r"><path d="M 6 0 Q 7 16 5 31 L -6 31 Q -7 16 -5 0 Z" fill="${F}" stroke="${S}" stroke-width="${W}" stroke-linejoin="round"/></g></g>
         </g>
       </g>
     </svg>
@@ -1421,7 +1428,7 @@ async function processSilhouettes(rawDataUrls){
       const ctx = canvas.getContext('2d');
       ctx.drawImage(latestSegResult.segmentationMask, 0, 0, w, h);
       ctx.globalCompositeOperation = 'source-in';
-      ctx.fillStyle = '#1C7293';
+      ctx.fillStyle = '#181C1F';
       ctx.fillRect(0, 0, w, h);
       silhouetteFrames.push(canvas.toDataURL('image/png'));
     }
