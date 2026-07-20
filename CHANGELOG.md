@@ -1,7 +1,15 @@
 # Gritto — Version Log
 
-## v3.0.1 — Better Settings icon + fixed wrong video frames
-- Replaced the muddy, hard-to-read gear icon with a simpler, bolder one that reads clearly at small nav size
+## v3.1.0 — Smarter frame capture + more reliable nav pinning
+- **Blurry/blank video frames:** the earlier fix helped but wasn't enough on its own. Added a real safety net — after capturing each frame, the app checks if it looks suspiciously flat/blank (like plain sky or an overexposed wall) by measuring how much the pixel brightness varies, and automatically tries a moment slightly earlier or later if it does, up to 3 attempts
+- **Nav floating on iOS:** the previous CSS-only fix wasn't reliable enough for this specific iOS bug. Added a JS-based fix using the VisualViewport API, which tracks the phone's true visible screen area in real time and actively keeps the nav bar pinned to it — the standard, more robust fix for this class of iOS Safari bug
+
+## v3.0.2 — Quieter debug panel
+- Filtered out MediaPipe's normal internal startup logging (WebGL context creation, WASM file loading, etc.) from the debug panel — none of it was ever actually a problem, it was just noisy library chatter that made real errors harder to spot
+- The debug panel now only shows things worth actually looking at
+
+## v3.0.1 — Actual gear icon + fixed wrong video frames
+- Replaced the "sun ray" looking icon with a real toothed gear (8 teeth + a hollow center), like a normal settings button
 - Fixed a real bug causing wrong/unrelated frames during video upload: the app was only loading minimal video info upfront, which on some phones let the browser report a frame "ready" before it had actually finished decoding the correct one — fixed by buffering more upfront and waiting for the real frame to actually paint before capturing it
 
 ## v3.0.0 — New Settings page
