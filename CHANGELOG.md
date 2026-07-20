@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v2.5.0 — Edit today's logged practice time
+- Once you've completed today's routine, you'll now see "Logged X min today · Edit"
+- Tapping Edit lets you fix a mistyped number (like 72 instead of 7) without double-counting it in your total time practiced
+- The correction updates both your running total and the matching entry in your activity history (so Home page stats stay accurate too)
+- Reopening the app on the same day now correctly restores today's logged time so editing still works after a refresh
+
 ## v2.4.0 — New Home page
 - Added a third bottom-nav tab: **Home**, now the default landing page
 - Personal greeting with your first name
