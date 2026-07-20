@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v2.1.1 — Cleaner page separation
+- Removed the duplicate sport picker from the Daily Routine page — sport is now only picked on Drills, and Routine reuses it automatically
+- Daily Routine page shows a small note confirming which sport it's building a path for (or asks you to pick one on Drills first if none is selected yet)
+- Reopening the app and revisiting a saved routine now correctly restores the sport it was built for
+
 ## v2.1.0 — Bottom nav + Daily Routine redesigned as a path
 - Replaced the 3-way top tabs with a fixed bottom menu (like a real app): **Drills** and **Daily Routine**
 - **Drills** page is the familiar home experience — sport picker, "Describe it" / "Upload a video"
