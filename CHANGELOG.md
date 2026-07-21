@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.7.0 — Privacy Policy & Terms page
+- New standalone page (`privacy.html`) explaining what Gritto collects, how it's used, where it's stored, and your choices — written honestly to reflect what the app actually does
+- Linked from a new "Legal" section in Settings
+- Covers: Google login data, activity/streak data, video thumbnails (not full videos), feedback messages, third-party services used (Supabase, Anthropic), data deletion options, and a note for parents
+- Includes an honest disclaimer that this is a basic policy for a personal beta project, not formal legal advice — worth a real legal review if Gritto ever becomes a public/commercial product
+
 ## v3.6.0 — "New version available" toast
 - After logging in, the app now quietly checks the live site (bypassing any cache) to see if a newer version has been deployed than the one currently loaded
 - If so, a toast slides up from the bottom: "A new version of Gritto is ready" with a Refresh button
