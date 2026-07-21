@@ -1,5 +1,15 @@
 # Gritto — Version Log
 
+## v3.3.0 — Two real fixes (regression-tested)
+- **Nav floating, take 3:** the previous attempts both tried to patch `position:fixed`, which iOS Safari has known, hard-to-predict issues with. Switched to `position:sticky` instead — a fundamentally different, more reliable approach for this exact scenario, not another patch on the same broken foundation. Removed the old JS workaround since it's no longer needed.
+- **Role selector not showing after video frames loaded:** found the real cause — nothing was stopping someone from starting a video upload before picking a sport. Frames would extract fine (that part doesn't need a sport), but the "who are you in this play" step silently refused to show since it needs to know the sport to know which roles to offer — with zero explanation why. Now it tells you to pick a sport first, before even starting.
+- Ran a full regression check before shipping: confirmed the frame-extraction hang fix, blank-frame retry, and all other previously-fixed behavior are still intact
+
+## v3.2.2 — Fixed nav moving during normal scrolling/pull-down
+- Found the cause: the nav-pinning fix from before was reacting to *every* scroll on the page, including Safari's natural "bounce" effect when you pull down past the top — not just the keyboard/picker situations it was actually meant to correct for
+- Removed that overly broad listener; the nav now only repositions for genuine visual-viewport changes (keyboard, file picker, pinch-zoom), not normal scrolling
+- Verified with an automated test simulating a scroll event — confirmed the nav no longer moves for it
+
 ## v3.2.1 — Fixed stale version number
 - The version shown in Settings was stuck at "v3.0.0" this whole time — I forgot to actually update that number in each of the last several releases (v3.0.1 through v3.2.0)
 - This means the version number was never a reliable way to check what code someone actually has installed — now corrected to show the real current version
