@@ -3258,8 +3258,12 @@ function extractFrames(file){
 
     async function captureAt(t){
       return new Promise((resolve) => {
-        const onSeeked = () => {
+        let finished = false;
+        const finish = () => {
+          if(finished) return;
+          finished = true;
           video.removeEventListener('seeked', onSeeked);
+          clearTimeout(timeoutId);
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -3267,30 +3271,54 @@ function extractFrames(file){
             });
           });
         };
+        const onSeeked = () => finish();
         video.addEventListener('seeked', onSeeked);
-        video.currentTime = Math.max(0, Math.min(t, duration - 0.05));
+
+        // Safety net: if "seeked" never fires (can happen when the target
+        // time is essentially the same as where the video already is —
+        // the browser has nothing to seek, so it never tells us it's
+        // done), stop waiting after 1.5s instead of hanging forever.
+        const timeoutId = setTimeout(finish, 1500);
+
+        const target = Math.max(0, Math.min(t, duration - 0.05));
+        if(Math.abs(video.currentTime - target) < 0.02){
+          finish(); // already there — no real seek will happen
+        }else{
+          video.currentTime = target;
+        }
       });
     }
 
     try{
-      for(const t of timestamps){
-        await captureAt(t);
-        // If the frame looks blank, nudge forward a bit and try again —
-        // up to 3 total attempts before just accepting whatever we have.
-        let attempts = 1;
-        const nudges = [0.35, 0.7, -0.35];
-        while(looksBlank() && attempts <= nudges.length){
-          await captureAt(t + nudges[attempts - 1]);
-          attempts++;
-        }
+      const extractionWork = (async () => {
+        for(const t of timestamps){
+          await captureAt(t);
+          // If the frame looks blank, nudge forward a bit and try again —
+          // up to 3 total attempts before just accepting whatever we have.
+          let attempts = 1;
+          const nudges = [0.35, 0.7, -0.35];
+          while(looksBlank() && attempts <= nudges.length){
+            await captureAt(t + nudges[attempts - 1]);
+            attempts++;
+          }
 
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-        extractedFrames.push(dataUrl.split(',')[1]);
-        rawDataUrls.push(dataUrl);
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        strip.appendChild(img);
-      }
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          extractedFrames.push(dataUrl.split(',')[1]);
+          rawDataUrls.push(dataUrl);
+          const img = document.createElement('img');
+          img.src = dataUrl;
+          strip.appendChild(img);
+        }
+      })();
+
+      // Final safety net: the per-frame timeout above should already
+      // prevent hanging forever, but this catches anything unexpected
+      // so the status message never gets stuck for good.
+      const overallTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Extraction took too long overall')), 30000);
+      });
+      await Promise.race([extractionWork, overallTimeout]);
+
       statusEl.textContent = extractedFrames.length + ' frames captured. Pick your role below.';
       renderRoleOptions(selectedSport);
       processSilhouettes(rawDataUrls); // runs in the background, no need to wait
