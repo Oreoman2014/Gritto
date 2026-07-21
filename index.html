@@ -2251,7 +2251,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.4.0';
+const APP_VERSION = '3.4.1';
 
 async function renderSettingsPage(){
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
@@ -3226,6 +3226,7 @@ function handleVideoSelect(evt){
   selectedRole = null;
   silhouetteFrames = [];
   if(window._yourMotionTimer) clearInterval(window._yourMotionTimer);
+  document.querySelectorAll('.gritto-hidden-capture-video').forEach(el => el.remove()); // clean up any leftover from a previous attempt
   extractFrames(file);
 }
 
@@ -3325,6 +3326,21 @@ function extractFrames(file){
   video.playsInline = true;
   video.preload = 'auto'; // buffer more upfront so seeking lands on the real frame, not a stale one
   video.src = URL.createObjectURL(file);
+
+  // On some mobile browsers, capturing frames from a video element that
+  // isn't actually part of the page can silently produce blank/black
+  // canvas output — even though the video itself loads and seeks fine.
+  // Attaching it invisibly (off-screen, zero size, not interactive)
+  // fixes this without showing anything to the person.
+  video.className = 'gritto-hidden-capture-video';
+  video.style.position = 'fixed';
+  video.style.opacity = '0';
+  video.style.pointerEvents = 'none';
+  video.style.width = '1px';
+  video.style.height = '1px';
+  video.style.top = '0';
+  video.style.left = '0';
+  document.body.appendChild(video);
 
   const statusEl = document.getElementById('video-status');
   const safetyTimer = setTimeout(() => {
@@ -3460,11 +3476,13 @@ function extractFrames(file){
       console.error(err);
     }finally{
       URL.revokeObjectURL(video.src);
+      video.remove(); // clean up the invisible video element now that we're done with it
     }
   }
 
   video.addEventListener('error', () => {
     document.getElementById('video-status').textContent = 'Could not read that video file — try a different format (MP4 works best).';
+    video.remove();
   });
 }
 
