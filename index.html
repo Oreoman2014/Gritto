@@ -1210,6 +1210,38 @@
     display:block;
   }
 
+  .update-toast{
+    position:fixed;
+    left:16px; right:16px;
+    bottom:16px;
+    background:var(--charcoal);
+    color:#fff;
+    border-radius:12px;
+    padding:13px 14px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    font-size:13px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.25);
+    z-index:250;
+    transform:translateY(120%);
+    transition:transform 0.25s ease;
+  }
+  .update-toast.show{transform:translateY(0);}
+  .update-toast button{
+    background:var(--energy);
+    color:#fff;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12.5px;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+
   .bottom-nav{
     flex-shrink:0;
     display:flex;
@@ -1576,6 +1608,11 @@
 </div>
 </main>
 
+<div class="update-toast" id="update-toast">
+  <span>A new version of Gritto is ready.</span>
+  <button onclick="location.reload()">Refresh</button>
+</div>
+
 <nav class="bottom-nav">
   <button class="bottom-nav-btn active" data-page="home" onclick="switchPage('home')">
     <svg viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
@@ -1664,6 +1701,7 @@ async function checkGoogleSession(){
     await loadProgress(session.user.id);
     setHomeGreeting(session.user);
     await loadHomeData();
+    checkForUpdate();
   }
   return session;
 }
@@ -2008,6 +2046,7 @@ async function tryLogin(){
     if(data.ok){
       sessionStorage.setItem('gritto_auth', '1');
       document.getElementById('login-overlay').classList.add('hidden');
+      checkForUpdate();
     }else{
       errorEl.textContent = data.error || 'Wrong username or password.';
     }
@@ -2315,7 +2354,31 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.6.0';
+
+// Checks the LIVE copy of the site (bypassing any cache) to see if a
+// newer version has been deployed than the one currently running —
+// useful since browsers (and the service worker) can hang onto an old
+// cached copy of the page for a while.
+let updateCheckDone = false;
+async function checkForUpdate(){
+  if(updateCheckDone) return; // only bother once per visit
+  updateCheckDone = true;
+  try{
+    const res = await fetch('/index.html?_=' + Date.now(), { cache: 'no-store' });
+    const html = await res.text();
+    const match = html.match(/const APP_VERSION = '([\d.]+)'/);
+    if(match && match[1] !== APP_VERSION){
+      showUpdateToast();
+    }
+  }catch(err){
+    console.error('Could not check for update:', err.message);
+  }
+}
+
+function showUpdateToast(){
+  document.getElementById('update-toast').classList.add('show');
+}
 
 async function renderSettingsPage(){
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
