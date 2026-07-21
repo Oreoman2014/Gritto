@@ -1,5 +1,13 @@
 # Gritto — Version Log
 
+## v3.9.0 — First-time onboarding questions
+- New welcome flow: the first time someone signs in with Google, they get 3 quick questions before landing on Home — main sport, biggest goal, and experience level (takes about 15 seconds)
+- Answers pre-select their sport automatically and personalize Home's greeting with their goal
+- "Skip for now" option available at any point — never blocks someone from using the app
+- Only shows once per person (tracked in a new database table), never shows again after completing or skipping
+- New database table: user_profile
+- Verified with an automated test that all 3 steps transition correctly and the Continue button enables/disables properly based on selections
+
 ## v3.8.0 — Cookie / local storage notice
 - New banner that shows once (first visit) explaining that Gritto uses your device's local storage — mainly to keep you signed in — not third-party tracking cookies
 - Includes a link straight to the Privacy Policy, and a "Got it" button that dismisses it for good (remembered via local storage itself)
