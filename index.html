@@ -1359,6 +1359,79 @@
     flex-shrink:0;
     white-space:nowrap;
   }
+  .cookie-banner-actions{display:flex; gap:8px; flex-shrink:0;}
+  .cookie-manage-btn{
+    background:none !important;
+    border:1.5px solid #3A4152 !important;
+    color:#fff !important;
+  }
+
+  .cookie-manage-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(18,23,43,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:270;
+    padding:20px;
+  }
+  .cookie-manage-overlay.show{display:flex;}
+  .cookie-manage-card{
+    background:#fff;
+    border-radius:18px;
+    padding:26px 24px;
+    width:100%;
+    max-width:400px;
+    max-height:85vh;
+    overflow-y:auto;
+  }
+  .cookie-manage-card h3{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:19px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .cookie-manage-sub{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0 0 16px;
+  }
+  .cookie-category{
+    border-top:1px solid var(--line);
+    padding:12px 0;
+  }
+  .cookie-category:first-of-type{border-top:none;}
+  .cookie-category-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    font-weight:700;
+    font-size:13.5px;
+    color:var(--ink);
+    margin-bottom:4px;
+  }
+  .cookie-category p{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0;
+    line-height:1.5;
+  }
+  .cookie-category a{color:var(--teal);}
+  .cookie-always-on, .cookie-none{
+    font-size:10.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    padding:3px 8px;
+    border-radius:20px;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .cookie-always-on{background:#EAF6EE; color:var(--turf-dark, #1F5F35);}
+  .cookie-none{background:#F0F0F0; color:var(--ink-soft);}
 
   .bottom-nav{
     flex-shrink:0;
@@ -1767,7 +1840,8 @@
 
     <div class="section-label" style="margin-top:20px;">Legal</div>
     <div class="settings-card">
-      <a href="privacy.html" class="settings-action-btn" style="display:block; text-decoration:none; text-align:left;">Privacy Policy &amp; Terms</a>
+      <a href="privacy.html" class="settings-action-btn" style="display:block; text-decoration:none; text-align:left; margin-bottom:8px;">Privacy Policy &amp; Terms</a>
+      <button class="settings-action-btn" onclick="openCookieManage()">Manage Cookies &amp; Local Storage</button>
     </div>
   </div>
 
@@ -1781,8 +1855,44 @@
 </div>
 
 <div class="cookie-banner" id="cookie-banner">
-  <p>Gritto uses local storage on your device to keep you signed in and remember your settings — not third-party tracking cookies. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
-  <button onclick="acceptCookieNotice()">Got it</button>
+  <p>Gritto uses local storage to keep you signed in, and "Sign in with Google" may set its own cookies during that process. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
+  <div class="cookie-banner-actions">
+    <button class="cookie-manage-btn" onclick="openCookieManage()">Manage</button>
+    <button onclick="acceptCookieNotice()">Accept</button>
+  </div>
+</div>
+
+<div class="cookie-manage-overlay" id="cookie-manage-overlay">
+  <div class="cookie-manage-card">
+    <h3>Cookies &amp; Local Storage</h3>
+    <p class="cookie-manage-sub">Here's exactly what Gritto uses, and why.</p>
+
+    <div class="cookie-category">
+      <div class="cookie-category-head">
+        <span>Essential — Sign-in &amp; Preferences</span>
+        <span class="cookie-always-on">Always on</span>
+      </div>
+      <p>Local storage on your device that keeps you signed in and remembers basic settings. Gritto can't work without this — there's no way to turn it off and still use the app.</p>
+    </div>
+
+    <div class="cookie-category">
+      <div class="cookie-category-head">
+        <span>Google Sign-In</span>
+        <span class="cookie-always-on">Set by Google</span>
+      </div>
+      <p>When you use "Sign in with Google," Google's own sign-in service may set cookies on <b>their</b> domain as part of that process — separate from anything Gritto sets. This is governed by <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>, not Gritto's.</p>
+    </div>
+
+    <div class="cookie-category">
+      <div class="cookie-category-head">
+        <span>Advertising &amp; tracking</span>
+        <span class="cookie-none">None</span>
+      </div>
+      <p>Gritto doesn't use third-party advertising or cross-site tracking cookies of any kind.</p>
+    </div>
+
+    <button class="go-btn" style="margin-top:16px;" onclick="acceptCookieNotice()">Got it</button>
+  </div>
 </div>
 
 <nav class="bottom-nav">
@@ -2640,7 +2750,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.9.0';
+const APP_VERSION = '3.10.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -2681,6 +2791,11 @@ function showUpdateToast(){
 function acceptCookieNotice(){
   localStorage.setItem('gritto_cookie_notice_accepted', '1');
   document.getElementById('cookie-banner').classList.remove('show');
+  document.getElementById('cookie-manage-overlay').classList.remove('show');
+}
+
+function openCookieManage(){
+  document.getElementById('cookie-manage-overlay').classList.add('show');
 }
 
 async function renderSettingsPage(){
