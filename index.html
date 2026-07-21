@@ -1305,6 +1305,14 @@
     color:#9AA6C4;
   }
   .debug-actions{display:flex; gap:8px;}
+  .debug-device-info{
+    padding:8px 14px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:#6B7488;
+    border-bottom:1px solid #2A3142;
+    flex-shrink:0;
+  }
   .debug-actions button{
     background:#232B47;
     color:#fff;
@@ -1614,6 +1622,7 @@
       <button onclick="toggleDebugPanel()">Close</button>
     </div>
   </div>
+  <div class="debug-device-info" id="debug-device-info"></div>
   <div class="debug-log-list" id="debug-log-list">
     <div class="debug-empty">No logs yet — this fills up as you use the app.</div>
   </div>
@@ -1804,6 +1813,14 @@ async function saveVideoHistory(sport, role, parsed){
 // see (and copy/share) exactly what happened without needing dev tools.
 const debugLogs = [];
 
+// Show device/OS info right away, even before anything else has logged —
+// this way it's visible the moment someone opens the panel.
+document.addEventListener('DOMContentLoaded', () => {
+  const info = getDeviceInfo();
+  const el = document.getElementById('debug-device-info');
+  if(el) el.textContent = `${info.summary} · ${info.screen}`;
+});
+
 function formatArg(a){
   if(a instanceof Error) return a.message;
   if(typeof a === 'object'){
@@ -1890,6 +1907,50 @@ function updateDebugBadge(){
   }
 }
 
+// Pulls out what info a browser will actually give us — device category
+// and OS version, but NOT the exact phone model (Apple/Google both hide
+// that from websites on purpose, for privacy). Still enough to spot
+// "oh, this only happens on older iOS" type patterns.
+function getDeviceInfo(){
+  const ua = navigator.userAgent;
+  let device = 'Unknown device';
+  let os = 'Unknown OS';
+
+  if(/iPad/.test(ua)){
+    device = 'iPad';
+  }else if(/iPhone/.test(ua)){
+    device = 'iPhone';
+  }else if(/Android/.test(ua)){
+    device = 'Android phone';
+  }else if(/Macintosh/.test(ua)){
+    device = 'Mac';
+  }else if(/Windows/.test(ua)){
+    device = 'Windows PC';
+  }
+
+  const iosMatch = ua.match(/OS (\d+)_(\d+)(?:_(\d+))?/);
+  if(iosMatch){
+    os = `iOS ${iosMatch[1]}.${iosMatch[2]}${iosMatch[3] ? '.' + iosMatch[3] : ''}`;
+  }else{
+    const androidMatch = ua.match(/Android (\d+(\.\d+)?)/);
+    if(androidMatch) os = `Android ${androidMatch[1]}`;
+  }
+
+  let browser = 'Unknown browser';
+  if(/CriOS/.test(ua)) browser = 'Chrome (iOS)';
+  else if(/FxiOS/.test(ua)) browser = 'Firefox (iOS)';
+  else if(/Safari/.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+  else if(/Chrome/.test(ua)) browser = 'Chrome';
+  else if(/Firefox/.test(ua)) browser = 'Firefox';
+
+  const standalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+  return {
+    summary: `${device} · ${os} · ${browser}${standalone ? ' · Home screen app' : ' · Browser tab'}`,
+    screen: `${window.screen.width}×${window.screen.height} @${window.devicePixelRatio || 1}x`
+  };
+}
+
 function toggleDebugPanel(){
   const panel = document.getElementById('debug-panel');
   panel.classList.toggle('open');
@@ -1905,11 +1966,14 @@ function clearDebugLogs(){
 }
 
 function copyDebugLogs(){
+  const info = getDeviceInfo();
+  const header = `Device: ${info.summary} (${info.screen})\n---`;
   const text = debugLogs.map(l => `[${l.time}] ${l.level.toUpperCase()}: ${l.msg}`).join('\n');
   if(!text){
+    navigator.clipboard.writeText(header).catch(() => {});
     return;
   }
-  navigator.clipboard.writeText(text).then(() => {
+  navigator.clipboard.writeText(`${header}\n${text}`).then(() => {
     pushDebugLog('log', ['Logs copied to clipboard']);
   }).catch(() => {
     pushDebugLog('warn', ['Could not copy — try selecting the text manually']);
@@ -2251,7 +2315,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.4.1';
+const APP_VERSION = '3.5.0';
 
 async function renderSettingsPage(){
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
