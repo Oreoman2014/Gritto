@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.6.0 — "New version available" toast
+- After logging in, the app now quietly checks the live site (bypassing any cache) to see if a newer version has been deployed than the one currently loaded
+- If so, a toast slides up from the bottom: "A new version of Gritto is ready" with a Refresh button
+- This helps catch cases where a browser (or the service worker from push notifications) is holding onto an old cached copy of the page
+- Only checks once per visit, right after login — doesn't repeatedly poll
+
 ## v3.5.0 — Debug panel now shows device + OS info
 - The debug panel now always shows a line at the top like "iPhone · iOS 17.4.1 · Safari · Home screen app" — visible the moment you open it, no scrolling needed
 - Also shows screen size/resolution, and whether they're using the home-screen version or a regular browser tab
