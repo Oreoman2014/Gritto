@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.4.0 — Nav floating bug actually fixed (structural rewrite)
+- After three failed attempts at patching `position:fixed`/`position:sticky`, switched strategy entirely: restructured the page so the nav bar is no longer positioned relative to scrolling at all — only the main content area scrolls internally now, while the nav sits outside it as a plain, permanently-visible element
+- This makes the "nav floats/detaches" bug structurally impossible, rather than trying to out-clever iOS Safari's known quirks with fixed/sticky positioning one more time
+- Verified with an automated test: the nav's on-screen position is provably identical before and after scrolling, while the content area genuinely scrolled underneath it
+- Moved the footer into the scrollable content area (it needed to move as part of this restructure, otherwise it would've been cut off)
+- Regression-tested: video hang fix, blank-frame retry, sport-required guard, and extraction logging all confirmed still intact
+
 ## v3.3.1 — Fixed slow/failing video extraction + added real visibility
 - Found the likely cause of the 30-second timeout using a real debug log from a tester: a 67-second silent gap right before it failed, meaning the app was stuck doing something internally with nothing showing in the log
 - The "retry if frame looks blank" safety net (added a few versions back) was almost certainly too trigger-happy — flagging genuinely fine frames as "blank" and burning through the whole time budget retrying them for nothing
