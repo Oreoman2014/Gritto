@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v3.8.0 — Cookie / local storage notice
+- New banner that shows once (first visit) explaining that Gritto uses your device's local storage — mainly to keep you signed in — not third-party tracking cookies
+- Includes a link straight to the Privacy Policy, and a "Got it" button that dismisses it for good (remembered via local storage itself)
+- Added a matching "Cookies & local storage" section to the Privacy Policy explaining exactly what's stored and why, and confirming none of it is used for tracking or shared with advertisers
+
 ## v3.7.1 — Added injury/liability disclaimer to Privacy Policy
 - New "Physical activity & injury" section: makes clear that drills/routines are done at your own risk, encourages warming up, stopping if something hurts, checking with a doctor first, and parent supervision for young athletes
 - States that Gritto and its creator aren't responsible for injury, loss, or damage from following the app's suggestions
