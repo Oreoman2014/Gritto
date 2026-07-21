@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.10.1 — Restyled cookie banner to match reference design
+- Changed from a dark, full-width bar to a white floating card with rounded corners, matching a reference style
+- "Manage" is now a light gray button, "Accept" is a dark button with white text, side by side
+- Verified with an automated check that colors/styling render correctly before shipping
+- Wording stayed accurate to what Gritto actually does (didn't copy generic "analyze web traffic" language from the reference, since that's not true here)
+
 ## v3.10.0 — Accept & Manage Cookies
 - Cookie banner now has two buttons: **Accept** and **Manage**
 - "Manage" opens a panel showing exactly what's used, in plain categories: Essential (sign-in, always on), Google Sign-In (cookies Google itself sets during login, governed by Google's own policy), and Advertising & tracking (none — Gritto uses none)
