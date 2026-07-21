@@ -890,6 +890,91 @@
     padding:20px;
   }
   .login-overlay.hidden{display:none;}
+
+  .onboard-overlay{
+    position:fixed;
+    inset:0;
+    background:var(--charcoal);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:110;
+    padding:20px;
+  }
+  .onboard-overlay.show{display:flex;}
+  .onboard-card{
+    background:#fff;
+    border-radius:18px;
+    padding:28px 24px;
+    width:100%;
+    max-width:380px;
+    max-height:85vh;
+    overflow-y:auto;
+  }
+  .onboard-progress{
+    display:flex;
+    gap:6px;
+    justify-content:center;
+    margin-bottom:20px;
+  }
+  .onboard-dot{
+    width:26px; height:4px;
+    border-radius:2px;
+    background:var(--line);
+  }
+  .onboard-dot.active{background:var(--turf);}
+  .onboard-step{display:none;}
+  .onboard-step.active{display:block;}
+  .onboard-step h2{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:22px;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .onboard-sub{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:0;
+  }
+  .onboard-chip-grid{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-top:14px;
+  }
+  .onboard-chip{
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:12px 14px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .onboard-chip:hover{border-color:var(--turf);}
+  .onboard-chip.active{background:var(--turf); border-color:var(--turf); color:#fff;}
+  .onboard-actions{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:22px;
+  }
+  .onboard-skip{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:12.5px;
+    text-decoration:underline;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    flex-shrink:0;
+  }
+  .onboard-actions .go-btn{width:auto; padding:12px 22px;}
+
   .login-card{
     background:#fff;
     border-radius:18px;
@@ -1429,6 +1514,50 @@
   </div>
 </div>
 
+<div class="onboard-overlay" id="onboard-overlay">
+  <div class="onboard-card">
+    <div class="onboard-progress" id="onboard-progress">
+      <span class="onboard-dot active" data-step="1"></span>
+      <span class="onboard-dot" data-step="2"></span>
+      <span class="onboard-dot" data-step="3"></span>
+    </div>
+
+    <div class="onboard-step active" id="onboard-step-1">
+      <h2>Welcome to Gritto</h2>
+      <p class="onboard-sub">Quick questions so we can tailor things to you — takes 15 seconds.</p>
+      <div class="section-label" style="margin-top:18px;">What's your main sport?</div>
+      <div class="sport-grid" id="onboard-sport-grid"></div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-2">
+      <h2>What's your goal?</h2>
+      <p class="onboard-sub">We'll shape your drills and routine suggestions around this.</p>
+      <div class="onboard-chip-grid" id="onboard-goal-grid">
+        <div class="onboard-chip" data-value="Get stronger and more athletic">Get stronger</div>
+        <div class="onboard-chip" data-value="Improve my technique/form">Improve my technique</div>
+        <div class="onboard-chip" data-value="Build a daily practice habit">Build a daily habit</div>
+        <div class="onboard-chip" data-value="Get ready for a season or tryout">Prep for a season/tryout</div>
+        <div class="onboard-chip" data-value="Just having fun and staying active">Just having fun</div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-3">
+      <h2>How experienced are you?</h2>
+      <p class="onboard-sub">So the drills match your level.</p>
+      <div class="onboard-chip-grid" id="onboard-level-grid">
+        <div class="onboard-chip" data-value="Just starting out">Just starting out</div>
+        <div class="onboard-chip" data-value="Some experience">Some experience</div>
+        <div class="onboard-chip" data-value="Pretty experienced">Pretty experienced</div>
+      </div>
+    </div>
+
+    <div class="onboard-actions">
+      <button class="onboard-skip" onclick="skipOnboarding()">Skip for now</button>
+      <button class="go-btn" id="onboard-next-btn" onclick="onboardNext()" disabled>Continue</button>
+    </div>
+  </div>
+</div>
+
 <div class="stripe"></div>
 
 <main>
@@ -1745,6 +1874,7 @@ async function checkGoogleSession(){
     setHomeGreeting(session.user);
     await loadHomeData();
     checkForUpdate();
+    await checkOnboarding(session.user.id);
   }
   return session;
 }
@@ -2302,6 +2432,119 @@ function selectSport(name){
   renderRoleOptions(selectedSport);
 }
 
+// ---- Onboarding (first-time welcome questions) ----
+let onboardStep = 1;
+let onboardAnswers = { sport: null, goal: null, level: null };
+
+async function checkOnboarding(userId){
+  try{
+    const { data, error } = await sb.from('user_profile').select('onboarding_completed').eq('user_id', userId).maybeSingle();
+    if(error){ console.error('Could not check onboarding:', error.message); return; }
+    if(!data || !data.onboarding_completed){
+      showOnboarding();
+    }
+  }catch(err){
+    console.error('Onboarding check failed:', err.message);
+  }
+}
+
+function showOnboarding(){
+  onboardStep = 1;
+  onboardAnswers = { sport: null, goal: null, level: null };
+  populateOnboardSportGrid();
+  updateOnboardStep();
+  document.getElementById('onboard-overlay').classList.add('show');
+}
+
+function populateOnboardSportGrid(){
+  const grid = document.getElementById('onboard-sport-grid');
+  if(grid.children.length > 0) return; // only build once
+  sports.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'sport-chip';
+    chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none">${s.icon}</svg><span>${s.name}</span>`;
+    chip.onclick = () => {
+      grid.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      onboardAnswers.sport = s.name;
+      document.getElementById('onboard-next-btn').disabled = false;
+    };
+    grid.appendChild(chip);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip');
+  if(!chip) return;
+  const parent = chip.parentElement;
+  parent.querySelectorAll('.onboard-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  if(parent.id === 'onboard-goal-grid') onboardAnswers.goal = chip.dataset.value;
+  if(parent.id === 'onboard-level-grid') onboardAnswers.level = chip.dataset.value;
+  document.getElementById('onboard-next-btn').disabled = false;
+});
+
+function updateOnboardStep(){
+  document.querySelectorAll('.onboard-step').forEach(el => el.classList.remove('active'));
+  document.getElementById(`onboard-step-${onboardStep}`).classList.add('active');
+  document.querySelectorAll('.onboard-dot').forEach(d => {
+    d.classList.toggle('active', parseInt(d.dataset.step) <= onboardStep);
+  });
+  const answerForStep = [null, onboardAnswers.sport, onboardAnswers.goal, onboardAnswers.level][onboardStep];
+  document.getElementById('onboard-next-btn').disabled = !answerForStep;
+  document.getElementById('onboard-next-btn').textContent = onboardStep === 3 ? "Let's go!" : 'Continue';
+}
+
+function onboardNext(){
+  if(onboardStep < 3){
+    onboardStep++;
+    updateOnboardStep();
+  }else{
+    finishOnboarding();
+  }
+}
+
+async function skipOnboarding(){
+  document.getElementById('onboard-overlay').classList.remove('show');
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  try{
+    await sb.from('user_profile').upsert({
+      user_id: session.user.id,
+      onboarding_completed: true
+    });
+  }catch(err){
+    console.error('Could not save onboarding skip:', err.message);
+  }
+}
+
+async function finishOnboarding(){
+  document.getElementById('onboard-overlay').classList.remove('show');
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+
+  try{
+    await sb.from('user_profile').upsert({
+      user_id: session.user.id,
+      favorite_sport: onboardAnswers.sport,
+      main_goal: onboardAnswers.goal,
+      experience_level: onboardAnswers.level,
+      onboarding_completed: true
+    });
+  }catch(err){
+    console.error('Could not save onboarding answers:', err.message);
+  }
+
+  if(onboardAnswers.sport){
+    selectSport(onboardAnswers.sport);
+  }
+
+  const nameEl = document.getElementById('home-greeting-sub');
+  if(nameEl && onboardAnswers.goal){
+    nameEl.textContent = `Let's work on: ${onboardAnswers.goal.toLowerCase()}`;
+  }
+}
+
 // ---- Home page ----
 
 // ---- Reminders (push notifications) ----
@@ -2397,7 +2640,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.9.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
