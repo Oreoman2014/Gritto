@@ -697,6 +697,28 @@
     margin-bottom:8px;
   }
   .settings-action-btn:last-child{margin-bottom:0;}
+
+  .settings-toggle-btn{
+    background:var(--turf);
+    color:#fff;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12px;
+    padding:8px 14px;
+    border-radius:9px;
+    cursor:pointer;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+  .settings-toggle-btn.off{background:#EDEBE3; color:var(--ink-soft);}
+  .settings-reminder-note{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin:10px 0 0;
+    line-height:1.5;
+  }
+
   .settings-card textarea{
     width:100%;
     border:1.5px solid var(--line);
@@ -1496,6 +1518,15 @@
       <div class="settings-row"><span>Status</span><span class="settings-row-value">Beta / testing mode</span></div>
     </div>
 
+    <div class="section-label" style="margin-top:20px;">Reminders</div>
+    <div class="settings-card">
+      <div class="settings-row" style="border-top:none; align-items:center;">
+        <span>Remind me if I haven't done my routine</span>
+        <button class="settings-toggle-btn" id="reminders-toggle-btn" onclick="toggleReminders()">Turn on</button>
+      </div>
+      <p class="settings-reminder-note" id="reminders-note">On iPhone, this only works if Gritto is added to your home screen — regular browser tabs can't send reminders.</p>
+    </div>
+
     <div class="section-label" style="margin-top:20px;">How Gritto works</div>
     <div class="settings-card settings-help">
       <p><b>Drills</b> — pick a sport, then describe what you're working on or upload a short video. Gritto gives you real drills with a cue and an animated demo for each.</p>
@@ -2133,8 +2164,100 @@ function selectSport(name){
 
 // ---- Home page ----
 
+// ---- Reminders (push notifications) ----
+const VAPID_PUBLIC_KEY = 'BBJdhwNmpScRSyLy7GLBvGyLpshQCq2HhywMAo_wL6pBLY4rtgM45Yw2AyUTeZod9TfJ7s5r8XmXnvMnsH3JPJ8';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+      console.error('Service worker registration failed:', err.message);
+    });
+  });
+}
+
+async function getExistingPushSubscription(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  try{
+    const registration = await navigator.serviceWorker.ready;
+    return await registration.pushManager.getSubscription();
+  }catch(err){
+    return null;
+  }
+}
+
+async function updateRemindersButtonState(){
+  const btn = document.getElementById('reminders-toggle-btn');
+  const note = document.getElementById('reminders-note');
+  if(!btn) return;
+
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    btn.textContent = 'Not supported';
+    btn.disabled = true;
+    btn.classList.add('off');
+    note.textContent = "This browser doesn't support reminders. On iPhone, make sure Gritto is added to your home screen and you're on a recent iOS version.";
+    return;
+  }
+
+  const sub = await getExistingPushSubscription();
+  if(sub){
+    btn.textContent = 'Turn off';
+    btn.classList.remove('off');
+  }else{
+    btn.textContent = 'Turn on';
+    btn.classList.add('off');
+  }
+}
+
+async function toggleReminders(){
+  const btn = document.getElementById('reminders-toggle-btn');
+  const existing = await getExistingPushSubscription();
+
+  if(existing){
+    // Turning off — unsubscribe locally. (The saved copy in the database
+    // will just quietly stop being used since it's no longer valid.)
+    await existing.unsubscribe();
+    await updateRemindersButtonState();
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+  if(permission !== 'granted'){
+    alert("Reminders need notification permission — you can turn this on in your phone's settings if you change your mind.");
+    return;
+  }
+
+  try{
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session) return;
+
+    await fetch('/api/save-subscription', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: session.user.id, subscription: subscription.toJSON() })
+    });
+
+    await updateRemindersButtonState();
+  }catch(err){
+    console.error('Could not enable reminders:', err.message);
+    alert('Something went wrong turning on reminders — try again in a moment.');
+  }
+}
+
 // ---- Settings page ----
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.2.0';
 
 async function renderSettingsPage(){
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
@@ -2161,6 +2284,8 @@ async function renderSettingsPage(){
   }else{
     avatar.style.display = 'none';
   }
+
+  await updateRemindersButtonState();
 }
 
 async function clearVideoHistoryData(){
