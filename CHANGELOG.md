@@ -1,5 +1,9 @@
 # Gritto — Version Log
 
+## v3.7.1 — Added injury/liability disclaimer to Privacy Policy
+- New "Physical activity & injury" section: makes clear that drills/routines are done at your own risk, encourages warming up, stopping if something hurts, checking with a doctor first, and parent supervision for young athletes
+- States that Gritto and its creator aren't responsible for injury, loss, or damage from following the app's suggestions
+
 ## v3.7.0 — Privacy Policy & Terms page
 - New standalone page (`privacy.html`) explaining what Gritto collects, how it's used, where it's stored, and your choices — written honestly to reflect what the app actually does
 - Linked from a new "Legal" section in Settings
