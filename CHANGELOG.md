@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.1.1 — Fixed video upload getting stuck forever
+- Found the cause: the "retry if blank" feature added last update could sometimes ask the video to seek to a moment it was already at (especially near the end of short clips) — when nothing actually changes, the browser never signals "done seeking," so the app was waiting forever for a signal that would never come
+- Fixed by detecting that situation upfront and continuing immediately instead of waiting
+- Added a backup timer too: if a single frame ever takes more than 1.5 seconds for any reason, the app moves on with whatever it has instead of waiting indefinitely
+- Added one more overall safety net on top of that, so the process can never get stuck for good
+
 ## v3.1.0 — Smarter frame capture + more reliable nav pinning
 - **Blurry/blank video frames:** the earlier fix helped but wasn't enough on its own. Added a real safety net — after capturing each frame, the app checks if it looks suspiciously flat/blank (like plain sky or an overexposed wall) by measuring how much the pixel brightness varies, and automatically tries a moment slightly earlier or later if it does, up to 3 attempts
 - **Nav floating on iOS:** the previous CSS-only fix wasn't reliable enough for this specific iOS bug. Added a JS-based fix using the VisualViewport API, which tracks the phone's true visible screen area in real time and actively keeps the nav bar pinned to it — the standard, more robust fix for this class of iOS Safari bug
