@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.5.0 — Debug panel now shows device + OS info
+- The debug panel now always shows a line at the top like "iPhone · iOS 17.4.1 · Safari · Home screen app" — visible the moment you open it, no scrolling needed
+- Also shows screen size/resolution, and whether they're using the home-screen version or a regular browser tab
+- This info is automatically included whenever "Copy" is tapped, so bug reports come with device context built in
+- Honest limit: browsers intentionally don't expose the exact phone model (like "iPhone 15 Pro") for privacy reasons — this shows device category and OS version, which is the most detail actually available
+
 ## v3.4.1 — Fixed completely black video frames
 - Confirmed the nav fix from v3.4.0 held (nav was correctly positioned in your tester's screenshots)
 - Found a new, different bug: all 5 captured frames were solid black on this tester's phone
