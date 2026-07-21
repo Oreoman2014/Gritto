@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.10.0 — Accept & Manage Cookies
+- Cookie banner now has two buttons: **Accept** and **Manage**
+- "Manage" opens a panel showing exactly what's used, in plain categories: Essential (sign-in, always on), Google Sign-In (cookies Google itself sets during login, governed by Google's own policy), and Advertising & tracking (none — Gritto uses none)
+- Added a "Manage Cookies & Local Storage" link in Settings → Legal, so this can be revisited anytime, not just on first visit
+- Updated the Privacy Policy page to match, with a dedicated section on Google's sign-in cookies
+
 ## v3.9.0 — First-time onboarding questions
 - New welcome flow: the first time someone signs in with Google, they get 3 quick questions before landing on Home — main sport, biggest goal, and experience level (takes about 15 seconds)
 - Answers pre-select their sport automatically and personalize Home's greeting with their goal
