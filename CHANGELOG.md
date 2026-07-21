@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.4.1 — Fixed completely black video frames
+- Confirmed the nav fix from v3.4.0 held (nav was correctly positioned in your tester's screenshots)
+- Found a new, different bug: all 5 captured frames were solid black on this tester's phone
+- Root cause: the hidden video player used to grab frames was created purely in memory and never actually attached to the page — on some phones, capturing frames from a video that isn't part of the live page silently produces blank black output instead of real content
+- Fixed by attaching it invisibly (zero-size, transparent, not interactive — nothing visible changes) so frame capture actually works correctly
+- Added proper cleanup so this hidden element never lingers after an upload finishes or fails
+
 ## v3.4.0 — Nav floating bug actually fixed (structural rewrite)
 - After three failed attempts at patching `position:fixed`/`position:sticky`, switched strategy entirely: restructured the page so the nav bar is no longer positioned relative to scrolling at all — only the main content area scrolls internally now, while the nav sits outside it as a plain, permanently-visible element
 - This makes the "nav floats/detaches" bug structurally impossible, rather than trying to out-clever iOS Safari's known quirks with fixed/sticky positioning one more time
