@@ -25,12 +25,24 @@
     --ink-soft:#6B6F66;
   }
   *{box-sizing:border-box;}
-  body{
+  html, body{
+    height:100vh;
+    height:100dvh;
     margin:0;
+  }
+  body{
     background:var(--chalk);
     color:var(--ink);
     font-family:'Inter',sans-serif;
-    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    /* This is the actual fix for the iOS "nav floating" bug — instead of
+       trying to pin the nav to the bottom of a scrolling page (which iOS
+       Safari handles unreliably no matter which CSS trick you use), the
+       whole page never scrolls. Only <main> scrolls internally, so the
+       nav — living outside it — is structurally never affected by
+       scroll position, keyboard, or the file picker opening/closing. */
   }
   .stripe{
     position:fixed;
@@ -79,6 +91,12 @@
     margin:0;
   }
   main{
+    flex:1 1 auto;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    min-height:0; /* required for a flex child to actually scroll instead of growing to fit its content */
+  }
+  .main-content{
     max-width:720px;
     margin:0 auto;
     padding:36px 24px 80px;
@@ -1193,17 +1211,17 @@
   }
 
   .bottom-nav{
-    position:sticky;
-    bottom:0;
+    flex-shrink:0;
     display:flex;
     background:#fff;
     border-top:1px solid var(--line);
     padding:6px 0 max(6px, env(safe-area-inset-bottom));
-    z-index:150;
-    /* position:sticky (instead of fixed) avoids the iOS Safari bug where
-       fixed elements can visually detach from the bottom of the screen
-       when the file picker or keyboard opens and closes — sticky is
-       computed differently and doesn't suffer from that same issue. */
+    /* No position:fixed or sticky needed at all anymore — only <main>
+       scrolls now (see the body/main rules above), so the nav, as a
+       plain sibling outside that scrolling area, is structurally
+       guaranteed to stay visible. This is what actually fixes the iOS
+       "nav floats/detaches" bug for good, instead of trying to out-
+       clever position:fixed/sticky's known iOS quirks. */
   }
   .bottom-nav-btn{
     flex:1;
@@ -1339,6 +1357,8 @@
 </div>
 
 <div class="stripe"></div>
+
+<main>
 <header>
   <div class="eyebrow" style="display:flex; align-items:center; gap:8px;">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAOzklEQVR4nO3de4xc1WHH8e85987Mzu7sc9bPGIwdYwLmlQZqBA3ULSHlGXAIMdTYGPMqpjQRlOCa8GhrEhIHQimqUrWp+kdVRerzj1aqWrVqQpyqlFYqhDRtIVUVStPgx+7Oa3fuvad/3BnigB87s3d2F5/fR5o/bGnuXp05v3ue916zfNVqh4in7EKfgMhCUgDEawqAeE0BEK8pAOI1BUC8pgCI1xQA8ZoCIF5TAMRrCoB4TQEQrykA4jUFQLymAIjXFADxmgIgXlMAxGsKgHhNARCvKQDiNQVAvKYAiNcUAPGaAiBeUwDEawqAeE0BEK8pAOI1BUC8pgCI1xQA8ZoCIF5TAMRrCoB4TQEQrykA4jUFQLymAIjXFADxmgIgXlMAFpC1YMxCn4XfFIAFYgxU6o6ZyGEVggWjACwAY6A+49h94wgb1/cxVXcE+iUWhIp9noUBTFQTtl5W4uEtY3x+W5llI5bpJmoJFoACMI8CCxO1hIvO6OOJW8pMTsScvTrHk7eWiWJH4hb6DP2jAMwTa6DRdKwqhzx31ziDfYbEwUTVceMlJR68YYRKQ12h+abingfGgHOQJLBvxzhnnZqnOp1W9sDCVD3hoc0jXHthP4cqCaF+lXmjop4H1sBkPeGhG0a46kNFDleSH7vSOwdRDE9tG2PDqXm1BPNIxdxjYQCHq46bLy3xwPUjTNbeXbmtgemmY2U55Pm7xxkuWU2PzhMFoIcCC1M1x9mrc+zdWiZK4Fjj3MDCZM1x4Rl9PP7JMeozDhSAnlMAesQYmIkc5SHLb961hNFSwHTz+Ff1MIDDUwm3bhpk11XDTFTVFeo1FW8PNSPHU9vLXLCuQKWRzKoyWwP1mYRHt4xyxflFDlcTwqD35+orBaAHApsudt171Qgfv7iUVuJZlrQxECcQWMMXbiuzZlmO2rTGA72iAGQstDBRc1y3cYA9N41SqSfYDkvZGqhPO9Yuz/Ebd47TlzPEiTbO9YICkCFroTLtOH1FyL7tZSzp3H839ba9arzpvCJ7bhplqpGoFegBBSAjxqRz+QMFwzM7x1kxFtJouo6v/kcKLUxUEu78yBDbNw1yqIOulMyOijMjxkBjxrF3a5nLzikyUZvdoPeExwVmYsfntpX58FlFJuqOQIPizCgAGQgsHKok7PjZQbZtGuRwJbuZG2OgGUF/wbBvR5llwwENDYozowDMUXsvz+XnFXniljGqPaicgU1vntlwSp6nby8TBIYEDYqzoADMQWCgNuNYVc7x7B3jFPOGKHY9qZhhkA6Kr71ogIduGGGiokFxFhSALhkgchBawxd3lDltaUi1x5vYrIXJasKuq4e5sbW+oJXiuVHxdak9V//YllGuuqCfiZrr+YqtId056hzsu729wqztEnOhoutCaOFAJeETPzXAL1w5xMQ8XonbO0fHBgOe3llmsGiYiXrT7fKBAtChdNDruPgDBZ7cWqYxs1DnkPDBtX18Yfs4UZL+v0LQOQWgA+2r79IRy3N3LWF0Affth639RjdfVuJT145ktu7gGxXZLLX733ECT24tc9YpeSoL/DgTa2GqlvDg9cN89Pwih7R9umMqrlmyFqYa6b277RmYhd6mbEj3Gllj+PIdS9hwSrpzVCGYPRXVLIRButL7sY0DPPCxkXRj2iIpOWtbT5sYD3n69nH68oZmpPHAbC2Sn3Hxsq1V2LNX5/n8tjJRkj6/ZzHVr6C1PnDJmX08vmWURjNZVOe3mCkAx5Huw3GMlCzP37OEFaPBon2CW9BaKb7jimHu+blhLZLNkoroBBozjse3jHHBusJRn+iwmBigPp2w5xOj6c5RzQydkIrnGMIgfZbPfVcPc+tPl5jIcIfnkbJ8GqIxECVQyBmevXOcNUtzNGbmdk/CyU5FcxTtQe9Hz+/n0S3pDs8sB5XtSm+MwxqHy7DHblsb9Na/L8eX7xjHWnQ75XEoAO8QWKg20vtxn9pefnuqMdsKZCiGDXa/sItvfP98hvIVIpdd8xJaOFxJ+Jlzi3xmc3pfsgJwdOFCn8Bi0r6tsb9geO7OcdYuyzFRz/Y2xDgJGClM8ZWXb+D3Xr2al/7vDDaUv8eS/kPMxCHWZNMpCgOYrCXcf+0wr/8g4vf/dpLRkiWKMzn8SUMtwBGsSffYPHLTKJedW8y+8jvLUKHC/jfPYe+Lt7GkeIjvHjyVz37rLnI2ynzq0pHeTfbrW8f40HtgEL8QVBwtQQCHqwm3Xz7Izo8MMVHJdgbFOUM+aPK/tTF2f/NepuMcBhguVPmL713Cb/3rZgbzVWKX3R+1rafTlfoMz+4cb72IQ7dTHkkBIO0zT1YTLt1QZO/Wcrq9mOwXu/I24tH9d/PyW+sYCOvEzpI4S3+uwVP/tI2/f+ODDOWrREl2P0t7THP+2gL7dozjnFl0C3kLyfsAWJu+r2v5aMC+HWWKBUOU8VaCyAUMFap89dvX8mevXcZIYYq4Neh1QGBioiTgkf338Ga1TCFokrjsTiCwaet23cYB7r9miIna4tnKsdC8Lob2DE8QwDM7xzlzVY5qPdt589gFDOerfOON89j7j9vpDxvvqtyJswzk6rx6YA2f3X8PuSDKfNamvXP0l1ub+SZqC7+ZbzHwOgDWpjMlD20e5eqfHOBwNdtn7iTOkA9meKs+zCP776ERFQhtfNR5/ygJGClU+PPXP8zvvnJd5lOjBlrvIDN88bb0RRx6O6XHAQgsHKwk3HhxiXuvHOZwJe0WtO+57fbT5jBgIDQxe/bfzSsH1jKQrx93kJtgKOUafO7F7Xz9+z/BcL5K/I7xwFzOzZB298YGA760o8xgn2G66fftlGb5qtXevZvQtt7Te9EZffzhg8so9bXu7LJ0vTfBmPQK24zSA0RJwGjfJL/98g08/MK9DBcqJLOY4QlMQiXq4wOj/80fXb2bwVydZhK0Vo0hF5ofC1o35xnF0F+y/MnXK+z6yg+7P9hJwMsAGNI9M+etybN0JEj3y8zhKtgO1Okrczy5tUxtxjCUr7P/zbPZ/lePESUB1iSz3vIQmJiJmUE2r/s7nt+0j2ozz2Cf4aXXGvzq1w5RKhqSpPvzhbRFKOQML702zcGpmDCYW7Deq7xcCXakU5///J/TNGOHmWMfoH3PwIGpBGvT+f63GsPs/uYuqs0i/bn6rK7+benAucIf/8cmNi5/lZ0b/pTEjHBwKuYvX6oxOmCJ5xgAAOccxYIlsH5WfvA0AJCGoJA39GXQAW7PGhXzaUUKTMzj37qD7xxYzXBfhTjpfDCbOEspV+fJF7exfuR1Ln3/v4EJGCwaSkWTSQBorQn4zNtBMPzo3b1ZfaLEki9U+J1XruNr/345Q4VqV5Uf2q1UTGWmP21JpkvkbZMoNtmds+eVHzwPQJZiZynlavzL/5zLl176eUr5+py3OcfOUsrX+PaBNez9hzsJgxijNdxMKQAZcM6St01+UBvjoRd+kWqzSGBiXAaruXGSLqT9wXev4KuvXMVAOEHivO25Zk4ByIAD+sKIN0r38+rB0xjocNB7QsZAXOOvD+4kHL0QF1fAaBk3CwrAXJkAmpPY920nv/J6cm6ShKwrpwHXJN83TLj+CQiHwc2gn2/uVIJzYSxEU5iRCwjW7MLFDVzPijTARVXM4JmEaz4F8QI8lPQkpAB0zUDShMIywvWPge0DF9HTjcYmgGgSu3ILduUtEE2oKzRHCkC3DJDMEK59EFM6C+J62iLMxx9OGoRr7sMMnQtxdZ7+7slJJdcNE0BUIVi1DbvsGmjO55W41fKEw4Rn/BqEo+m/NT3aFQWgUyZI+/3DFxKs+SWIp+f/mSPGQlzFDJ5LsOY+SBp67kmXFICOGEhmIL+E8PQ9YPO97/cf81QCaB4mWPlJ7MqbIZrSeKALCkCnXJNw3W7M4IZ57PcfgwGSJuGaT2NKZ0Jc0XigQyqt2Wp1fYKVN2OXXAnNyUVwxbWt8UCJcP3jEI4sXIv0HqUAzEar8tuxiwnWPrC4+tzGQlzDDF/QWh+oLZ5zew9QAE7EtPv9ZYL3f2Z+5vs7ZSw0D2NXfJxg+Y0aD3RAATgRB5AQrtuDKW1ozbsvtspl0qC6mGDdw63z1HhgNlRCx/P2yutN2KXXQLQY+v3H0mqpghLhul+BYBBczKJqqRYhBeBYWotdZuwSwtM+3bryL/LKZAKIK5jRjYRrH0zHAwrAcSkAR2UgnsbkRgnX7YGguPj6/cdiQmhOYFdsxi67TuOBE1AA3sUADkyS9qcH1kHU3m/jOvxkodO/2fq7SZSuVwydDZHGA8eiW4veyRiIqgSr78KuuCnd5xMUuzuWi5hzEEyYVt5ODmOBJIb8UsLTH6H58r2Q1IFg7udzkvHyuUAnlmD6TgGTAxK66vq4hGD9E9ihc7pcMU7A9hG//gzJW38DYQlcp4+CSMDkcNNvHtGKyZHUAhyVxdVeJ71atrpEnXJJWvHnNG4wuOk3cZXvQG6k1aJ09n1cAragyn8MCsCx2L7W3Hq3B0iyqXQmD0E/2GJrWrOT7/L2OoYcnQJwTO942m3HX8+q0rnWsdqfzr4qx6d2UbymAIjXFADxmgIgXlMAxGsKgHhNARCvKQDiNQVAvKYAiNcUAPGaAiBeUwDEawqAeE0BEK8pAOI1BUC8pgCI1xQA8ZoCIF5TAMRrCoB4TQEQrykA4jUFQLymAIjXFADxmgIgXlMAxGsKgHhNARCv6f0APeVIn+nfzUvz2t+VXlIAesnk0jfNuG7eFpO+I0yNdG8pAL0080Nc7b8gaXQfgGSu7xmT49FbInspGOBHlbeLYjYWkun0oxD0hFqAXoqm5ngA12o5VPl7RQHoJRNkcBA10L2kAPSUKu9ipykG8ZoCIF5TAMRrCoB4TQEQrykA4jUFQLymAIjXFADxmgIgXlMAxGsKgHhNARCvKQDiNQVAvKYAiNcUAPGaAiBeUwDEawqAeE0BEK8pAOI1BUC8pgCI1xQA8ZoCIF5TAMRrCoB4TQEQrykA4jUFQLymAIjXFADxmgIgXlMAxGsKgHhNARCvKQDiNQVAvKYAiNcUAPHa/wOcPE+fyL8XsQAAAABJRU5ErkJggg==" alt="Gritto logo" style="width:22px; height:22px; border-radius:6px; flex-shrink:0;">
@@ -1348,8 +1368,7 @@
   <p class="sub">Pick a sport, then either describe what you're working on or upload a clip — get real drills and cues built for exactly your skill level.</p>
 </header>
 
-
-<main>
+<div class="main-content">
   <div class="progress-bar hidden page-hide" id="progress-bar">
     <div class="progress-user">
       <img id="progress-avatar" src="" alt="">
@@ -1544,6 +1563,9 @@
       <div class="status" id="feedback-status"></div>
     </div>
   </div>
+
+  <footer>Prototype — advice is general coaching info, not a substitute for an in-person coach.</footer>
+</div>
 </main>
 
 <nav class="bottom-nav">
@@ -1577,8 +1599,6 @@
     <span>Settings</span>
   </button>
 </nav>
-
-<footer>Prototype — advice is general coaching info, not a substitute for an in-person coach.</footer>
 
 <button class="debug-toggle" id="debug-toggle" onclick="toggleDebugPanel()">
   <svg viewBox="0 0 24 24" fill="none"><path d="M9 9V7a3 3 0 0 1 6 0v2M6 9h12l-1 10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 9Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 9h3M18 9h3M4 14h2M18 14h2M5 19l3-2M19 19l-3-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -2231,7 +2251,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.3.1';
+const APP_VERSION = '3.4.0';
 
 async function renderSettingsPage(){
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
