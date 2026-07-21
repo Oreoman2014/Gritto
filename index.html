@@ -2231,7 +2231,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.3.0';
+const APP_VERSION = '3.3.1';
 
 async function renderSettingsPage(){
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
@@ -3346,7 +3346,9 @@ function extractFrames(file){
     // like plain sky, an overexposed wall, or a stuck/blurred frame —
     // by sampling pixel brightness and measuring how much it varies.
     // Real footage of a person moving has a lot of variation; a blank
-    // frame doesn't.
+    // frame doesn't. Threshold is intentionally low/lenient — this is a
+    // safety net for genuinely broken frames, not a quality filter, so
+    // it shouldn't be flagging normal (if slightly plain) footage.
     function looksBlank(){
       const w = canvas.width, h = canvas.height;
       const sampleSize = 40;
@@ -3359,7 +3361,7 @@ function extractFrames(file){
       }
       const mean = sum / n;
       const variance = (sumSq / n) - (mean * mean);
-      return variance < 120; // very low variation = likely a blank/flat frame
+      return variance < 30; // only catches genuinely flat/blank frames now
     }
 
     async function captureAt(t){
@@ -3383,8 +3385,8 @@ function extractFrames(file){
         // Safety net: if "seeked" never fires (can happen when the target
         // time is essentially the same as where the video already is —
         // the browser has nothing to seek, so it never tells us it's
-        // done), stop waiting after 1.5s instead of hanging forever.
-        const timeoutId = setTimeout(finish, 1500);
+        // done), stop waiting after 1s instead of hanging forever.
+        const timeoutId = setTimeout(finish, 1000);
 
         const target = Math.max(0, Math.min(t, duration - 0.05));
         if(Math.abs(video.currentTime - target) < 0.02){
@@ -3396,17 +3398,22 @@ function extractFrames(file){
     }
 
     try{
+      console.log(`Starting frame extraction: ${timestamps.length} timestamps, duration ${duration.toFixed(1)}s`);
       const extractionWork = (async () => {
-        for(const t of timestamps){
+        for(let idx = 0; idx < timestamps.length; idx++){
+          const t = timestamps[idx];
           await captureAt(t);
           // If the frame looks blank, nudge forward a bit and try again —
-          // up to 3 total attempts before just accepting whatever we have.
+          // up to 2 total retries before just accepting whatever we have,
+          // so one stubborn frame can't eat the whole time budget.
           let attempts = 1;
-          const nudges = [0.35, 0.7, -0.35];
+          const nudges = [0.35, -0.35];
           while(looksBlank() && attempts <= nudges.length){
+            console.log(`Frame ${idx + 1}: looked blank, retrying (attempt ${attempts + 1})`);
             await captureAt(t + nudges[attempts - 1]);
             attempts++;
           }
+          console.log(`Frame ${idx + 1} of ${timestamps.length}: captured`);
 
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           extractedFrames.push(dataUrl.split(',')[1]);
@@ -3421,7 +3428,7 @@ function extractFrames(file){
       // prevent hanging forever, but this catches anything unexpected
       // so the status message never gets stuck for good.
       const overallTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Extraction took too long overall')), 30000);
+        setTimeout(() => reject(new Error('Extraction took too long overall')), 20000);
       });
       await Promise.race([extractionWork, overallTimeout]);
 
