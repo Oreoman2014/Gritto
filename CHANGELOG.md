@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.3.1 — Fixed slow/failing video extraction + added real visibility
+- Found the likely cause of the 30-second timeout using a real debug log from a tester: a 67-second silent gap right before it failed, meaning the app was stuck doing something internally with nothing showing in the log
+- The "retry if frame looks blank" safety net (added a few versions back) was almost certainly too trigger-happy — flagging genuinely fine frames as "blank" and burning through the whole time budget retrying them for nothing
+- Made the blank-detection much less aggressive, reduced retries from 3 to 2, and shortened per-frame and overall timeouts so a stuck extraction fails faster instead of burning 30+ seconds
+- Added real logging throughout the extraction process (which frame is being captured, when a retry happens) — next time something's slow, the debug panel will actually show what's happening instead of going silent
+- Also audited every database table's permissions project-wide — everything currently in use checked out fine; added one small missing permission (user_progress delete) for future completeness
+
 ## v3.3.0 — Two real fixes (regression-tested)
 - **Nav floating, take 3:** the previous attempts both tried to patch `position:fixed`, which iOS Safari has known, hard-to-predict issues with. Switched to `position:sticky` instead — a fundamentally different, more reliable approach for this exact scenario, not another patch on the same broken foundation. Removed the old JS workaround since it's no longer needed.
 - **Role selector not showing after video frames loaded:** found the real cause — nothing was stopping someone from starting a video upload before picking a sport. Frames would extract fine (that part doesn't need a sport), but the "who are you in this play" step silently refused to show since it needs to know the sport to know which roles to offer — with zero explanation why. Now it tells you to pick a sport first, before even starting.
