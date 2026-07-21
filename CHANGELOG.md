@@ -1,5 +1,17 @@
 # Gritto — Version Log
 
+## v3.2.1 — Fixed stale version number
+- The version shown in Settings was stuck at "v3.0.0" this whole time — I forgot to actually update that number in each of the last several releases (v3.0.1 through v3.2.0)
+- This means the version number was never a reliable way to check what code someone actually has installed — now corrected to show the real current version
+
+## v3.2.0 — Push notification reminders
+- New "Reminders" toggle in Settings — turns on real push notifications if you haven't done your routine yet
+- A daily automatic check (runs once a day) finds everyone who hasn't completed their routine today and sends a gentle nudge
+- Works even when Gritto isn't open — a real notification, not just an in-app banner
+- **Important iPhone limit:** only works if Gritto has been added to your home screen — regular Safari tabs can't receive push notifications
+- New database table: push_subscriptions (each device that turns reminders on gets one row)
+- New files: sw.js (service worker, required for push), 2 new server functions, package.json, vercel.json (schedules the daily check)
+
 ## v3.1.1 — Fixed video upload getting stuck forever
 - Found the cause: the "retry if blank" feature added last update could sometimes ask the video to seek to a moment it was already at (especially near the end of short clips) — when nothing actually changes, the browser never signals "done seeking," so the app was waiting forever for a signal that would never come
 - Fixed by detecting that situation upfront and continuing immediately instead of waiting
