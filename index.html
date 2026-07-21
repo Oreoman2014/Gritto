@@ -1242,6 +1242,39 @@
     flex-shrink:0;
   }
 
+  .cookie-banner{
+    position:fixed;
+    left:0; right:0;
+    bottom:0;
+    background:var(--charcoal);
+    color:#fff;
+    padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    display:flex;
+    align-items:center;
+    gap:14px;
+    font-size:12.5px;
+    box-shadow:0 -4px 20px rgba(0,0,0,0.2);
+    z-index:260;
+    transform:translateY(100%);
+    transition:transform 0.25s ease;
+  }
+  .cookie-banner.show{transform:translateY(0);}
+  .cookie-banner p{margin:0; line-height:1.5; color:#C8CCC2;}
+  .cookie-banner a{color:var(--mint, #4ECDC4);}
+  .cookie-banner button{
+    background:var(--turf);
+    color:#fff;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12.5px;
+    padding:9px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    flex-shrink:0;
+    white-space:nowrap;
+  }
+
   .bottom-nav{
     flex-shrink:0;
     display:flex;
@@ -1616,6 +1649,11 @@
 <div class="update-toast" id="update-toast">
   <span>A new version of Gritto is ready.</span>
   <button onclick="location.reload()">Refresh</button>
+</div>
+
+<div class="cookie-banner" id="cookie-banner">
+  <p>Gritto uses local storage on your device to keep you signed in and remember your settings — not third-party tracking cookies. See our <a href="privacy.html">Privacy Policy</a> for details.</p>
+  <button onclick="acceptCookieNotice()">Got it</button>
 </div>
 
 <nav class="bottom-nav">
@@ -2359,7 +2397,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.7.0';
+const APP_VERSION = '3.8.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -2383,6 +2421,23 @@ async function checkForUpdate(){
 
 function showUpdateToast(){
   document.getElementById('update-toast').classList.add('show');
+}
+
+// ---- Cookie / local storage notice ----
+// Gritto doesn't use third-party tracking cookies, but it does use
+// localStorage/sessionStorage on the person's own device (mainly to
+// keep them signed in) — this shows a one-time notice about that,
+// remembered so it doesn't show again once accepted.
+(function(){
+  if(localStorage.getItem('gritto_cookie_notice_accepted') === '1') return;
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('cookie-banner').classList.add('show');
+  });
+})();
+
+function acceptCookieNotice(){
+  localStorage.setItem('gritto_cookie_notice_accepted', '1');
+  document.getElementById('cookie-banner').classList.remove('show');
 }
 
 async function renderSettingsPage(){
