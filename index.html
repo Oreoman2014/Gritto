@@ -2785,7 +2785,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.11.0';
+const APP_VERSION = '3.11.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3910,22 +3910,39 @@ function extractFrames(file){
   // On some mobile browsers, capturing frames from a video element that
   // isn't actually part of the page can silently produce blank/black
   // canvas output — even though the video itself loads and seeks fine.
-  // Attaching it invisibly (off-screen, zero size, not interactive)
-  // fixes this without showing anything to the person.
+  // Attaching it fixes that, but newer iOS versions have gotten strict
+  // about power-saving for elements that are technically invisible via
+  // opacity:0 — some skip real frame decoding entirely for those. Moving
+  // it off-screen (instead of using opacity) keeps it "fully rendered"
+  // as far as the browser is concerned, without showing anything.
   video.className = 'gritto-hidden-capture-video';
   video.style.position = 'fixed';
-  video.style.opacity = '0';
+  video.style.width = '160px';
+  video.style.height = '160px';
+  video.style.top = '-9999px';
+  video.style.left = '-9999px';
   video.style.pointerEvents = 'none';
-  video.style.width = '1px';
-  video.style.height = '1px';
-  video.style.top = '0';
-  video.style.left = '0';
   document.body.appendChild(video);
 
   const statusEl = document.getElementById('video-status');
   const safetyTimer = setTimeout(() => {
     statusEl.textContent = "This video is taking too long to read — try a shorter clip (under 15 seconds) or a different video.";
   }, 15000);
+
+  // Wait for actual decoded frame data (loadeddata), not just metadata
+  // (duration/dimensions) — on some iOS versions, metadata can be ready
+  // before there's any real pixel data to capture, which is another way
+  // frames can come out blank/black if we start seeking too early.
+  let metadataReady = false;
+  let dataReady = false;
+  function tryBeginExtraction(){
+    if(metadataReady && dataReady) beginExtraction();
+  }
+
+  video.addEventListener('loadeddata', () => {
+    dataReady = true;
+    tryBeginExtraction();
+  });
 
   video.addEventListener('loadedmetadata', () => {
     // Safari on iPhone sometimes reports the video length as "infinite"
@@ -3935,12 +3952,14 @@ function extractFrames(file){
       const fixDuration = () => {
         video.removeEventListener('durationchange', fixDuration);
         video.currentTime = 0;
-        beginExtraction();
+        metadataReady = true;
+        tryBeginExtraction();
       };
       video.addEventListener('durationchange', fixDuration);
       video.currentTime = 1e7;
     }else{
-      beginExtraction();
+      metadataReady = true;
+      tryBeginExtraction();
     }
   });
 
