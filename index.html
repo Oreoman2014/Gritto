@@ -1595,6 +1595,7 @@
       <span class="onboard-dot active" data-step="1"></span>
       <span class="onboard-dot" data-step="2"></span>
       <span class="onboard-dot" data-step="3"></span>
+      <span class="onboard-dot" data-step="4"></span>
     </div>
 
     <div class="onboard-step active" id="onboard-step-1">
@@ -1623,6 +1624,16 @@
         <div class="onboard-chip" data-value="Just starting out">Just starting out</div>
         <div class="onboard-chip" data-value="Some experience">Some experience</div>
         <div class="onboard-chip" data-value="Pretty experienced">Pretty experienced</div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-4">
+      <h2>Pick your coach</h2>
+      <p class="onboard-sub">This changes how Gritto talks to you in every drill and tip.</p>
+      <div class="onboard-chip-grid" id="onboard-coach-grid">
+        <div class="onboard-chip" data-value="Hype">🔥 Hype — high energy, always cheering you on</div>
+        <div class="onboard-chip" data-value="Serious">🎯 Serious — direct, no-nonsense, straight to the point</div>
+        <div class="onboard-chip" data-value="Funny">😄 Funny — jokes around while still helping you improve</div>
       </div>
     </div>
 
@@ -2478,6 +2489,7 @@ const sports = [
 ];
 
 let selectedSport = null;
+let coachPersonality = null; // 'Hype' | 'Serious' | 'Funny' | null (default balanced tone)
 let selectedRole = null;
 
 const sportRoles = {
@@ -2546,23 +2558,40 @@ function selectSport(name){
 
 // ---- Onboarding (first-time welcome questions) ----
 let onboardStep = 1;
-let onboardAnswers = { sport: null, goal: null, level: null };
+let onboardAnswers = { sport: null, goal: null, level: null, coach: null };
 
 async function checkOnboarding(userId){
   try{
-    const { data, error } = await sb.from('user_profile').select('onboarding_completed').eq('user_id', userId).maybeSingle();
+    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality').eq('user_id', userId).maybeSingle();
     if(error){ console.error('Could not check onboarding:', error.message); return; }
     if(!data || !data.onboarding_completed){
       showOnboarding();
+    }else{
+      coachPersonality = data.coach_personality || null;
     }
   }catch(err){
     console.error('Onboarding check failed:', err.message);
   }
 }
 
+// Turns the saved coach personality into an instruction the AI can
+// actually follow — used across drills, video feedback, and routines.
+function getCoachToneInstruction(){
+  switch(coachPersonality){
+    case 'Hype':
+      return 'Write with HIGH energy and enthusiasm — hype the athlete up, use exclamation points, celebrate effort, sound like their most encouraging cheerleader. Still be accurate and specific, just deliver it with excitement.';
+    case 'Serious':
+      return 'Write in a direct, no-nonsense, professional tone — like a focused, respected trainer. Skip exclamation points and hype language; be efficient and to the point while still being encouraging in substance, not tone.';
+    case 'Funny':
+      return "Write with a playful, lighthearted sense of humor — a joke or a fun aside here and there is great — while still giving genuinely useful, accurate advice. Don't sacrifice usefulness for the joke.";
+    default:
+      return 'Write in a warm, encouraging, and knowledgeable tone.';
+  }
+}
+
 function showOnboarding(){
   onboardStep = 1;
-  onboardAnswers = { sport: null, goal: null, level: null };
+  onboardAnswers = { sport: null, goal: null, level: null, coach: null };
   populateOnboardSportGrid();
   updateOnboardStep();
   document.getElementById('onboard-overlay').classList.add('show');
@@ -2586,13 +2615,14 @@ function populateOnboardSportGrid(){
 }
 
 document.addEventListener('click', (e) => {
-  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip');
+  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip, #onboard-coach-grid .onboard-chip');
   if(!chip) return;
   const parent = chip.parentElement;
   parent.querySelectorAll('.onboard-chip').forEach(c => c.classList.remove('active'));
   chip.classList.add('active');
   if(parent.id === 'onboard-goal-grid') onboardAnswers.goal = chip.dataset.value;
   if(parent.id === 'onboard-level-grid') onboardAnswers.level = chip.dataset.value;
+  if(parent.id === 'onboard-coach-grid') onboardAnswers.coach = chip.dataset.value;
   document.getElementById('onboard-next-btn').disabled = false;
 });
 
@@ -2602,13 +2632,13 @@ function updateOnboardStep(){
   document.querySelectorAll('.onboard-dot').forEach(d => {
     d.classList.toggle('active', parseInt(d.dataset.step) <= onboardStep);
   });
-  const answerForStep = [null, onboardAnswers.sport, onboardAnswers.goal, onboardAnswers.level][onboardStep];
+  const answerForStep = [null, onboardAnswers.sport, onboardAnswers.goal, onboardAnswers.level, onboardAnswers.coach][onboardStep];
   document.getElementById('onboard-next-btn').disabled = !answerForStep;
-  document.getElementById('onboard-next-btn').textContent = onboardStep === 3 ? "Let's go!" : 'Continue';
+  document.getElementById('onboard-next-btn').textContent = onboardStep === 4 ? "Let's go!" : 'Continue';
 }
 
 function onboardNext(){
-  if(onboardStep < 3){
+  if(onboardStep < 4){
     onboardStep++;
     updateOnboardStep();
   }else{
@@ -2641,11 +2671,14 @@ async function finishOnboarding(){
       favorite_sport: onboardAnswers.sport,
       main_goal: onboardAnswers.goal,
       experience_level: onboardAnswers.level,
+      coach_personality: onboardAnswers.coach,
       onboarding_completed: true
     });
   }catch(err){
     console.error('Could not save onboarding answers:', err.message);
   }
+
+  coachPersonality = onboardAnswers.coach;
 
   if(onboardAnswers.sport){
     selectSport(onboardAnswers.sport);
@@ -2752,7 +2785,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.10.1';
+const APP_VERSION = '3.11.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3327,9 +3360,9 @@ async function buildRoutine(){
   btn.disabled = true;
   statusEl.textContent = 'Building your routine…';
 
-  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"items": [{"name":"short activity name","minutes":2,"reps":null,"cue":"one short coaching cue for this activity"}]}
-Include 3 to 5 items, ordered from warm-up-style activities to more focused ones. For EACH item, set exactly one of "minutes" or "reps" to a realistic whole number and set the other to null — use "reps" for countable activities (like "20 dribbles" or "10 throws") and "minutes" for timed activities (like "footwork drill"). The items that use "minutes" should add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment.`;
+Include 3 to 5 items, ordered from warm-up-style activities to more focused ones. For EACH item, set exactly one of "minutes" or "reps" to a realistic whole number and set the other to null — use "reps" for countable activities (like "20 dribbles" or "10 throws") and "minutes" for timed activities (like "footwork drill"). The items that use "minutes" should add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment. Apply your tone in the "name" and "cue" fields — keep the JSON structure itself unchanged.`;
 
   const userMsg = `Sport: ${selectedSport}\nDaily goal: ${goalText}`;
 
@@ -3662,9 +3695,9 @@ async function getDrills(){
   btn.disabled = true;
   statusEl.textContent = 'Building your drills…';
 
-  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one encouraging sentence about what you'll help with", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
-Include exactly 4 drills, ordered from most foundational to more advanced. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate, positive, and safe (no advice that risks injury). Be specific and actionable, not generic.`;
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+{"summary": "one sentence about what you'll help with, in your tone", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete, in your tone","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+Include exactly 4 drills, ordered from most foundational to more advanced. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate and safe (no advice that risks injury). Be specific and actionable, not generic.`;
 
   const userMsg = `Sport: ${selectedSport}\\nWhat I'm working on: ${skillText}`;
 
@@ -4055,10 +4088,10 @@ async function analyzeVideo(){
   btn.disabled = true;
   statusEl.textContent = 'Looking at your form…';
 
-  const systemPrompt = `You are a knowledgeable, encouraging youth sports coach. You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one encouraging sentence about what you observed, specifically about the ${selectedRole}", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
-Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate, positive, and safe (no advice that risks injury).`;
+{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
 
   const content = [
     ...extractedFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
