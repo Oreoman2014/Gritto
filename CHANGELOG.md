@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.11.1 — Fixed black video frames on newer iOS versions
+- Real clue from a beta tester: black frames happened on a phone running a NEWER iOS version than another phone that worked fine — pointed to a specific, known category of bug
+- Root cause: the hidden video player used `opacity:0` to stay invisible. Newer iOS/Safari versions have gotten stricter about power-saving for elements that are technically invisible this way, and can skip real frame decoding entirely for them
+- Fixed by moving the hidden video off-screen instead (still fully rendered as far as the browser is concerned, just physically outside the visible area) — a more universally reliable "hidden but real" technique
+- Also added an extra readiness check: now waits for actual decoded frame data, not just video metadata (duration/size), before starting to grab frames — closes another possible timing gap on newer iOS versions
+
 ## v3.11.0 — Pick your AI coach's personality
 - New 4th onboarding question: choose your coach's tone — 🔥 Hype (high energy, cheering you on), 🎯 Serious (direct, no-nonsense), or 😄 Funny (jokes around while still helping)
 - This isn't just cosmetic — it's actually wired into the AI: drills, video feedback, and daily routines are all written in your chosen tone from now on
