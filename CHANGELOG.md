@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.11.0 — Pick your AI coach's personality
+- New 4th onboarding question: choose your coach's tone — 🔥 Hype (high energy, cheering you on), 🎯 Serious (direct, no-nonsense), or 😄 Funny (jokes around while still helping)
+- This isn't just cosmetic — it's actually wired into the AI: drills, video feedback, and daily routines are all written in your chosen tone from now on
+- Saved to your account, so it's remembered across sessions (loads automatically when you log in, not just right after onboarding)
+- Verified with an automated test that all 4 onboarding steps transition correctly, including the new coach step
+- New database column: user_profile.coach_personality (added to the same setup_user_profile.sql file from before)
+
 ## v3.10.1 — Restyled cookie banner to match reference design
 - Changed from a dark, full-width bar to a white floating card with rounded corners, matching a reference style
 - "Manage" is now a light gray button, "Accept" is a dark button with white text, side by side
