@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.11.2 — Fixed hang introduced by the last black-frame fix (my mistake)
+- The "wait for real frame data" check added in v3.11.1 had no fallback — if that specific browser event never fired on a device, the app just waited forever, stuck on "Reading frames from your clip..."
+- This is on me — a real regression, not a device quirk
+- Fixed properly this time: the app now starts as soon as EITHER the frame-data-ready signal fires, OR a very short grace period passes — whichever comes first, so it can never hang waiting for a signal that might not come
+- Kept the off-screen video fix from v3.11.1 (that part was correct and should still resolve black frames on newer iOS)
+
 ## v3.11.1 — Fixed black video frames on newer iOS versions
 - Real clue from a beta tester: black frames happened on a phone running a NEWER iOS version than another phone that worked fine — pointed to a specific, known category of bug
 - Root cause: the hidden video player used `opacity:0` to stay invisible. Newer iOS/Safari versions have gotten stricter about power-saving for elements that are technically invisible this way, and can skip real frame decoding entirely for them
