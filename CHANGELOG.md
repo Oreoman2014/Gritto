@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.12.0 — Video form score
+- Every video check now gets a 0-100 form score with a short label (like "Solid fundamentals" or "Needs work on timing"), shown as a big color-coded badge right at the top of your results — green for strong scores, teal for solid, amber for developing, red for early-stage
+- The AI is instructed to score honestly, not inflate — most learning athletes should land in the 50-80 range, 90+ reserved for genuinely clean mechanics
+- Score is saved with each check, so it shows up as a small badge on your video history thumbnails and in the full detail view — letting you actually watch your score improve over time
+- Verified the color-coding with an automated test across all 4 score ranges before shipping
+- New database columns: video_analysis_history.score and drill_history.score
+
 ## v3.11.2 — Fixed hang introduced by the last black-frame fix (my mistake)
 - The "wait for real frame data" check added in v3.11.1 had no fallback — if that specific browser event never fired on a device, the app just waited forever, stuck on "Reading frames from your clip..."
 - This is on me — a real regression, not a device quirk
