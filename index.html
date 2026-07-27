@@ -2785,7 +2785,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.11.1';
+const APP_VERSION = '3.11.2';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3929,19 +3929,24 @@ function extractFrames(file){
     statusEl.textContent = "This video is taking too long to read — try a shorter clip (under 15 seconds) or a different video.";
   }, 15000);
 
-  // Wait for actual decoded frame data (loadeddata), not just metadata
-  // (duration/dimensions) — on some iOS versions, metadata can be ready
-  // before there's any real pixel data to capture, which is another way
-  // frames can come out blank/black if we start seeking too early.
-  let metadataReady = false;
-  let dataReady = false;
-  function tryBeginExtraction(){
-    if(metadataReady && dataReady) beginExtraction();
+  // Prefer waiting for actual decoded frame data (loadeddata), not just
+  // metadata (duration/dimensions) — on some iOS versions, metadata can
+  // be ready before real pixel data is, which is another way frames can
+  // come out blank/black. BUT this must never be a hard requirement —
+  // some devices/videos never fire loadeddata reliably, and waiting on
+  // it unconditionally caused the whole thing to hang forever. So: start
+  // as soon as EITHER loadeddata fires, OR a short grace period passes
+  // after loadedmetadata — whichever comes first, guaranteeing this
+  // always moves forward.
+  let extractionStarted = false;
+  function startOnce(){
+    if(extractionStarted) return;
+    extractionStarted = true;
+    beginExtraction();
   }
 
   video.addEventListener('loadeddata', () => {
-    dataReady = true;
-    tryBeginExtraction();
+    startOnce();
   });
 
   video.addEventListener('loadedmetadata', () => {
@@ -3952,14 +3957,12 @@ function extractFrames(file){
       const fixDuration = () => {
         video.removeEventListener('durationchange', fixDuration);
         video.currentTime = 0;
-        metadataReady = true;
-        tryBeginExtraction();
+        startOnce();
       };
       video.addEventListener('durationchange', fixDuration);
       video.currentTime = 1e7;
     }else{
-      metadataReady = true;
-      tryBeginExtraction();
+      setTimeout(startOnce, 150); // small head start for loadeddata; never blocks indefinitely
     }
   });
 
