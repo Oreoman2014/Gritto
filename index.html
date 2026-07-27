@@ -207,6 +207,42 @@
     font-size:24px;
     margin:0;
   }
+
+  .score-badge{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    border-radius:14px;
+    padding:14px 18px;
+    margin-bottom:16px;
+  }
+  .score-badge-circle{
+    width:64px; height:64px;
+    border-radius:50%;
+    border:3px solid;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    background:#fff;
+  }
+  .score-badge-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:20px;
+    line-height:1;
+  }
+  .score-badge-max{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:9px;
+    opacity:0.7;
+  }
+  .score-badge-label{
+    font-weight:700;
+    font-size:14.5px;
+  }
+
   .drill-card{
     background:#fff;
     border:1px solid var(--line);
@@ -1247,6 +1283,17 @@
     display:block;
   }
   .video-history-thumb.active img{border-color:var(--turf);}
+  .vh-score-pill{
+    position:absolute;
+    top:4px; right:4px;
+    background:var(--charcoal);
+    color:#fff;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:10.5px;
+    padding:2px 6px;
+    border-radius:8px;
+  }
   .video-history-thumb .vh-sport{
     font-size:11px;
     font-weight:700;
@@ -2072,7 +2119,7 @@ function renderProgressStats(){
 
 // Called after every successful drill result (text or video) to log
 // the session and update the person's streak.
-async function recordDrillCompletion(sport, source, summary){
+async function recordDrillCompletion(sport, source, summary, score){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return; // not signed in with Google — nothing to save
 
@@ -2111,7 +2158,8 @@ async function recordDrillCompletion(sport, source, summary){
     user_id: userId,
     sport,
     source,
-    summary: summary || null
+    summary: summary || null,
+    score: typeof score === 'number' ? score : null
   });
 
   await loadProgress(userId);
@@ -2133,7 +2181,8 @@ async function saveVideoHistory(sport, role, parsed){
       good: parsed.good || [],
       fix: parsed.fix || [],
       drills: parsed.drills || [],
-      thumbnail: `data:image/jpeg;base64,${midFrame}`
+      thumbnail: `data:image/jpeg;base64,${midFrame}`,
+      score: typeof parsed.score === 'number' ? parsed.score : null
     });
   }catch(err){
     console.error('Could not save video history:', err.message);
@@ -2455,6 +2504,29 @@ function buildDrillDemo(motion, focus, sport){
 
 // Shows a small looping flipbook of the athlete's OWN captured frames,
 // silhouetted — built once per video analysis, shown above the drills.
+// Big score badge shown at the top of a video form check. Color shifts
+// with the score so it reads at a glance, not just from the number.
+function buildScoreBadge(score, label){
+  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  let color, bg;
+  if(clamped >= 80){ color = '#1F5F35'; bg = '#EAF6EE'; }       // turf green
+  else if(clamped >= 65){ color = '#1C7293'; bg = '#E8F4F8'; }  // teal
+  else if(clamped >= 50){ color = '#B4711A'; bg = '#FFF3E4'; }  // amber
+  else{ color = '#B4401A'; bg = '#FFF1EC'; }                    // energy/red
+
+  const wrap = document.createElement('div');
+  wrap.className = 'score-badge';
+  wrap.style.background = bg;
+  wrap.innerHTML = `
+    <div class="score-badge-circle" style="border-color:${color}; color:${color};">
+      <span class="score-badge-num">${clamped}</span>
+      <span class="score-badge-max">/100</span>
+    </div>
+    <div class="score-badge-label" style="color:${color};">${label || 'Form score'}</div>
+  `;
+  return wrap;
+}
+
 function buildYourMotionBlock(){
   const wrap = document.createElement('div');
   wrap.className = 'your-motion-block';
@@ -2785,7 +2857,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.11.2';
+const APP_VERSION = '3.12.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3053,7 +3125,10 @@ async function loadVideoHistory(){
 
     stripEl.innerHTML = videoHistoryCache.map((v, i) => `
       <div class="video-history-thumb" id="vh-thumb-${i}" onclick="selectVideoHistoryItem(${i})">
-        <img src="${v.thumbnail}" alt="${v.sport} video check">
+        <div style="position:relative;">
+          <img src="${v.thumbnail}" alt="${v.sport} video check">
+          ${typeof v.score === 'number' ? `<span class="vh-score-pill">${v.score}</span>` : ''}
+        </div>
         <div class="vh-sport">${v.sport}</div>
         <div class="vh-date">${new Date(v.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
       </div>
@@ -3092,6 +3167,7 @@ function selectVideoHistoryItem(i){
         <button class="vh-close-btn" onclick="closeVideoHistoryDetail()">&times;</button>
       </div>
       <img src="${v.thumbnail}" alt="${v.sport} video frame" class="vh-detail-thumb">
+      ${typeof v.score === 'number' ? buildScoreBadge(v.score, null).outerHTML : ''}
       <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 12px;">${v.summary || ''}</p>
       <label>What's looking good</label>
       <ul class="obs-list">${goodItems}</ul>
@@ -4112,8 +4188,8 @@ async function analyzeVideo(){
 
   const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
-Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
+{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "score": 72, "scoreLabel": "a short 2-4 word phrase describing this score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+The "score" is a whole number from 0-100 rating the overall form/technique shown, based purely on what's visible — treat 90+ as excellent/advanced, 70-89 as solid with room to grow, 50-69 as developing fundamentals, below 50 as early-stage/needs foundational work. Be honest and fair, not inflated — most youth athletes learning something new should land somewhere in the 50-80 range, reserve 90+ for genuinely strong, clean mechanics. If the frames are too unclear to fairly judge, still provide your best-effort score based on what IS visible, and say so in the summary. Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
 
   const content = [
     ...extractedFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
@@ -4141,6 +4217,10 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
     head.className = 'result-head';
     head.innerHTML = `<h2>${selectedSport} form check</h2>`;
     resultsEl.appendChild(head);
+
+    if(typeof parsed.score === 'number'){
+      resultsEl.appendChild(buildScoreBadge(parsed.score, parsed.scoreLabel));
+    }
 
     const summaryP = document.createElement('p');
     summaryP.style.cssText = 'font-size:14px;color:var(--ink-soft);margin:-8px 0 16px;';
@@ -4178,7 +4258,7 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       resultsEl.appendChild(card);
     });
 
-    recordDrillCompletion(selectedSport, 'video', parsed.summary);
+    recordDrillCompletion(selectedSport, 'video', parsed.summary, parsed.score);
     saveVideoHistory(selectedSport, selectedRole, parsed);
   }catch(err){
     statusEl.textContent = '';
