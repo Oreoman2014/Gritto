@@ -2415,6 +2415,22 @@ document.addEventListener('DOMContentLoaded', () => {
 // It looks like: https://YOUR-PROJECT-ID.functions.supabase.co/formfix-ai
 const AI_HELPER_URL = "https://iplvvkvttumbrlueowou.supabase.co/functions/v1/formfix-ai";
 
+// Every AI call goes through this to safely pull out the response text.
+// If the server hiccups (rate limit, timeout, internal error, etc.) it
+// can return a 200 with an unexpected shape instead of the usual
+// {content: [...]}. Without this check, that crashes with a confusing
+// "Cannot read properties of undefined" instead of a clear message.
+function extractAIText(data){
+  if(!data || !Array.isArray(data.content)){
+    const serverMsg = data && (data.error || data.message);
+    console.error('Unexpected AI response shape:', JSON.stringify(data));
+    throw new Error(serverMsg ? `AI service error: ${serverMsg}` : 'The AI service returned an unexpected response — it may be temporarily overloaded.');
+  }
+  const textBlock = data.content.find(b => b.type === 'text');
+  if(!textBlock) throw new Error('No response text');
+  return textBlock.text;
+}
+
 // ---- Builds the little animated silhouette demo for a drill ----
 // A solid, filled human-silhouette figure (not a thin stick figure) that
 // bends at real joints, used for every drill card as the generic demo.
@@ -2857,7 +2873,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.12.0';
+const APP_VERSION = '3.12.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3453,9 +3469,7 @@ Include 3 to 5 items, ordered from warm-up-style activities to more focused ones
       })
     });
     const data = await response.json();
-    const textBlock = data.content.find(b => b.type === 'text');
-    if(!textBlock) throw new Error('No response text');
-    const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
+    const cleaned = extractAIText(data).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
     const newRoutine = {
@@ -3788,9 +3802,7 @@ Include exactly 4 drills, ordered from most foundational to more advanced. The "
       })
     });
     const data = await response.json();
-    const textBlock = data.content.find(b => b.type === 'text');
-    if(!textBlock) throw new Error('No response text');
-    const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
+    const cleaned = extractAIText(data).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
     statusEl.textContent = '';
@@ -4207,9 +4219,7 @@ The "score" is a whole number from 0-100 rating the overall form/technique shown
       })
     });
     const data = await response.json();
-    const textBlock = data.content.find(b => b.type === 'text');
-    if(!textBlock) throw new Error('No response text');
-    const cleaned = textBlock.text.replace(/```json|```/g,'').trim();
+    const cleaned = extractAIText(data).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
     statusEl.textContent = '';
