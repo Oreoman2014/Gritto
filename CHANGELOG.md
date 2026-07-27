@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v3.12.1 — Fixed crash on unexpected AI response + better error logging
+- Found via debug log: the request to the AI succeeded (200 OK), but the response body didn't have the expected shape, and the app crashed with a confusing "Cannot read properties of undefined" instead of failing gracefully
+- Added a shared safety check used by all 3 AI calls (drills, video analysis, daily routine) — if this happens again, it now shows a clear message instead of crashing, and logs the actual unexpected response to the debug panel so we can see exactly what came back
+- Note: the underlying cause (why the AI service returned an unusual response that one time) is still unconfirmed — this fix makes the app handle it gracefully and gives us real diagnostic info if it happens again, rather than blindly guessing at server-side causes
+
 ## v3.12.0 — Video form score
 - Every video check now gets a 0-100 form score with a short label (like "Solid fundamentals" or "Needs work on timing"), shown as a big color-coded badge right at the top of your results — green for strong scores, teal for solid, amber for developing, red for early-stage
 - The AI is instructed to score honestly, not inflate — most learning athletes should land in the 50-80 range, 90+ reserved for genuinely clean mechanics
