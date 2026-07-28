@@ -1,5 +1,9 @@
 # Gritto — Version Log
 
+## v3.12.2 — Cleaner error messages in the debug log
+- Fixed error logging showing "[object Object]" instead of the actual message — now correctly unwraps Anthropic's nested error format so future debug logs show real, readable text
+- No functional change otherwise — this update's real fix is on the Anthropic billing side, not in the app (see previous note about adding credits)
+
 ## v3.12.1 — Fixed crash on unexpected AI response + better error logging
 - Found via debug log: the request to the AI succeeded (200 OK), but the response body didn't have the expected shape, and the app crashed with a confusing "Cannot read properties of undefined" instead of failing gracefully
 - Added a shared safety check used by all 3 AI calls (drills, video analysis, daily routine) — if this happens again, it now shows a clear message instead of crashing, and logs the actual unexpected response to the debug panel so we can see exactly what came back
