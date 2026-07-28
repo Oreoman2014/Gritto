@@ -3055,7 +3055,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.17.1';
+const APP_VERSION = '3.18.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4482,13 +4482,12 @@ function extractFrames(file){
     const strip = document.getElementById('frame-strip');
     strip.innerHTML = '';
 
-    // Checks whether a captured frame looks suspiciously blank/flat —
-    // like plain sky, an overexposed wall, or a stuck/blurred frame —
-    // by sampling pixel brightness and measuring how much it varies.
-    // Real footage of a person moving has a lot of variation; a blank
-    // frame doesn't. Threshold is intentionally low/lenient — this is a
-    // safety net for genuinely broken frames, not a quality filter, so
-    // it shouldn't be flagging normal (if slightly plain) footage.
+    // Checks whether a captured frame looks unusable — either genuinely
+    // flat (plain sky, overexposed wall, a stuck/frozen frame) OR just
+    // too dark to make out anything useful. Checking contrast alone
+    // isn't enough: a mostly-black frame with a little noise or a faint
+    // highlight can have "enough" contrast to slip past a contrast-only
+    // check while still looking essentially black to a person.
     function looksBlank(){
       const w = canvas.width, h = canvas.height;
       const sampleSize = 40;
@@ -4501,7 +4500,7 @@ function extractFrames(file){
       }
       const mean = sum / n;
       const variance = (sumSq / n) - (mean * mean);
-      return variance < 30; // only catches genuinely flat/blank frames now
+      return variance < 30 || mean < 28; // too flat, OR too dark overall
     }
 
     async function captureAt(t){
@@ -4539,21 +4538,27 @@ function extractFrames(file){
 
     try{
       console.log(`Starting frame extraction: ${timestamps.length} timestamps, duration ${duration.toFixed(1)}s`);
+      let framesStillBadAfterRetries = 0;
       const extractionWork = (async () => {
         for(let idx = 0; idx < timestamps.length; idx++){
           const t = timestamps[idx];
           await captureAt(t);
-          // If the frame looks blank, nudge forward a bit and try again —
-          // up to 2 total retries before just accepting whatever we have,
-          // so one stubborn frame can't eat the whole time budget.
+          // If the frame looks unusable, nudge and try again — up to 3
+          // total retries, spread a bit wider, before accepting whatever
+          // we have so one stubborn frame can't eat the whole time budget.
           let attempts = 1;
-          const nudges = [0.35, -0.35];
+          const nudges = [0.4, -0.4, 0.8];
           while(looksBlank() && attempts <= nudges.length){
-            console.log(`Frame ${idx + 1}: looked blank, retrying (attempt ${attempts + 1})`);
+            console.log(`Frame ${idx + 1}: looked blank/dark, retrying (attempt ${attempts + 1})`);
             await captureAt(t + nudges[attempts - 1]);
             attempts++;
           }
-          console.log(`Frame ${idx + 1} of ${timestamps.length}: captured`);
+          if(looksBlank()){
+            framesStillBadAfterRetries++;
+            console.log(`Frame ${idx + 1} of ${timestamps.length}: still looks blank/dark after all retries — this frame likely isn't clearly visible`);
+          }else{
+            console.log(`Frame ${idx + 1} of ${timestamps.length}: captured`);
+          }
 
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           extractedFrames.push(dataUrl.split(',')[1]);
@@ -4568,11 +4573,19 @@ function extractFrames(file){
       // prevent hanging forever, but this catches anything unexpected
       // so the status message never gets stuck for good.
       const overallTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Extraction took too long overall')), 20000);
+        setTimeout(() => reject(new Error('Extraction took too long overall')), 25000);
       });
       await Promise.race([extractionWork, overallTimeout]);
 
-      statusEl.textContent = extractedFrames.length + ' frames captured. Pick your role below.';
+      if(framesStillBadAfterRetries >= 3){
+        // Most frames never became clearly visible even after every
+        // retry — likely means the actual video is too dark/low-
+        // contrast, not something more retrying can fix. Say so
+        // honestly instead of quietly proceeding with unusable frames.
+        statusEl.textContent = "This video looks quite dark, so the results may not be accurate — for the clearest analysis, try re-filming somewhere with more light.";
+      }else{
+        statusEl.textContent = extractedFrames.length + ' frames captured. Pick your role below.';
+      }
       renderRoleOptions(selectedSport);
       processSilhouettes(rawDataUrls); // runs in the background, no need to wait
     }catch(err){
