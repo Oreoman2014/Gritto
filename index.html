@@ -3055,7 +3055,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.17.0';
+const APP_VERSION = '3.17.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4415,7 +4415,16 @@ function extractFrames(file){
   }
 
   video.addEventListener('loadeddata', () => {
-    startOnce();
+    // Don't let this fire extraction while the "infinite duration" fix
+    // below is still in progress — if it did, extraction would start
+    // with a broken (Infinity) duration, and every timestamp calculated
+    // from it would be garbage, likely landing on an invalid position
+    // in the video (a real cause of black frames). If duration isn't
+    // finite yet, the loadedmetadata handler's fix will call startOnce()
+    // itself once the real duration is actually known.
+    if(isFinite(video.duration)){
+      startOnce();
+    }
   });
 
   video.addEventListener('loadedmetadata', () => {
@@ -4437,7 +4446,31 @@ function extractFrames(file){
 
   async function beginExtraction(){
     clearTimeout(safetyTimer);
-    const duration = video.duration;
+    let duration = video.duration;
+
+    // Last line of defense: if something still let a broken duration
+    // through, wait briefly for the real one instead of computing
+    // garbage timestamps from Infinity (which caused black frames).
+    if(!isFinite(duration)){
+      console.error('beginExtraction started with a non-finite duration — waiting briefly for the real value.');
+      await new Promise(resolve => {
+        const check = () => {
+          if(isFinite(video.duration)){
+            duration = video.duration;
+            resolve();
+          }else{
+            setTimeout(check, 100);
+          }
+        };
+        setTimeout(check, 100);
+        setTimeout(resolve, 3000); // don't wait forever — give up after 3s either way
+      });
+      if(!isFinite(duration)){
+        statusEl.textContent = "Couldn't read that video's length — try a different clip or format (MP4 works best).";
+        return;
+      }
+    }
+
     const count = 5;
     const timestamps = Array.from({length: count}, (_, i) => (duration * (i + 0.5)) / count);
     const canvas = document.createElement('canvas');
