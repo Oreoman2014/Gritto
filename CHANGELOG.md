@@ -1,5 +1,14 @@
 # Gritto — Version Log
 
+## v3.13.0 — Category-based scoring + true 0-100 range
+- Scores can now genuinely go all the way down near 0 when form shows real, significant flaws — the AI was told to be honest and fair before, but too gently, and ended up clustering everyone around 50+. Rewrote the instructions to explicitly stop that clustering.
+- Video checks are now scored on 3 categories specific to your exact sport and role — e.g. a baseball hitter might see "Stance & Load," "Swing Path," and "Follow-Through"; a basketball shooter might see "Shooting Form," "Release Point," and "Balance" — chosen dynamically by the AI based on what's actually relevant
+- The overall score badge is now calculated as the average of the 3 category scores (computed on our end, not just trusted from the AI, so it's always consistent with the breakdown shown)
+- Each category shows its own score, a colored progress bar, and a short note explaining why
+- Shows in both the fresh results and later in Video History detail view
+- Verified with an automated test that scores below 50, category names, and bar widths all render correctly
+- New database column: video_analysis_history.categories
+
 ## v3.12.2 — Cleaner error messages in the debug log
 - Fixed error logging showing "[object Object]" instead of the actual message — now correctly unwraps Anthropic's nested error format so future debug logs show real, readable text
 - No functional change otherwise — this update's real fix is on the Anthropic billing side, not in the app (see previous note about adding credits)
