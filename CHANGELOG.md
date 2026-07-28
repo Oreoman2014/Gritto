@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.16.1 — Tap a sport to filter the score trend chart
+- Tapping a row in "Your average score by sport" now filters the trend chart below it to just that sport, instead of mixing everything together
+- The active sport row gets highlighted, and a "Showing [Sport] only · Show all sports" note appears above the chart
+- Tap the same sport again (or "Show all sports") to go back to the combined view
+- Verified with an automated test that filtering, toggling back off, and switching between sports all work correctly
+
 ## v3.16.0 — Score trend chart on Home
 - New line chart right below your average score table, showing your last 15 scored video checks in order over time
 - Each point is color-coded (same scheme as everywhere else) and tappable — tap any point to see its exact score, sport, and date
