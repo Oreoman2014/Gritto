@@ -790,6 +790,49 @@
   }
   .settings-action-btn:last-child{margin-bottom:0;}
 
+  .share-link-box{
+    display:flex;
+    gap:8px;
+    background:var(--paper);
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    align-items:center;
+    margin-top:4px;
+  }
+  .share-link-box input{
+    flex:1;
+    border:none;
+    background:none;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    outline:none;
+  }
+  .share-link-box button{
+    background:var(--turf);
+    color:#fff;
+    border:none;
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:12px;
+    padding:8px 12px;
+    border-radius:8px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .share-off-btn{
+    background:none;
+    border:none;
+    color:var(--slate-soft);
+    text-decoration:underline;
+    font-size:11.5px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    margin-top:8px;
+    padding:0;
+  }
+
   .settings-toggle-btn{
     background:var(--turf);
     color:#fff;
@@ -2028,6 +2071,12 @@
       <div class="status" id="feedback-status"></div>
     </div>
 
+    <div class="section-label" style="margin-top:20px;">Share my progress</div>
+    <div class="settings-card">
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Generate a private link a parent or coach can open to see your streaks and scores — no account needed on their end. You control it, and can turn it off anytime.</p>
+      <div id="share-link-area"></div>
+    </div>
+
     <div class="section-label" style="margin-top:20px;">Legal</div>
     <div class="settings-card">
       <a href="privacy.html" class="settings-action-btn" style="display:block; text-decoration:none; text-align:left; margin-bottom:8px;">Privacy Policy &amp; Terms</a>
@@ -3055,7 +3104,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.18.0';
+const APP_VERSION = '3.19.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3130,6 +3179,72 @@ async function renderSettingsPage(){
   }
 
   await updateRemindersButtonState();
+  await renderShareLinkArea(session.user);
+}
+
+async function renderShareLinkArea(user){
+  const areaEl = document.getElementById('share-link-area');
+  try{
+    const { data, error } = await sb.from('user_profile').select('share_token').eq('user_id', user.id).maybeSingle();
+    if(error){ console.error('Could not check share link:', error.message); return; }
+
+    if(data && data.share_token){
+      const url = `${window.location.origin}/share.html?t=${data.share_token}`;
+      areaEl.innerHTML = `
+        <div class="share-link-box">
+          <input type="text" readonly value="${url}" id="share-link-input">
+          <button onclick="copyShareLink()">Copy</button>
+        </div>
+        <button class="share-off-btn" onclick="turnOffSharing()">Turn off sharing</button>
+      `;
+    }else{
+      areaEl.innerHTML = `<button class="settings-action-btn" onclick="generateShareLink()">Get my share link</button>`;
+    }
+  }catch(err){
+    console.error('Share link area failed:', err.message);
+  }
+}
+
+async function generateShareLink(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  const firstName = (session.user.user_metadata?.full_name || 'Athlete').split(' ')[0];
+  const token = crypto.randomUUID();
+
+  try{
+    await sb.from('user_profile').upsert({
+      user_id: session.user.id,
+      share_token: token,
+      share_name: firstName
+    });
+    await renderShareLinkArea(session.user);
+  }catch(err){
+    console.error('Could not generate share link:', err.message);
+    alert('Something went wrong — try again in a moment.');
+  }
+}
+
+function copyShareLink(){
+  const input = document.getElementById('share-link-input');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => {
+    alert('Link copied!');
+  }).catch(() => {
+    alert('Could not copy — try selecting and copying the text manually.');
+  });
+}
+
+async function turnOffSharing(){
+  if(!confirm('Turn off your share link? Anyone with the old link will no longer be able to see your progress.')) return;
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  try{
+    await sb.from('user_profile').update({ share_token: null }).eq('user_id', session.user.id);
+    await renderShareLinkArea(session.user);
+  }catch(err){
+    console.error('Could not turn off sharing:', err.message);
+    alert('Something went wrong — try again in a moment.');
+  }
 }
 
 async function clearVideoHistoryData(){
