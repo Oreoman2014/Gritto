@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.17.1 — Found and fixed a real race condition causing black frames
+- Did a full line-by-line audit of the video extraction code as requested, and found a genuine bug: two separate "start extraction" triggers (added in different updates) could fire independently, and one could jump ahead of the other before it finished fixing a known iOS quirk (videos sometimes report "infinite" length right when picked)
+- If that happened, frame extraction would start using a broken (Infinity) duration — every timestamp calculated from it becomes garbage, likely landing on an invalid position in the video, which explains the black frames
+- Fixed the race condition directly: the second trigger now waits for the real duration to be known before starting, instead of possibly jumping the gun
+- Added a second, independent safety check inside extraction itself: if a broken duration ever slips through anyway, it waits briefly for the real one instead of proceeding with garbage math
+- Verified the exact race condition and the fix with a simulation test — confirmed the old code would start with Infinity, the new code correctly waits
+
 ## v3.17.0 — Sport-first score trend picker
 - Replaced the "combined all sports" default chart with a proper sport picker: the section now says **"Check your score trend"** with a row of sport chips underneath — tap one to see that sport's chart
 - Defaults to your most recently checked sport, so there's always something useful showing right away
