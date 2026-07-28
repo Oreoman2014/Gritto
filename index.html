@@ -1234,6 +1234,28 @@
     flex-shrink:0;
   }
 
+  .trend-chart-card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 12px 10px;
+    margin-top:8px;
+  }
+  .trend-chart-card svg{width:100%; height:auto; display:block; overflow:visible;}
+  .trend-point{cursor:pointer;}
+  .trend-point circle{transition:r 0.1s ease;}
+  .trend-point:hover circle, .trend-point.active circle{r:6;}
+  .trend-detail-card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-top:8px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .trend-detail-card b{color:var(--ink);}
+
   .home-quickstart{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -1821,6 +1843,10 @@
     <div id="home-score-section">
       <div class="section-label" style="margin-top:14px;">Your average score by sport</div>
       <div id="home-score-table"></div>
+
+      <div class="section-label" style="margin-top:16px;">Score trend</div>
+      <div id="home-trend-chart"></div>
+      <div id="home-trend-detail"></div>
     </div>
 
     <div class="home-quickstart">
@@ -3004,7 +3030,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.15.0';
+const APP_VERSION = '3.16.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3351,6 +3377,86 @@ async function loadSportAverages(){
   }
 }
 
+let trendCache = [];
+
+// Simple hand-built SVG line chart — no charting library needed for
+// something this small. Shows the last 15 scored video checks in
+// chronological order, tap any point to see its date/sport/score.
+async function loadScoreTrend(){
+  const { data: { session } } = await sb.auth.getSession();
+  const chartEl = document.getElementById('home-trend-chart');
+  const detailEl = document.getElementById('home-trend-detail');
+  if(!session) return;
+  detailEl.innerHTML = '';
+
+  try{
+    const { data, error } = await sb.from('video_analysis_history')
+      .select('sport, score, created_at')
+      .eq('user_id', session.user.id)
+      .not('score', 'is', null)
+      .order('created_at', { ascending: true });
+    if(error){ console.error('Could not load score trend:', error.message); return; }
+
+    trendCache = (data || []).slice(-15); // most recent 15, oldest to newest
+
+    if(trendCache.length < 2){
+      chartEl.innerHTML = '<div class="home-empty">Get a couple more video checks scored to start seeing your trend here.</div>';
+      return;
+    }
+
+    const w = 320, h = 140, padX = 16, padTop = 14, padBottom = 24;
+    const chartW = w - padX * 2;
+    const chartH = h - padTop - padBottom;
+    const n = trendCache.length;
+
+    const xFor = i => padX + (n === 1 ? chartW / 2 : (chartW * i) / (n - 1));
+    const yFor = score => padTop + chartH - (chartH * score) / 100;
+
+    const linePoints = trendCache.map((d, i) => `${xFor(i)},${yFor(d.score)}`).join(' ');
+
+    const dots = trendCache.map((d, i) => {
+      const { color } = getScoreColor(d.score);
+      return `
+        <g class="trend-point" id="trend-pt-${i}" onclick="selectTrendPoint(${i})">
+          <circle cx="${xFor(i)}" cy="${yFor(d.score)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+        </g>
+      `;
+    }).join('');
+
+    chartEl.innerHTML = `
+      <div class="trend-chart-card">
+        <svg viewBox="0 0 ${w} ${h}">
+          <line x1="${padX}" y1="${yFor(0)}" x2="${w - padX}" y2="${yFor(0)}" stroke="#E4E9EF" stroke-width="1"/>
+          <line x1="${padX}" y1="${yFor(50)}" x2="${w - padX}" y2="${yFor(50)}" stroke="#E4E9EF" stroke-width="1"/>
+          <line x1="${padX}" y1="${yFor(100)}" x2="${w - padX}" y2="${yFor(100)}" stroke="#E4E9EF" stroke-width="1"/>
+          <text x="0" y="${yFor(100) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">100</text>
+          <text x="4" y="${yFor(50) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">50</text>
+          <text x="9" y="${yFor(0) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">0</text>
+          <polyline points="${linePoints}" fill="none" stroke="#1C7293" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${dots}
+        </svg>
+      </div>
+    `;
+
+    selectTrendPoint(trendCache.length - 1); // show the most recent point by default
+  }catch(err){
+    console.error('Score trend load failed:', err.message);
+  }
+}
+
+function selectTrendPoint(i){
+  const d = trendCache[i];
+  if(!d) return;
+  document.querySelectorAll('.trend-point').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`trend-pt-${i}`);
+  if(el) el.classList.add('active');
+
+  const dateStr = new Date(d.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  document.getElementById('home-trend-detail').innerHTML = `
+    <div class="trend-detail-card"><b>${d.score}</b> · ${d.sport} · ${dateStr}</div>
+  `;
+}
+
 function selectVideoHistoryItem(i){
   const v = videoHistoryCache[i];
   if(!v) return;
@@ -3418,6 +3524,8 @@ async function loadHomeData(){
     document.getElementById('video-history-strip').innerHTML = '';
     document.getElementById('video-history-detail').innerHTML = '';
     document.getElementById('home-score-table').innerHTML = '';
+    document.getElementById('home-trend-chart').innerHTML = '';
+    document.getElementById('home-trend-detail').innerHTML = '';
     document.getElementById('home-stat-days').textContent = '—';
     document.getElementById('home-stat-drills').textContent = '—';
     document.getElementById('home-stat-bigday').textContent = '—';
@@ -3426,6 +3534,7 @@ async function loadHomeData(){
   signinNote.textContent = '';
   await loadVideoHistory();
   await loadSportAverages();
+  await loadScoreTrend();
 
   try{
     const { data, error } = await sb.from('drill_history')
