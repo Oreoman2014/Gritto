@@ -243,6 +243,44 @@
     font-size:14.5px;
   }
 
+  .category-breakdown{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .category-row-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:4px;
+  }
+  .category-name{
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .category-score{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:13px;
+  }
+  .category-bar-track{
+    height:6px;
+    background:var(--line);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .category-bar-fill{
+    height:100%;
+    border-radius:4px;
+  }
+  .category-note{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+
   .drill-card{
     background:#fff;
     border:1px solid var(--line);
@@ -2182,7 +2220,8 @@ async function saveVideoHistory(sport, role, parsed){
       fix: parsed.fix || [],
       drills: parsed.drills || [],
       thumbnail: `data:image/jpeg;base64,${midFrame}`,
-      score: typeof parsed.score === 'number' ? parsed.score : null
+      score: typeof parsed.score === 'number' ? parsed.score : null,
+      categories: parsed.categories || null
     });
   }catch(err){
     console.error('Could not save video history:', err.message);
@@ -2529,13 +2568,17 @@ function buildDrillDemo(motion, focus, sport){
 // silhouetted — built once per video analysis, shown above the drills.
 // Big score badge shown at the top of a video form check. Color shifts
 // with the score so it reads at a glance, not just from the number.
+function getScoreColor(score){
+  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  if(clamped >= 80) return { color: '#1F5F35', bg: '#EAF6EE' };  // turf green
+  if(clamped >= 65) return { color: '#1C7293', bg: '#E8F4F8' };  // teal
+  if(clamped >= 50) return { color: '#B4711A', bg: '#FFF3E4' };  // amber
+  return { color: '#B4401A', bg: '#FFF1EC' };                    // energy/red
+}
+
 function buildScoreBadge(score, label){
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
-  let color, bg;
-  if(clamped >= 80){ color = '#1F5F35'; bg = '#EAF6EE'; }       // turf green
-  else if(clamped >= 65){ color = '#1C7293'; bg = '#E8F4F8'; }  // teal
-  else if(clamped >= 50){ color = '#B4711A'; bg = '#FFF3E4'; }  // amber
-  else{ color = '#B4401A'; bg = '#FFF1EC'; }                    // energy/red
+  const { color, bg } = getScoreColor(clamped);
 
   const wrap = document.createElement('div');
   wrap.className = 'score-badge';
@@ -2547,6 +2590,30 @@ function buildScoreBadge(score, label){
     </div>
     <div class="score-badge-label" style="color:${color};">${label || 'Form score'}</div>
   `;
+  return wrap;
+}
+
+// Shows the per-category breakdown (e.g. "Swing Path: 62") underneath
+// the overall score badge, tailored to the specific sport/role.
+function buildCategoryBreakdown(categories){
+  const wrap = document.createElement('div');
+  wrap.className = 'category-breakdown';
+  wrap.innerHTML = categories.map(c => {
+    const clamped = Math.max(0, Math.min(100, Math.round(c.score || 0)));
+    const { color } = getScoreColor(clamped);
+    return `
+      <div class="category-row">
+        <div class="category-row-top">
+          <span class="category-name">${c.name || 'Category'}</span>
+          <span class="category-score" style="color:${color};">${clamped}</span>
+        </div>
+        <div class="category-bar-track">
+          <div class="category-bar-fill" style="width:${clamped}%; background:${color};"></div>
+        </div>
+        ${c.note ? `<div class="category-note">${c.note}</div>` : ''}
+      </div>
+    `;
+  }).join('');
   return wrap;
 }
 
@@ -2880,7 +2947,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.12.2';
+const APP_VERSION = '3.13.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3191,6 +3258,7 @@ function selectVideoHistoryItem(i){
       </div>
       <img src="${v.thumbnail}" alt="${v.sport} video frame" class="vh-detail-thumb">
       ${typeof v.score === 'number' ? buildScoreBadge(v.score, null).outerHTML : ''}
+      ${Array.isArray(v.categories) && v.categories.length > 0 ? buildCategoryBreakdown(v.categories).outerHTML : ''}
       <p style="font-size:13.5px; color:var(--ink-soft); margin:0 0 12px;">${v.summary || ''}</p>
       <label>What's looking good</label>
       <ul class="obs-list">${goodItems}</ul>
@@ -4207,8 +4275,10 @@ async function analyzeVideo(){
 
   const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "score": 72, "scoreLabel": "a short 2-4 word phrase describing this score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
-The "score" is a whole number from 0-100 rating the overall form/technique shown, based purely on what's visible — treat 90+ as excellent/advanced, 70-89 as solid with room to grow, 50-69 as developing fundamentals, below 50 as early-stage/needs foundational work. Be honest and fair, not inflated — most youth athletes learning something new should land somewhere in the 50-80 range, reserve 90+ for genuinely strong, clean mechanics. If the frames are too unclear to fairly judge, still provide your best-effort score based on what IS visible, and say so in the summary. Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
+{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+Include EXACTLY 3 items in "categories" — pick the 3 most relevant technical categories for judging a "${selectedRole}" in ${selectedSport} specifically (for example, a baseball hitter might be scored on things like "Stance & Load", "Swing Path", and "Follow-Through"; a basketball shooter might be scored on "Shooting Form", "Release Point", and "Balance" — these are just illustrative, pick whatever's genuinely most relevant to this exact sport and role). Each category's "score" is a whole number from 0-100 based purely on what's visible in the frames.
+Scores must span the FULL 0-100 range honestly, based only on what you actually see — do NOT default toward the middle of the range or hesitate to score low. Score below 50, even down near 0, whenever the form shows real, significant flaws or the movement is barely recognizable as the intended technique. Reserve 90+ for genuinely strong, clean mechanics. A wide, honest range across different athletes and categories is far more useful than clustering everyone's scores together — an athlete with a badly broken technique in one category should see a low number, not a softened one. If frames are too unclear to fairly judge a specific category, still give your best-effort score based on what IS visible, and mention that limitation in that category's "note".
+Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
 
   const content = [
     ...extractedFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
@@ -4235,8 +4305,14 @@ The "score" is a whole number from 0-100 rating the overall form/technique shown
     head.innerHTML = `<h2>${selectedSport} form check</h2>`;
     resultsEl.appendChild(head);
 
-    if(typeof parsed.score === 'number'){
-      resultsEl.appendChild(buildScoreBadge(parsed.score, parsed.scoreLabel));
+    // Overall score is computed from the category scores (not trusted
+    // as a separate AI-provided number) so it always stays consistent
+    // with the breakdown shown underneath it.
+    if(Array.isArray(parsed.categories) && parsed.categories.length > 0){
+      const avg = Math.round(parsed.categories.reduce((sum, c) => sum + (c.score || 0), 0) / parsed.categories.length);
+      parsed.score = avg;
+      resultsEl.appendChild(buildScoreBadge(avg, parsed.scoreLabel));
+      resultsEl.appendChild(buildCategoryBreakdown(parsed.categories));
     }
 
     const summaryP = document.createElement('p');
