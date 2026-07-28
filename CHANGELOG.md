@@ -1,5 +1,14 @@
 # Gritto — Version Log
 
+## v3.19.0 — Share progress with a parent or coach
+- New "Share my progress" section in Settings — generates a private link a parent or coach can open to see streaks and scores, no account needed on their end
+- New public page (share.html) shows: drills streak, routine streak, total active days, drills completed, routine streaks by sport, and average score by sport
+- Deliberately does NOT expose email, video thumbnails, or anything beyond a simple progress summary
+- "Turn off sharing" option instantly invalidates the old link if you ever want to revoke access
+- New server function (get-shared-progress.js) using the secret service key to safely serve public data without needing the viewer to log in
+- Tested for real: ran the actual share.html code against a local server with realistic mock data — confirmed correct rendering of stats, plus both error states (invalid link, missing link) show honest messages instead of breaking
+- New database columns: user_profile.share_token, user_profile.share_name
+
 ## v3.18.0 — Real fix for "captured but still black" frames, tested with real dark video
 - Found the actual gap: the "does this frame look blank" check only measured contrast, not brightness — so a frame that was overall very dark but had a little noise or a faint highlight could technically pass as "not blank" while still looking essentially black to a person
 - Fixed by checking both contrast AND brightness — a frame now has to be reasonably bright, not just reasonably varied, to count as usable
