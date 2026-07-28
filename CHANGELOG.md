@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.17.0 — Sport-first score trend picker
+- Replaced the "combined all sports" default chart with a proper sport picker: the section now says **"Check your score trend"** with a row of sport chips underneath — tap one to see that sport's chart
+- Defaults to your most recently checked sport, so there's always something useful showing right away
+- Tapping a row in the average-score table above does the same thing (both stay in sync), for convenience
+- No more mixed-sport line confusingly blending different sports together
+- Verified with an automated test that the default sport selection correctly picks the most recently checked one
+
 ## v3.16.1 — Tap a sport to filter the score trend chart
 - Tapping a row in "Your average score by sport" now filters the trend chart below it to just that sport, instead of mixing everything together
 - The active sport row gets highlighted, and a "Showing [Sport] only · Show all sports" note appears above the chart
