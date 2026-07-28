@@ -1204,10 +1204,30 @@
     align-items:center;
     gap:12px;
     background:#fff;
-    border:1px solid var(--line);
+    border:1.5px solid var(--line);
     border-radius:12px;
     padding:12px 14px;
     margin-top:8px;
+    cursor:pointer;
+  }
+  .home-score-row:hover{border-color:var(--turf);}
+  .home-score-row.active{border-color:var(--turf); background:#F3F8F5;}
+  .trend-filter-note{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:-6px 0 8px;
+  }
+  .trend-filter-note b{color:var(--ink);}
+  .trend-filter-note button{
+    background:none;
+    border:none;
+    color:var(--teal);
+    text-decoration:underline;
+    font-size:12px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+    padding:0;
+    margin-left:4px;
   }
   .home-score-sport{
     flex:1;
@@ -1845,6 +1865,7 @@
       <div id="home-score-table"></div>
 
       <div class="section-label" style="margin-top:16px;">Score trend</div>
+      <div id="home-trend-filter-note" class="trend-filter-note"></div>
       <div id="home-trend-chart"></div>
       <div id="home-trend-detail"></div>
     </div>
@@ -3030,7 +3051,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.16.0';
+const APP_VERSION = '3.16.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3365,8 +3386,9 @@ async function loadSportAverages(){
 
     tableEl.innerHTML = rows.map(r => {
       const { color } = getScoreColor(r.avg);
+      const isActive = trendSportFilter === r.sport;
       return `
-        <div class="home-score-row">
+        <div class="home-score-row ${isActive ? 'active' : ''}" id="score-row-${r.sport.replace(/\s+/g,'-')}" onclick="toggleTrendSportFilter('${r.sport.replace(/'/g, "\\'")}')">
           <span class="home-score-sport">${r.sport}<span class="home-score-count">${r.count} check${r.count === 1 ? '' : 's'}</span></span>
           <div class="home-score-num-circle" style="border-color:${color}; color:${color};">${r.avg}</div>
         </div>
@@ -3377,17 +3399,21 @@ async function loadSportAverages(){
   }
 }
 
-let trendCache = [];
+let trendCache = [];       // whatever's currently displayed (filtered or not)
+let allTrendData = [];     // full unfiltered history, fetched once per Home visit
+let trendSportFilter = null; // null = show all sports combined
 
 // Simple hand-built SVG line chart — no charting library needed for
 // something this small. Shows the last 15 scored video checks in
-// chronological order, tap any point to see its date/sport/score.
+// chronological order, tap any point to see its date/sport/score. Tap
+// a row in the average-score table above to filter this to one sport.
 async function loadScoreTrend(){
   const { data: { session } } = await sb.auth.getSession();
   const chartEl = document.getElementById('home-trend-chart');
   const detailEl = document.getElementById('home-trend-detail');
   if(!session) return;
   detailEl.innerHTML = '';
+  trendSportFilter = null;
 
   try{
     const { data, error } = await sb.from('video_analysis_history')
@@ -3397,51 +3423,75 @@ async function loadScoreTrend(){
       .order('created_at', { ascending: true });
     if(error){ console.error('Could not load score trend:', error.message); return; }
 
-    trendCache = (data || []).slice(-15); // most recent 15, oldest to newest
-
-    if(trendCache.length < 2){
-      chartEl.innerHTML = '<div class="home-empty">Get a couple more video checks scored to start seeing your trend here.</div>';
-      return;
-    }
-
-    const w = 320, h = 140, padX = 16, padTop = 14, padBottom = 24;
-    const chartW = w - padX * 2;
-    const chartH = h - padTop - padBottom;
-    const n = trendCache.length;
-
-    const xFor = i => padX + (n === 1 ? chartW / 2 : (chartW * i) / (n - 1));
-    const yFor = score => padTop + chartH - (chartH * score) / 100;
-
-    const linePoints = trendCache.map((d, i) => `${xFor(i)},${yFor(d.score)}`).join(' ');
-
-    const dots = trendCache.map((d, i) => {
-      const { color } = getScoreColor(d.score);
-      return `
-        <g class="trend-point" id="trend-pt-${i}" onclick="selectTrendPoint(${i})">
-          <circle cx="${xFor(i)}" cy="${yFor(d.score)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>
-        </g>
-      `;
-    }).join('');
-
-    chartEl.innerHTML = `
-      <div class="trend-chart-card">
-        <svg viewBox="0 0 ${w} ${h}">
-          <line x1="${padX}" y1="${yFor(0)}" x2="${w - padX}" y2="${yFor(0)}" stroke="#E4E9EF" stroke-width="1"/>
-          <line x1="${padX}" y1="${yFor(50)}" x2="${w - padX}" y2="${yFor(50)}" stroke="#E4E9EF" stroke-width="1"/>
-          <line x1="${padX}" y1="${yFor(100)}" x2="${w - padX}" y2="${yFor(100)}" stroke="#E4E9EF" stroke-width="1"/>
-          <text x="0" y="${yFor(100) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">100</text>
-          <text x="4" y="${yFor(50) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">50</text>
-          <text x="9" y="${yFor(0) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">0</text>
-          <polyline points="${linePoints}" fill="none" stroke="#1C7293" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-          ${dots}
-        </svg>
-      </div>
-    `;
-
-    selectTrendPoint(trendCache.length - 1); // show the most recent point by default
+    allTrendData = data || [];
+    renderTrendChart();
   }catch(err){
     console.error('Score trend load failed:', err.message);
   }
+}
+
+function toggleTrendSportFilter(sport){
+  trendSportFilter = (trendSportFilter === sport) ? null : sport;
+  document.querySelectorAll('.home-score-row').forEach(el => el.classList.remove('active'));
+  if(trendSportFilter){
+    const row = document.getElementById(`score-row-${sport.replace(/\s+/g,'-')}`);
+    if(row) row.classList.add('active');
+  }
+  renderTrendChart();
+}
+
+function renderTrendChart(){
+  const chartEl = document.getElementById('home-trend-chart');
+  const filterNoteEl = document.getElementById('home-trend-filter-note');
+  const source = trendSportFilter ? allTrendData.filter(d => d.sport === trendSportFilter) : allTrendData;
+  trendCache = source.slice(-15); // most recent 15 of whatever's selected, oldest to newest
+
+  if(filterNoteEl){
+    filterNoteEl.innerHTML = trendSportFilter
+      ? `Showing <b>${trendSportFilter}</b> only · <button class="time-prompt-estimate" onclick="toggleTrendSportFilter('${trendSportFilter.replace(/'/g, "\\'")}')">Show all sports</button>`
+      : '';
+  }
+
+  if(trendCache.length < 2){
+    chartEl.innerHTML = `<div class="home-empty">${trendSportFilter ? `Not enough ${trendSportFilter} checks yet for a trend.` : 'Get a couple more video checks scored to start seeing your trend here.'}</div>`;
+    return;
+  }
+
+  const w = 320, h = 140, padX = 16, padTop = 14, padBottom = 24;
+  const chartW = w - padX * 2;
+  const chartH = h - padTop - padBottom;
+  const n = trendCache.length;
+
+  const xFor = i => padX + (n === 1 ? chartW / 2 : (chartW * i) / (n - 1));
+  const yFor = score => padTop + chartH - (chartH * score) / 100;
+
+  const linePoints = trendCache.map((d, i) => `${xFor(i)},${yFor(d.score)}`).join(' ');
+
+  const dots = trendCache.map((d, i) => {
+    const { color } = getScoreColor(d.score);
+    return `
+      <g class="trend-point" id="trend-pt-${i}" onclick="selectTrendPoint(${i})">
+        <circle cx="${xFor(i)}" cy="${yFor(d.score)}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+      </g>
+    `;
+  }).join('');
+
+  chartEl.innerHTML = `
+    <div class="trend-chart-card">
+      <svg viewBox="0 0 ${w} ${h}">
+        <line x1="${padX}" y1="${yFor(0)}" x2="${w - padX}" y2="${yFor(0)}" stroke="#E4E9EF" stroke-width="1"/>
+        <line x1="${padX}" y1="${yFor(50)}" x2="${w - padX}" y2="${yFor(50)}" stroke="#E4E9EF" stroke-width="1"/>
+        <line x1="${padX}" y1="${yFor(100)}" x2="${w - padX}" y2="${yFor(100)}" stroke="#E4E9EF" stroke-width="1"/>
+        <text x="0" y="${yFor(100) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">100</text>
+        <text x="4" y="${yFor(50) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">50</text>
+        <text x="9" y="${yFor(0) + 3}" font-size="9" fill="#8D97B8" font-family="monospace">0</text>
+        <polyline points="${linePoints}" fill="none" stroke="#1C7293" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${dots}
+      </svg>
+    </div>
+  `;
+
+  selectTrendPoint(trendCache.length - 1); // show the most recent point by default
 }
 
 function selectTrendPoint(i){
