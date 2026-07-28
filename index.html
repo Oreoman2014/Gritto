@@ -2422,7 +2422,14 @@ const AI_HELPER_URL = "https://iplvvkvttumbrlueowou.supabase.co/functions/v1/for
 // "Cannot read properties of undefined" instead of a clear message.
 function extractAIText(data){
   if(!data || !Array.isArray(data.content)){
-    const serverMsg = data && (data.error || data.message);
+    // Anthropic's error responses look like {error: {type, message}} —
+    // unwrap that nested message specifically so it reads as real text
+    // instead of "[object Object]" in the logs.
+    const serverMsg = data && (
+      (data.error && typeof data.error === 'object' && data.error.message) ||
+      (typeof data.error === 'string' && data.error) ||
+      data.message
+    );
     console.error('Unexpected AI response shape:', JSON.stringify(data));
     throw new Error(serverMsg ? `AI service error: ${serverMsg}` : 'The AI service returned an unexpected response — it may be temporarily overloaded.');
   }
@@ -2873,7 +2880,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.12.1';
+const APP_VERSION = '3.12.2';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
