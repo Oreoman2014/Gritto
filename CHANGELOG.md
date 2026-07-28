@@ -1,5 +1,12 @@
 # Gritto — Version Log
 
+## v3.16.0 — Score trend chart on Home
+- New line chart right below your average score table, showing your last 15 scored video checks in order over time
+- Each point is color-coded (same scheme as everywhere else) and tappable — tap any point to see its exact score, sport, and date
+- Shows your most recent score by default
+- Hand-built with plain SVG (no external charting library needed)
+- Verified with an automated test that point positions, colors, and tap interaction all work correctly
+
 ## v3.15.0 — Two reminders per day + fixed stale streaks
 - Reminders now fire twice a day: **noon** and **6 PM** — if you've already done your routine by noon, the 6 PM one naturally won't nudge you again (the existing "who hasn't done it today" check already handles this)
 - Honest limitation: Vercel's free tier only guarantees timing within the hour (not the exact minute), and cron times are set in UTC with no automatic Daylight Saving adjustment — set for Eastern Time, will drift an hour twice a year unless updated
