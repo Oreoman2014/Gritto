@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.15.0 — Two reminders per day + fixed stale streaks
+- Reminders now fire twice a day: **noon** and **6 PM** — if you've already done your routine by noon, the 6 PM one naturally won't nudge you again (the existing "who hasn't done it today" check already handles this)
+- Honest limitation: Vercel's free tier only guarantees timing within the hour (not the exact minute), and cron times are set in UTC with no automatic Daylight Saving adjustment — set for Eastern Time, will drift an hour twice a year unless updated
+- **Real bug fixed:** streaks were showing a stale, misleading number after being broken — if you skipped days, the app never actually re-checked whether your streak was still alive until the next time you completed something. Now, both Drills and Daily Routine streaks correctly show 0 as soon as you view them, if the last activity wasn't today or yesterday — no more lingering fake streak numbers.
+- Verified the streak-breaking logic with an automated test across today/yesterday/older/never-active cases
+
 ## v3.14.0 — Average score by sport on Home
 - New "Your average score by sport" table near the top of Home, right under your streaks
 - Auto-populates as you get video checks scored — no setup needed, sports just show up once you have data for them
