@@ -1,5 +1,13 @@
 # Gritto — Version Log
 
+## v3.14.0 — Average score by sport on Home
+- New "Your average score by sport" table near the top of Home, right under your streaks
+- Auto-populates as you get video checks scored — no setup needed, sports just show up once you have data for them
+- True average across ALL your video checks (not just the recent 20 shown in Video History), sorted best to worst
+- Each row shows the average score (color-coded, same scheme as everywhere else) and how many checks it's based on
+- New Settings option: "Clear my score averages" — resets just the score/category data, keeping your actual videos, feedback, and drills intact (separate from the full "Clear my video history" option)
+- Verified with an automated test that averages compute and round correctly, and sort properly highest to lowest
+
 ## v3.13.0 — Category-based scoring + true 0-100 range
 - Scores can now genuinely go all the way down near 0 when form shows real, significant flaws — the AI was told to be honest and fair before, but too gently, and ended up clustering everyone around 50+. Rewrote the instructions to explicitly stop that clustering.
 - Video checks are now scored on 3 categories specific to your exact sport and role — e.g. a baseball hitter might see "Stance & Load," "Swing Path," and "Follow-Through"; a basketball shooter might see "Shooting Form," "Release Point," and "Balance" — chosen dynamically by the AI based on what's actually relevant
