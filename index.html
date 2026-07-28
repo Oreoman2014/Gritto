@@ -1212,23 +1212,27 @@
   }
   .home-score-row:hover{border-color:var(--turf);}
   .home-score-row.active{border-color:var(--turf); background:#F3F8F5;}
-  .trend-filter-note{
-    font-size:12px;
-    color:var(--ink-soft);
-    margin:-6px 0 8px;
+  .trend-sport-chips{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    margin-bottom:10px;
+    padding-bottom:2px;
   }
-  .trend-filter-note b{color:var(--ink);}
-  .trend-filter-note button{
-    background:none;
-    border:none;
-    color:var(--teal);
-    text-decoration:underline;
-    font-size:12px;
-    cursor:pointer;
+  .trend-sport-chip{
+    flex-shrink:0;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:20px;
+    padding:8px 16px;
     font-family:'Inter',sans-serif;
-    padding:0;
-    margin-left:4px;
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+    cursor:pointer;
+    white-space:nowrap;
   }
+  .trend-sport-chip.active{background:var(--turf); border-color:var(--turf); color:#fff;}
   .home-score-sport{
     flex:1;
     font-weight:700;
@@ -1864,8 +1868,8 @@
       <div class="section-label" style="margin-top:14px;">Your average score by sport</div>
       <div id="home-score-table"></div>
 
-      <div class="section-label" style="margin-top:16px;">Score trend</div>
-      <div id="home-trend-filter-note" class="trend-filter-note"></div>
+      <div class="section-label" style="margin-top:16px;">Check your score trend</div>
+      <div id="home-trend-sport-chips" class="trend-sport-chips"></div>
       <div id="home-trend-chart"></div>
       <div id="home-trend-detail"></div>
     </div>
@@ -3051,7 +3055,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.16.1';
+const APP_VERSION = '3.17.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3388,7 +3392,7 @@ async function loadSportAverages(){
       const { color } = getScoreColor(r.avg);
       const isActive = trendSportFilter === r.sport;
       return `
-        <div class="home-score-row ${isActive ? 'active' : ''}" id="score-row-${r.sport.replace(/\s+/g,'-')}" onclick="toggleTrendSportFilter('${r.sport.replace(/'/g, "\\'")}')">
+        <div class="home-score-row ${isActive ? 'active' : ''}" id="score-row-${r.sport.replace(/\s+/g,'-')}" onclick="selectTrendSport('${r.sport.replace(/'/g, "\\'")}')">
           <span class="home-score-sport">${r.sport}<span class="home-score-count">${r.count} check${r.count === 1 ? '' : 's'}</span></span>
           <div class="home-score-num-circle" style="border-color:${color}; color:${color};">${r.avg}</div>
         </div>
@@ -3399,21 +3403,20 @@ async function loadSportAverages(){
   }
 }
 
-let trendCache = [];       // whatever's currently displayed (filtered or not)
+let trendCache = [];       // whatever's currently displayed for the selected sport
 let allTrendData = [];     // full unfiltered history, fetched once per Home visit
-let trendSportFilter = null; // null = show all sports combined
+let trendSportFilter = null; // the currently selected sport — always set once data loads
 
 // Simple hand-built SVG line chart — no charting library needed for
-// something this small. Shows the last 15 scored video checks in
-// chronological order, tap any point to see its date/sport/score. Tap
-// a row in the average-score table above to filter this to one sport.
+// something this small. Pick a sport from the chips above the chart to
+// see its trend; always shows one sport at a time, never all mixed.
 async function loadScoreTrend(){
   const { data: { session } } = await sb.auth.getSession();
   const chartEl = document.getElementById('home-trend-chart');
   const detailEl = document.getElementById('home-trend-detail');
+  const chipsEl = document.getElementById('home-trend-sport-chips');
   if(!session) return;
   detailEl.innerHTML = '';
-  trendSportFilter = null;
 
   try{
     const { data, error } = await sb.from('video_analysis_history')
@@ -3424,36 +3427,52 @@ async function loadScoreTrend(){
     if(error){ console.error('Could not load score trend:', error.message); return; }
 
     allTrendData = data || [];
+
+    if(allTrendData.length === 0){
+      chipsEl.innerHTML = '';
+      chartEl.innerHTML = '<div class="home-empty">Get a video check scored to start seeing your trend here.</div>';
+      trendSportFilter = null;
+      return;
+    }
+
+    // Sports in order of most-recently-checked first, so the freshest
+    // one leads the chip list.
+    const sportsInOrder = [...new Set([...allTrendData].reverse().map(d => d.sport))];
+    trendSportFilter = sportsInOrder[0]; // default to most recently checked sport
+
+    renderTrendSportChips(sportsInOrder);
     renderTrendChart();
   }catch(err){
     console.error('Score trend load failed:', err.message);
   }
 }
 
-function toggleTrendSportFilter(sport){
-  trendSportFilter = (trendSportFilter === sport) ? null : sport;
-  document.querySelectorAll('.home-score-row').forEach(el => el.classList.remove('active'));
-  if(trendSportFilter){
-    const row = document.getElementById(`score-row-${sport.replace(/\s+/g,'-')}`);
-    if(row) row.classList.add('active');
-  }
+function renderTrendSportChips(sportsInOrder){
+  const chipsEl = document.getElementById('home-trend-sport-chips');
+  chipsEl.innerHTML = sportsInOrder.map(sport => `
+    <button class="trend-sport-chip ${sport === trendSportFilter ? 'active' : ''}" onclick="selectTrendSport('${sport.replace(/'/g, "\\'")}')">${sport}</button>
+  `).join('');
+}
+
+function selectTrendSport(sport){
+  trendSportFilter = sport;
+  document.querySelectorAll('.trend-sport-chip').forEach(el => {
+    el.classList.toggle('active', el.textContent === sport);
+  });
+  document.querySelectorAll('.home-score-row').forEach(el => {
+    el.classList.toggle('active', el.id === `score-row-${sport.replace(/\s+/g,'-')}`);
+  });
   renderTrendChart();
 }
 
 function renderTrendChart(){
   const chartEl = document.getElementById('home-trend-chart');
-  const filterNoteEl = document.getElementById('home-trend-filter-note');
-  const source = trendSportFilter ? allTrendData.filter(d => d.sport === trendSportFilter) : allTrendData;
-  trendCache = source.slice(-15); // most recent 15 of whatever's selected, oldest to newest
-
-  if(filterNoteEl){
-    filterNoteEl.innerHTML = trendSportFilter
-      ? `Showing <b>${trendSportFilter}</b> only · <button class="time-prompt-estimate" onclick="toggleTrendSportFilter('${trendSportFilter.replace(/'/g, "\\'")}')">Show all sports</button>`
-      : '';
-  }
+  const source = allTrendData.filter(d => d.sport === trendSportFilter);
+  trendCache = source.slice(-15); // most recent 15 for this sport, oldest to newest
 
   if(trendCache.length < 2){
-    chartEl.innerHTML = `<div class="home-empty">${trendSportFilter ? `Not enough ${trendSportFilter} checks yet for a trend.` : 'Get a couple more video checks scored to start seeing your trend here.'}</div>`;
+    chartEl.innerHTML = `<div class="home-empty">Get one more ${trendSportFilter} check scored to start seeing a trend here.</div>`;
+    document.getElementById('home-trend-detail').innerHTML = '';
     return;
   }
 
@@ -3583,8 +3602,8 @@ async function loadHomeData(){
   }
   signinNote.textContent = '';
   await loadVideoHistory();
-  await loadSportAverages();
   await loadScoreTrend();
+  await loadSportAverages();
 
   try{
     const { data, error } = await sb.from('drill_history')
