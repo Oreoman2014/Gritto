@@ -1,5 +1,11 @@
 # Gritto — Version Log
 
+## v3.18.0 — Real fix for "captured but still black" frames, tested with real dark video
+- Found the actual gap: the "does this frame look blank" check only measured contrast, not brightness — so a frame that was overall very dark but had a little noise or a faint highlight could technically pass as "not blank" while still looking essentially black to a person
+- Fixed by checking both contrast AND brightness — a frame now has to be reasonably bright, not just reasonably varied, to count as usable
+- If a video is genuinely too dark even after every retry, the app now says so honestly ("This video looks quite dark...") instead of silently proceeding with frames that won't give good results
+- Verified for real: generated an actual genuinely-black test video and an actual normal test video, ran the real production code against both in a real browser — confirmed the dark video correctly triggers the new warning on every attempt, and the normal video is completely unaffected (still captures cleanly with zero retries)
+
 ## v3.17.1 — Found and fixed a real race condition causing black frames
 - Did a full line-by-line audit of the video extraction code as requested, and found a genuine bug: two separate "start extraction" triggers (added in different updates) could fire independently, and one could jump ahead of the other before it finished fixing a known iOS quirk (videos sometimes report "infinite" length right when picked)
 - If that happened, frame extraction would start using a broken (Infinity) duration — every timestamp calculated from it becomes garbage, likely landing on an invalid position in the video, which explains the black frames
