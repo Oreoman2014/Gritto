@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v3.25.1 — All badges unlocked for your account too
+- Your account (aaryavgupta028@gmail.com) now sees every achievement badge unlocked, same as themes — good for testing/demoing
+- Everyone else still earns badges normally based on real stats
+- Verified with a real test: admin email gets everything regardless of progress, other accounts only get what they've actually earned
+
 ## v3.25.0 — Achievement badges + unlock celebration screen
 - New "Achievements" section in Settings with 11 badges: First Steps, Getting Started, Dedicated, Century Club (drill counts), Lights Camera, Film Study, Tape Junkie (video check counts), Elite Form (90+ score), Showing Up, All In (active days), and Multi-Sport
 - All computed from stats already tracked — no new database columns needed
