@@ -2258,6 +2258,7 @@ async function checkGoogleSession(){
       return null;
     }
     document.getElementById('login-overlay').classList.add('hidden');
+    currentUserEmail = email;
     showProgressBar(session.user);
     await loadProgress(session.user.id);
     setHomeGreeting(session.user);
@@ -2865,6 +2866,11 @@ const THEMES = [
   { id: 'legendary', name: 'Legendary', unlockStreak: 100, turf: '#D4AF37', energy: '#B8860B', img: 'legendary.png' },
 ];
 
+// Full theme access for testing/demo purposes on this one account —
+// doesn't affect anyone else's unlock progress.
+const THEME_ADMIN_EMAIL = 'aaryavgupta028@gmail.com';
+let currentUserEmail = null;
+
 function getBestEverStreak(){
   const drillsBest = drillProgress.longest_streak || 0;
   const routineBest = (userRoutines || []).reduce((max, r) => Math.max(max, r.longest_streak || 0), 0);
@@ -2872,6 +2878,7 @@ function getBestEverStreak(){
 }
 
 function getUnlockedThemes(){
+  if(currentUserEmail === THEME_ADMIN_EMAIL) return THEMES;
   const best = getBestEverStreak();
   return THEMES.filter(t => best >= t.unlockStreak);
 }
@@ -3218,7 +3225,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.20.1';
+const APP_VERSION = '3.21.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
