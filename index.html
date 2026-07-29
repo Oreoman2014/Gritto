@@ -880,6 +880,99 @@
     padding:2px; line-height:1.2;
     background:rgba(0,0,0,0.25);
   }
+
+  .badge-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:10px;
+  }
+  .badge-item{
+    text-align:center;
+    padding:10px 4px;
+    border-radius:12px;
+    background:var(--paper, #F7F9FB);
+  }
+  .badge-item .badge-emoji{
+    font-size:26px;
+    margin-bottom:4px;
+    filter:grayscale(1) opacity(0.35);
+  }
+  .badge-item.unlocked{background:#EAF6EE;}
+  .badge-item.unlocked .badge-emoji{filter:none;}
+  .badge-item .badge-name{
+    font-size:9.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+    line-height:1.25;
+  }
+  .badge-item.unlocked .badge-name{color:var(--ink);}
+
+  .unlock-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(18,23,43,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:300;
+    padding:20px;
+  }
+  .unlock-overlay.show{display:flex;}
+  .unlock-card{
+    background:#fff;
+    border-radius:20px;
+    padding:32px 26px 26px;
+    width:100%;
+    max-width:340px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+    animation:unlockPop 0.35s cubic-bezier(0.2,1.4,0.4,1);
+  }
+  @keyframes unlockPop{
+    0%{transform:scale(0.85); opacity:0;}
+    100%{transform:scale(1); opacity:1;}
+  }
+  .unlock-icon{font-size:52px; margin-bottom:10px;}
+  .unlock-eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--turf);
+    font-weight:700;
+    margin-bottom:6px;
+  }
+  .unlock-card h2{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:24px;
+    margin:0 0 8px;
+    color:var(--ink);
+  }
+  .unlock-card p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0 0 20px;
+  }
+  .unlock-confetti{
+    position:absolute;
+    top:0; left:0; right:0; height:100%;
+    pointer-events:none;
+    overflow:hidden;
+  }
+  .unlock-confetti span{
+    position:absolute;
+    top:-10px;
+    width:8px; height:8px;
+    border-radius:2px;
+    animation:confettiFall 1.6s ease-in forwards;
+  }
+  @keyframes confettiFall{
+    to{ transform:translateY(340px) rotate(360deg); opacity:0; }
+  }
+
   .settings-toggle-btn.off{background:#EDEBE3; color:var(--ink-soft);}
   .settings-reminder-note{
     font-size:11.5px;
@@ -2123,6 +2216,12 @@
       <p class="settings-reminder-note" id="reminders-note">On iPhone, this only works if Gritto is added to your home screen — regular browser tabs can't send reminders.</p>
     </div>
 
+    <div class="section-label" style="margin-top:20px;">Achievements</div>
+    <div class="settings-card">
+      <div class="badge-grid" id="badge-grid"></div>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">Badges unlock permanently as you practice, complete video checks, and build streaks.</p>
+    </div>
+
     <div class="section-label" style="margin-top:20px;">App theme</div>
     <div class="settings-card">
       <img id="theme-preview-img" class="theme-preview-img" src="" alt="Current theme">
@@ -2179,6 +2278,17 @@
   <div class="cookie-banner-actions">
     <button class="cookie-manage-btn" onclick="openCookieManage()">Manage</button>
     <button class="cookie-accept-btn" onclick="acceptCookieNotice()">Accept</button>
+  </div>
+</div>
+
+<div class="unlock-overlay" id="unlock-overlay">
+  <div class="unlock-card">
+    <div class="unlock-confetti" id="unlock-confetti"></div>
+    <div class="unlock-icon" id="unlock-icon">🏆</div>
+    <div class="unlock-eyebrow" id="unlock-eyebrow">Achievement Unlocked</div>
+    <h2 id="unlock-title">Nice work!</h2>
+    <p id="unlock-desc"></p>
+    <button class="go-btn" onclick="closeUnlockCelebration()">Sweet!</button>
   </div>
 </div>
 
@@ -2983,6 +3093,126 @@ function selectTheme(themeId){
   renderThemePicker();
 }
 
+// ---- Achievement badges ----
+// Everything here is computed from stats we already track — no new
+// database columns needed. A badge, once unlocked, stays unlocked.
+const BADGES = [
+  { id: 'first_drill',   name: 'First Steps',       emoji: '🌱', check: s => s.totalDrills >= 1 },
+  { id: 'drills_10',     name: 'Getting Started',    emoji: '💪', check: s => s.totalDrills >= 10 },
+  { id: 'drills_50',     name: 'Dedicated',          emoji: '🔥', check: s => s.totalDrills >= 50 },
+  { id: 'drills_100',    name: 'Century Club',       emoji: '💯', check: s => s.totalDrills >= 100 },
+  { id: 'first_video',   name: 'Lights, Camera',     emoji: '🎬', check: s => s.videoCount >= 1 },
+  { id: 'video_5',       name: 'Film Study',         emoji: '📹', check: s => s.videoCount >= 5 },
+  { id: 'video_20',      name: 'Tape Junkie',        emoji: '🎞️', check: s => s.videoCount >= 20 },
+  { id: 'perfect_score', name: 'Elite Form',         emoji: '⭐', check: s => s.maxScore >= 90 },
+  { id: 'active_10',     name: 'Showing Up',         emoji: '📅', check: s => s.activeDays >= 10 },
+  { id: 'active_30',     name: 'All In',             emoji: '🗓️', check: s => s.activeDays >= 30 },
+  { id: 'multi_sport',   name: 'Multi-Sport',        emoji: '🏅', check: s => s.distinctSports >= 2 },
+];
+
+let badgeStats = { totalDrills: 0, videoCount: 0, maxScore: 0, activeDays: 0, distinctSports: 0 };
+
+async function loadBadgeStats(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return badgeStats;
+
+  try{
+    const [historyRes, videoRes] = await Promise.all([
+      sb.from('drill_history').select('sport, created_at').eq('user_id', session.user.id),
+      sb.from('video_analysis_history').select('score').eq('user_id', session.user.id).not('score', 'is', null)
+    ]);
+
+    const historyRows = historyRes.data || [];
+    const videoRows = videoRes.data || [];
+
+    badgeStats = {
+      totalDrills: drillProgress.total_drills_completed || 0,
+      videoCount: (await sb.from('video_analysis_history').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id)).count || 0,
+      maxScore: videoRows.length ? Math.max(...videoRows.map(v => v.score)) : 0,
+      activeDays: new Set(historyRows.map(r => r.created_at.slice(0, 10))).size,
+      distinctSports: new Set(historyRows.map(r => r.sport)).size,
+    };
+  }catch(err){
+    console.error('Could not load badge stats:', err.message);
+  }
+  return badgeStats;
+}
+
+function getUnlockedBadges(){
+  return BADGES.filter(b => b.check(badgeStats));
+}
+
+function renderBadgeGrid(){
+  const gridEl = document.getElementById('badge-grid');
+  if(!gridEl) return;
+  const unlockedIds = new Set(getUnlockedBadges().map(b => b.id));
+  gridEl.innerHTML = BADGES.map(b => `
+    <div class="badge-item ${unlockedIds.has(b.id) ? 'unlocked' : ''}">
+      <div class="badge-emoji">${b.emoji}</div>
+      <div class="badge-name">${b.name}</div>
+    </div>
+  `).join('');
+}
+
+// ---- Unlock celebration ----
+// Compares what's unlocked right now against what we last knew was
+// unlocked (saved locally). Anything new gets a little "congrats"
+// moment — shown one at a time if multiple things unlocked at once.
+let unlockQueue = [];
+
+function checkForNewUnlocks(){
+  const knownThemes = new Set(JSON.parse(localStorage.getItem('gritto_known_themes') || '[]'));
+  const knownBadges = new Set(JSON.parse(localStorage.getItem('gritto_known_badges') || '[]'));
+
+  const unlockedThemes = getUnlockedThemes();
+  const unlockedBadges = getUnlockedBadges();
+
+  const newThemes = unlockedThemes.filter(t => !knownThemes.has(t.id));
+  const newBadges = unlockedBadges.filter(b => !knownBadges.has(b.id));
+
+  // Always record what's unlocked now, whether or not this is the
+  // very first visit — first-ever load shouldn't trigger a flood of
+  // celebrations for things earned before this feature existed.
+  const isFirstEverCheck = localStorage.getItem('gritto_known_themes') === null;
+  localStorage.setItem('gritto_known_themes', JSON.stringify(unlockedThemes.map(t => t.id)));
+  localStorage.setItem('gritto_known_badges', JSON.stringify(unlockedBadges.map(b => b.id)));
+
+  if(isFirstEverCheck) return; // don't celebrate everything on the very first check
+
+  newThemes.forEach(t => unlockQueue.push({ type: 'theme', name: t.name, emoji: '🎨', desc: `New app theme unlocked — try it out in Settings!` }));
+  newBadges.forEach(b => unlockQueue.push({ type: 'badge', name: b.name, emoji: b.emoji, desc: `Achievement unlocked!` }));
+
+  if(unlockQueue.length) showNextUnlock();
+}
+
+function showNextUnlock(){
+  const next = unlockQueue.shift();
+  if(!next) return;
+
+  document.getElementById('unlock-icon').textContent = next.emoji;
+  document.getElementById('unlock-eyebrow').textContent = next.type === 'theme' ? 'Theme Unlocked' : 'Achievement Unlocked';
+  document.getElementById('unlock-title').textContent = next.name;
+  document.getElementById('unlock-desc').textContent = next.desc;
+
+  const confettiEl = document.getElementById('unlock-confetti');
+  const colors = ['#2F8F4E', '#FF6A1A', '#1C7293', '#D4AF37', '#9B59B6'];
+  confettiEl.innerHTML = Array.from({length: 24}, (_, i) => {
+    const left = Math.random() * 100;
+    const delay = Math.random() * 0.4;
+    const color = colors[i % colors.length];
+    return `<span style="left:${left}%; background:${color}; animation-delay:${delay}s;"></span>`;
+  }).join('');
+
+  document.getElementById('unlock-overlay').classList.add('show');
+}
+
+function closeUnlockCelebration(){
+  document.getElementById('unlock-overlay').classList.remove('show');
+  if(unlockQueue.length){
+    setTimeout(showNextUnlock, 300); // small pause before the next one, if any
+  }
+}
+
 const sportRoles = {
   Basketball: ['Shooter', 'Ball handler', 'Defender', 'Passer', 'Rebounder'],
   Baseball: ['Hitter', 'Pitcher', 'Fielder', 'Catcher', 'Base runner'],
@@ -3276,7 +3506,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.24.1';
+const APP_VERSION = '3.25.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3359,6 +3589,8 @@ async function renderSettingsPage(){
   await loadProgress(session.user.id);
   await loadUserRoutines();
   renderThemePicker();
+  await loadBadgeStats();
+  renderBadgeGrid();
 }
 
 async function renderShareLinkArea(user){
@@ -3898,6 +4130,8 @@ async function loadHomeData(){
   await loadVideoHistory();
   await loadScoreTrend();
   await loadSportAverages();
+  await loadBadgeStats();
+  checkForNewUnlocks();
 
   try{
     const { data, error } = await sb.from('drill_history')
