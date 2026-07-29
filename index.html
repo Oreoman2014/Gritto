@@ -3276,7 +3276,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.23.3';
+const APP_VERSION = '3.24.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4911,8 +4911,8 @@ function extractFrames(file){
       }
       renderRoleOptions(selectedSport);
       // The silhouette "Your Motion" flipbook only needs enough frames
-      // for a smooth-looking loop — running MediaPipe on all 30 would
-      // be noticeably slower for no real visual benefit.
+      // for a smooth-looking loop — running MediaPipe on all of them
+      // would be noticeably slower for no real visual benefit.
       const SILHOUETTE_FRAME_COUNT = 10;
       const silhouetteSample = rawDataUrls.length <= SILHOUETTE_FRAME_COUNT
         ? rawDataUrls
@@ -4958,10 +4958,10 @@ async function analyzeVideo(){
   btn.disabled = true;
   statusEl.textContent = 'Looking at your form…';
 
-  // We capture 30 frames now for smooth scrubbing in the frame viewer,
-  // but the AI only needs a handful of representative moments — sending
-  // all 30 would be far more expensive with no real benefit to the
-  // analysis. Evenly sample 5 from the full set, same as before.
+  // We capture 15 frames for smooth scrubbing in the frame viewer, but
+  // the AI only needs a handful of representative moments — sending all
+  // 15 would be more expensive with no real benefit to the analysis.
+  // Evenly sample 5 from the full set.
   const AI_FRAME_COUNT = 5;
   const sampledFrames = extractedFrames.length <= AI_FRAME_COUNT
     ? extractedFrames
