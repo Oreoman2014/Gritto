@@ -1,5 +1,13 @@
 # Gritto — Version Log
 
+## v3.25.0 — Achievement badges + unlock celebration screen
+- New "Achievements" section in Settings with 11 badges: First Steps, Getting Started, Dedicated, Century Club (drill counts), Lights Camera, Film Study, Tape Junkie (video check counts), Elite Form (90+ score), Showing Up, All In (active days), and Multi-Sport
+- All computed from stats already tracked — no new database columns needed
+- New celebration screen: pops up automatically with confetti when you unlock a NEW badge or theme, showing what you earned
+- Smart about existing progress: if you already had badges/themes unlocked before this update, it won't flood you with celebrations for things you already earned — only genuinely new unlocks trigger it going forward
+- If multiple things unlock at once, celebrations queue up and show one at a time instead of overlapping
+- Verified with real tests: badge unlock logic across multiple stat scenarios, the "don't celebrate pre-existing progress" logic, and the celebration overlay actually rendering correctly
+
 ## v3.24.1 — Restored the 15-frame scrubbing feature (undo the undo)
 - Brought back everything from v3.23.3: 15 frames, auto-opening scrubber viewer, "Watching your video" text, hidden thumbnail strip
 - AI analysis still only samples 5 frames from the 15 — cost stays controlled
