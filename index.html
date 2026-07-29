@@ -8,10 +8,10 @@
 <meta name="apple-mobile-web-app-title" content="Gritto">
 <meta name="theme-color" content="#181C1F">
 <title>Gritto — Sports Mechanics Coach</title>
-<link rel="apple-touch-icon" href="apple-touch-icon-v3.png">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32-v3.png">
-<link rel="icon" type="image/png" sizes="192x192" href="favicon-192-v3.png">
-<link rel="icon" type="image/png" sizes="512x512" href="favicon-512-v3.png">
+<link rel="apple-touch-icon" href="/icon-turf.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-turf.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-turf.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-turf.png">
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -2889,6 +2889,16 @@ function applyTheme(themeId){
   document.documentElement.style.setProperty('--turf', theme.turf);
   document.documentElement.style.setProperty('--energy', theme.energy);
   localStorage.setItem('gritto_theme', theme.id);
+
+  // Also swap the actual home-screen/browser-tab icon to match — so if
+  // someone deletes and re-adds the shortcut, it picks up whichever
+  // theme is currently active instead of always showing Turf.
+  const iconHref = `icon-${theme.id}.png`;
+  const appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  if(appleIcon) appleIcon.href = iconHref;
+  document.querySelectorAll('link[rel="icon"]').forEach(link => {
+    link.href = iconHref;
+  });
 }
 
 function initTheme(){
@@ -3226,7 +3236,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.21.4';
+const APP_VERSION = '3.22.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
