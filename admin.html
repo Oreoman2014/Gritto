@@ -48,6 +48,29 @@
   .user-email{font-size:14px; font-weight:600;}
   .user-date{font-size:11.5px; color:var(--slate-soft); font-family:'IBM Plex Mono',monospace;}
   .empty{color:var(--slate-soft); font-size:13px; text-align:center; padding:30px 0;}
+
+  .tab-row{display:flex; gap:8px; margin-bottom:20px;}
+  .tab-btn{
+    flex:1; background:#fff; border:1.5px solid var(--line); border-radius:10px;
+    padding:10px; font-weight:700; font-size:13px; cursor:pointer; color:var(--slate-soft);
+  }
+  .tab-btn.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  .feedback-row{
+    background:#fff; border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .feedback-top{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .feedback-email{font-size:13px; font-weight:700;}
+  .feedback-date{font-size:11px; color:var(--slate-soft); font-family:'IBM Plex Mono',monospace;}
+  .feedback-msg{font-size:13.5px; line-height:1.5; white-space:pre-wrap;}
+  .feedback-delete{
+    background:none; border:none; color:var(--coral); font-size:11.5px;
+    text-decoration:underline; cursor:pointer; margin-top:8px; padding:0;
+  }
 </style>
 </head>
 <body>
@@ -55,23 +78,33 @@
 
   <div class="login-box" id="admin-login">
     <h1 style="font-size:20px;">Admin</h1>
-    <p class="sub">Enter your admin password to manage beta users.</p>
+    <p class="sub">Enter your admin password to continue.</p>
     <input type="password" id="admin-password-input" placeholder="Admin password">
     <button class="btn" onclick="adminLogin()">Enter</button>
     <div class="error" id="admin-login-error"></div>
   </div>
 
   <div id="admin-panel" class="hidden">
-    <h1>Beta Users</h1>
-    <p class="sub">People on this list can sign in to Gritto with Google. Everyone else is blocked.</p>
-
-    <div class="add-row">
-      <input type="email" id="new-email" placeholder="someone@gmail.com">
-      <button class="btn add" style="width:auto; padding:11px 16px;" onclick="addUser()">Add</button>
+    <h1>Admin</h1>
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-users-btn" onclick="switchTab('users')">Beta Users</button>
+      <button class="tab-btn" id="tab-feedback-btn" onclick="switchTab('feedback')">Feedback</button>
     </div>
-    <div class="error" id="add-error"></div>
 
-    <div id="user-list"></div>
+    <div id="tab-users">
+      <p class="sub">People on this list can sign in to Gritto with Google. Everyone else is blocked.</p>
+      <div class="add-row">
+        <input type="email" id="new-email" placeholder="someone@gmail.com">
+        <button class="btn add" style="width:auto; padding:11px 16px;" onclick="addUser()">Add</button>
+      </div>
+      <div class="error" id="add-error"></div>
+      <div id="user-list"></div>
+    </div>
+
+    <div id="tab-feedback" class="hidden">
+      <p class="sub">Bug reports and feedback sent through the app's Settings page.</p>
+      <div id="feedback-list"></div>
+    </div>
   </div>
 
 </div>
@@ -158,6 +191,64 @@ async function removeUser(email){
 document.getElementById('admin-password-input').addEventListener('keydown', (e) => {
   if(e.key === 'Enter') adminLogin();
 });
+
+function switchTab(tab){
+  document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
+  document.getElementById('tab-feedback').classList.toggle('hidden', tab !== 'feedback');
+  document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
+  document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
+  if(tab === 'feedback') loadFeedback();
+}
+
+async function loadFeedback(){
+  const listEl = document.getElementById('feedback-list');
+  listEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin-feedback', {
+      headers: { 'x-admin-password': adminPassword }
+    });
+    const data = await res.json();
+    if(!data.ok){
+      listEl.innerHTML = `<div class="empty">${data.error || 'Could not load feedback.'}</div>`;
+      return;
+    }
+    renderFeedback(data.reports || []);
+  }catch(err){
+    listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+function renderFeedback(reports){
+  const listEl = document.getElementById('feedback-list');
+  if(reports.length === 0){
+    listEl.innerHTML = '<div class="empty">No feedback yet.</div>';
+    return;
+  }
+  listEl.innerHTML = reports.map(r => `
+    <div class="feedback-row">
+      <div class="feedback-top">
+        <span class="feedback-email">${r.email}</span>
+        <span class="feedback-date">${new Date(r.created_at).toLocaleString()}</span>
+      </div>
+      <div class="feedback-msg">${r.message}</div>
+      <button class="feedback-delete" onclick="deleteFeedback('${r.id}')">Delete</button>
+    </div>
+  `).join('');
+}
+
+async function deleteFeedback(id){
+  if(!confirm('Delete this feedback report?')) return;
+  try{
+    await fetch('/api/admin-feedback', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ id })
+    });
+    loadFeedback();
+  }catch(err){
+    alert('Could not delete that report — try again.');
+  }
+}
 </script>
 </body>
 </html>
