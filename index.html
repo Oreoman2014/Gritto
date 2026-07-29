@@ -2053,7 +2053,7 @@
         <img id="frame-viewer-img" alt="Frame preview">
         <div class="frame-viewer-controls">
           <button onclick="stepFrame(-1)" aria-label="Previous frame">&larr;</button>
-          <span id="frame-viewer-counter">Frame 1 of 30</span>
+          <span id="frame-viewer-counter">Watching your video</span>
           <button onclick="stepFrame(1)" aria-label="Next frame">&rarr;</button>
         </div>
         <input type="range" id="frame-viewer-slider" min="0" value="0" oninput="showFrameViewer(parseInt(this.value))">
@@ -3276,7 +3276,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.23.1';
+const APP_VERSION = '3.23.3';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4683,7 +4683,7 @@ function showFrameViewer(index){
   if(!frameViewerUrls.length) return;
   frameViewerIndex = Math.max(0, Math.min(index, frameViewerUrls.length - 1));
   document.getElementById('frame-viewer-img').src = frameViewerUrls[frameViewerIndex];
-  document.getElementById('frame-viewer-counter').textContent = `Frame ${frameViewerIndex + 1} of ${frameViewerUrls.length}`;
+  document.getElementById('frame-viewer-counter').textContent = 'Watching your video';
   document.getElementById('frame-viewer-slider').value = frameViewerIndex;
 }
 
@@ -4793,7 +4793,7 @@ function extractFrames(file){
       }
     }
 
-    const count = 30;
+    const count = 15;
     const timestamps = Array.from({length: count}, (_, i) => (duration * (i + 0.5)) / count);
     const canvas = document.createElement('canvas');
     canvas.width = 640;
@@ -4864,7 +4864,7 @@ function extractFrames(file){
       const extractionWork = (async () => {
         for(let idx = 0; idx < timestamps.length; idx++){
           const t = timestamps[idx];
-          statusEl.textContent = `Reading frame ${idx + 1} of ${timestamps.length}…`;
+          statusEl.textContent = `Watching your video…`;
           await captureAt(t);
           // If the frame looks unusable, nudge and try again — up to 3
           // total retries, spread a bit wider, before accepting whatever
