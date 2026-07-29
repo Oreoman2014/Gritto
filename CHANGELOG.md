@@ -1,5 +1,20 @@
 # Gritto — Version Log
 
+## v3.23.1 — Cleaner frame review (just the scrubber, no thumbnail wall)
+- Removed the small 30-thumbnail strip entirely — it looked cluttered and was redundant with the big viewer
+- The frame viewer now opens automatically as soon as extraction finishes, showing "Frame 1 of 30" right away — feels like scrubbing through your actual video instead of picking through a wall of separate images
+- Verified for real: ran the actual extraction code, confirmed the viewer auto-opens and the old thumbnail strip stays empty (0 thumbnails) as intended
+
+## v3.23.0 — Slow-motion frame review (30 frames)
+- Video uploads now capture 30 frames instead of 5, giving a genuinely smooth slow-motion scrubbing experience
+- New frame viewer: tap any thumbnail (or it opens automatically) to step through every frame one at a time with prev/next buttons, a frame counter, and a scrub slider
+- **Cost stays the same as before** — the AI still only analyzes 5 evenly-sampled frames, not all 30, so this doesn't increase API cost at all
+- The "Your Motion" silhouette animation samples 10 frames (not all 30) to keep MediaPipe processing fast
+- Extraction now shows live progress ("Reading frame 12 of 30…") instead of a static message, given it takes longer with 6x more frames
+- Increased the overall extraction timeout proportionally, and made the "video looks too dark" detection scale with frame count instead of using a fixed threshold
+- Verified for real: ran the actual extraction code against a real video in a real browser, confirmed 30 frames captured, tested viewer navigation including boundary clamping, and confirmed the AI sampling logic genuinely only sends 5
+- Also fixed a bug caught during this build: tapping a frame thumbnail would always jump to the last frame instead of the one you tapped
+
 ## v3.21.0 — All themes unlocked for your account only
 - Your Google account (aaryavgupta028@gmail.com) now always sees every theme unlocked, regardless of actual streak progress — useful for testing/demoing without needing to grind out a 100-day streak
 - Everyone else is unaffected — themes still unlock normally based on their own best-ever streak
