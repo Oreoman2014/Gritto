@@ -1,5 +1,14 @@
 # Gritto — Version Log
 
+## v3.20.0 — Unlockable app themes
+- New "App theme" section in Settings with 7 themes: Turf (default), Ocean (3-day streak), Sunset (7-day), Galaxy (14-day), Inferno (30-day), Aurora (50-day), Legendary (100-day)
+- Unlocking is based on your best-EVER streak (drills or routine, whichever is higher) — once unlocked, a theme stays unlocked forever, even if the streak later breaks
+- Selecting a theme changes the app's accent colors everywhere (buttons, streak numbers, highlights) for a real cohesive reskin
+- Locked themes show grayed out with their unlock requirement; a preview card shows your currently active theme's full artwork
+- All 7 theme images are real custom artwork (user-provided), processed into a standard square format
+- Verified the unlock logic with real tests across every streak tier (0, 5, 15, 100 days) — confirmed exactly the right themes unlock at each level
+- Chose to keep theme artwork out of the header (where it would fight with the logo/text for readability) and instead show it as a clean standalone preview in Settings
+
 ## v3.19.0 — Share progress with a parent or coach
 - New "Share my progress" section in Settings — generates a private link a parent or coach can open to see streaks and scores, no account needed on their end
 - New public page (share.html) shows: drills streak, routine streak, total active days, drills completed, routine streaks by sport, and average score by sport
