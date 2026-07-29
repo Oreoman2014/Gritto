@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v3.21.0 — All themes unlocked for your account only
+- Your Google account (aaryavgupta028@gmail.com) now always sees every theme unlocked, regardless of actual streak progress — useful for testing/demoing without needing to grind out a 100-day streak
+- Everyone else is unaffected — themes still unlock normally based on their own best-ever streak
+- Verified with a real test across multiple scenarios: your email always gets everything, other accounts only get what their streak actually earns
+
 ## v3.20.1 — New turf-branded logo everywhere (home screen icon, favicon, in-app header)
 - Replaced the old plain logo with the new turf-field version (logo sitting at midfield) in all 5 places it's used: the iPhone home-screen icon, the browser favicon (32x32, 192x192, 512x512), and the small logo shown in the app's own header
 - Verified for real in a browser: confirmed the header logo image actually decodes and loads (not broken/corrupted), and all favicon links have valid, correctly-sized image data
