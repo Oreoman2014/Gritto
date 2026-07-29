@@ -1,5 +1,10 @@
 # Gritto — Version Log
 
+## v3.20.1 — New turf-branded logo everywhere (home screen icon, favicon, in-app header)
+- Replaced the old plain logo with the new turf-field version (logo sitting at midfield) in all 5 places it's used: the iPhone home-screen icon, the browser favicon (32x32, 192x192, 512x512), and the small logo shown in the app's own header
+- Verified for real in a browser: confirmed the header logo image actually decodes and loads (not broken/corrupted), and all favicon links have valid, correctly-sized image data
+- No visible file changes needed beyond index.html — the images are embedded directly in the code, same as the original logo was
+
 ## v3.20.0 — Unlockable app themes
 - New "App theme" section in Settings with 7 themes: Turf (default), Ocean (3-day streak), Sunset (7-day), Galaxy (14-day), Inferno (30-day), Aurora (50-day), Legendary (100-day)
 - Unlocking is based on your best-EVER streak (drills or routine, whichever is higher) — once unlocked, a theme stays unlocked forever, even if the streak later breaks
