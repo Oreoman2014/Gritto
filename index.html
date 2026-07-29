@@ -3139,6 +3139,7 @@ async function loadBadgeStats(){
 }
 
 function getUnlockedBadges(){
+  if(currentUserEmail === THEME_ADMIN_EMAIL) return BADGES;
   return BADGES.filter(b => b.check(badgeStats));
 }
 
@@ -3506,7 +3507,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.25.0';
+const APP_VERSION = '3.25.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
