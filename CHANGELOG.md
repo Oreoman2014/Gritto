@@ -1,5 +1,16 @@
 # Gritto — Version Log
 
+## v3.24.1 — Restored the 15-frame scrubbing feature (undo the undo)
+- Brought back everything from v3.23.3: 15 frames, auto-opening scrubber viewer, "Watching your video" text, hidden thumbnail strip
+- AI analysis still only samples 5 frames from the 15 — cost stays controlled
+- Fully tested this time: ran the real extraction code end-to-end and confirmed all 15 frames captured, the viewer opens automatically, and nothing is broken
+
+## v3.24.0 — Removed the 15-frame scrubbing feature
+- Cleanly reverted back to 5 frames, no big scrubber viewer — back to the simple thumbnail strip
+- AI analysis simplified back to using all captured frames directly (no sampling logic needed anymore)
+- Removed all the frame-viewer HTML/CSS/JS entirely, not just hidden — clean removal
+- Fixed a leftover reference that would have broken video uploads entirely (a piece of code still pointed at an element that no longer existed)
+
 ## v3.23.3 — Simpler progress text during extraction
 - Changed the live progress message from "Reading frame 12 of 15…" to just "Watching your video…" — matches the same friendly, non-technical tone as the frame viewer itself
 - AI analysis stays at 5 sampled frames (kept fast and cheap, as decided) — extraction still captures 15 for smooth scrubbing
