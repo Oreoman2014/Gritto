@@ -1,5 +1,9 @@
 # Gritto — Version Log
 
+## v3.23.3 — Simpler progress text during extraction
+- Changed the live progress message from "Reading frame 12 of 15…" to just "Watching your video…" — matches the same friendly, non-technical tone as the frame viewer itself
+- AI analysis stays at 5 sampled frames (kept fast and cheap, as decided) — extraction still captures 15 for smooth scrubbing
+
 ## v3.23.1 — Cleaner frame review (just the scrubber, no thumbnail wall)
 - Removed the small 30-thumbnail strip entirely — it looked cluttered and was redundant with the big viewer
 - The frame viewer now opens automatically as soon as extraction finishes, showing "Frame 1 of 30" right away — feels like scrubbing through your actual video instead of picking through a wall of separate images
