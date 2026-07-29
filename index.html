@@ -846,6 +846,39 @@
     white-space:nowrap;
     flex-shrink:0;
   }
+
+  .theme-preview-img{
+    width:100%;
+    aspect-ratio:1;
+    max-width:220px;
+    display:block;
+    margin:0 auto 14px;
+    border-radius:16px;
+    object-fit:cover;
+  }
+  .theme-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+  }
+  .theme-swatch{
+    position:relative;
+    aspect-ratio:1;
+    border-radius:10px;
+    overflow:hidden;
+    cursor:pointer;
+    border:2.5px solid transparent;
+  }
+  .theme-swatch img{width:100%; height:100%; object-fit:cover; display:block;}
+  .theme-swatch.active{border-color:var(--turf);}
+  .theme-swatch.locked img{filter:grayscale(1) brightness(0.5);}
+  .theme-swatch-lock{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:9px; font-weight:700; text-align:center;
+    padding:2px; line-height:1.2;
+    background:rgba(0,0,0,0.25);
+  }
   .settings-toggle-btn.off{background:#EDEBE3; color:var(--ink-soft);}
   .settings-reminder-note{
     font-size:11.5px;
@@ -2049,6 +2082,13 @@
       <p class="settings-reminder-note" id="reminders-note">On iPhone, this only works if Gritto is added to your home screen — regular browser tabs can't send reminders.</p>
     </div>
 
+    <div class="section-label" style="margin-top:20px;">App theme</div>
+    <div class="settings-card">
+      <img id="theme-preview-img" class="theme-preview-img" src="" alt="Current theme">
+      <div class="theme-grid" id="theme-grid"></div>
+      <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">Themes unlock permanently once you hit a best-ever streak — they never lock again, even if the streak later breaks.</p>
+    </div>
+
     <div class="section-label" style="margin-top:20px;">How Gritto works</div>
     <div class="settings-card settings-help">
       <p><b>Drills</b> — pick a sport, then describe what you're working on or upload a short video. Gritto gives you real drills with a cue and an animated demo for each.</p>
@@ -2811,6 +2851,80 @@ let selectedSport = null;
 let coachPersonality = null; // 'Hype' | 'Serious' | 'Funny' | null (default balanced tone)
 let selectedRole = null;
 
+// ---- App themes ----
+// Unlocked permanently based on the best-ever streak reached (drills OR
+// routine, whichever is higher) — once unlocked, always unlocked, even
+// if the streak later breaks.
+const THEMES = [
+  { id: 'turf',      name: 'Turf',      unlockStreak: 0,   turf: '#2F8F4E', energy: '#FF6A1A', img: 'turf.png' },
+  { id: 'ocean',     name: 'Ocean',     unlockStreak: 3,   turf: '#1C7293', energy: '#4ECDC4', img: 'ocean.png' },
+  { id: 'sunset',    name: 'Sunset',    unlockStreak: 7,   turf: '#E8593F', energy: '#FFB84D', img: 'sunset.png' },
+  { id: 'galaxy',    name: 'Galaxy',    unlockStreak: 14,  turf: '#5D3FD3', energy: '#7CE0FF', img: 'galaxy.png' },
+  { id: 'inferno',   name: 'Inferno',   unlockStreak: 30,  turf: '#D9480F', energy: '#FFA500', img: 'inferno.png' },
+  { id: 'aurora',    name: 'Aurora',    unlockStreak: 50,  turf: '#2ECC71', energy: '#9B59B6', img: 'aurora.png' },
+  { id: 'legendary', name: 'Legendary', unlockStreak: 100, turf: '#D4AF37', energy: '#B8860B', img: 'legendary.png' },
+];
+
+function getBestEverStreak(){
+  const drillsBest = drillProgress.longest_streak || 0;
+  const routineBest = (userRoutines || []).reduce((max, r) => Math.max(max, r.longest_streak || 0), 0);
+  return Math.max(drillsBest, routineBest);
+}
+
+function getUnlockedThemes(){
+  const best = getBestEverStreak();
+  return THEMES.filter(t => best >= t.unlockStreak);
+}
+
+function applyTheme(themeId){
+  const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
+  document.documentElement.style.setProperty('--turf', theme.turf);
+  document.documentElement.style.setProperty('--energy', theme.energy);
+  localStorage.setItem('gritto_theme', theme.id);
+}
+
+function initTheme(){
+  // Called on page load, before we necessarily know streak data yet —
+  // applies whatever was last saved so the app doesn't flash back to
+  // default colors on every refresh. Settings will re-validate it's
+  // still actually unlocked once real streak data loads.
+  const saved = localStorage.getItem('gritto_theme');
+  if(saved) applyTheme(saved);
+}
+initTheme();
+
+function renderThemePicker(){
+  const gridEl = document.getElementById('theme-grid');
+  const previewEl = document.getElementById('theme-preview-img');
+  if(!gridEl) return;
+
+  const unlockedIds = new Set(getUnlockedThemes().map(t => t.id));
+  const currentTheme = localStorage.getItem('gritto_theme') || 'turf';
+
+  // If the saved theme somehow isn't actually unlocked (edge case),
+  // fall back to default rather than showing a broken state.
+  const activeId = unlockedIds.has(currentTheme) ? currentTheme : 'turf';
+  if(activeId !== currentTheme) applyTheme(activeId);
+
+  previewEl.src = THEMES.find(t => t.id === activeId).img;
+
+  gridEl.innerHTML = THEMES.map(t => {
+    const unlocked = unlockedIds.has(t.id);
+    const isActive = t.id === activeId;
+    return `
+      <div class="theme-swatch ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" onclick="${unlocked ? `selectTheme('${t.id}')` : ''}">
+        <img src="${t.img}" alt="${t.name}">
+        ${unlocked ? '' : `<div class="theme-swatch-lock">${t.unlockStreak}-day streak</div>`}
+      </div>
+    `;
+  }).join('');
+}
+
+function selectTheme(themeId){
+  applyTheme(themeId);
+  renderThemePicker();
+}
+
 const sportRoles = {
   Basketball: ['Shooter', 'Ball handler', 'Defender', 'Passer', 'Rebounder'],
   Baseball: ['Hitter', 'Pitcher', 'Fielder', 'Catcher', 'Base runner'],
@@ -3104,7 +3218,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.19.0';
+const APP_VERSION = '3.20.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3180,6 +3294,13 @@ async function renderSettingsPage(){
 
   await updateRemindersButtonState();
   await renderShareLinkArea(session.user);
+
+  // Make sure streak data is fresh before showing which themes are
+  // unlocked, in case someone opens Settings without visiting Home or
+  // Daily Routine first this session.
+  await loadProgress(session.user.id);
+  await loadUserRoutines();
+  renderThemePicker();
 }
 
 async function renderShareLinkArea(user){
