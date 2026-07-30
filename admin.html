@@ -96,6 +96,17 @@
     grid-column:1 / -1; margin-top:6px; padding:8px 10px;
     background:#FFF4E5; border-radius:8px; font-size:12.5px;
   }
+  .profile-onboard-badge{
+    font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.03em; padding:3px 9px; border-radius:20px;
+  }
+  .profile-onboard-badge.yes{background:#E5F5EA; color:#1F7A3D;}
+  .profile-onboard-badge.no{background:#FBE8E8; color:var(--coral);}
+  .profile-edit-input{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:6px 8px; font-size:12.5px; font-family:inherit;
+    box-sizing:border-box; margin-top:2px;
+  }
 </style>
 </head>
 <body>
@@ -252,35 +263,137 @@ async function loadProfiles(){
   }
 }
 
+let currentProfiles = []; // cached so Edit/Cancel can re-render without re-fetching
+
 function renderProfiles(profiles){
+  currentProfiles = profiles;
   const listEl = document.getElementById('profiles-list');
   if(profiles.length === 0){
     listEl.innerHTML = '<div class="empty">No profiles yet.</div>';
     return;
   }
-  listEl.innerHTML = profiles.map(p => {
-    const positions = (p.positions && p.positions.length) ? p.positions.join(', ') : '—';
-    const injuryAreas = (p.injury_areas && p.injury_areas.length) ? p.injury_areas.join(', ') : null;
+  listEl.innerHTML = profiles.map(p => profileCardHTML(p, false)).join('');
+}
+
+function profileCardHTML(p, editing){
+  const uid = p.user_id;
+  const positionsStr = (p.positions && p.positions.length) ? p.positions.join(', ') : '';
+  const injuryAreasStr = (p.injury_areas && p.injury_areas.length) ? p.injury_areas.join(', ') : '';
+
+  if(!editing){
     return `
-    <div class="profile-card">
+    <div class="profile-card" id="profile-${uid}">
       <div class="profile-top">
         <span class="profile-email">${p.email}</span>
-        <span class="profile-sport">${p.favorite_sport || '—'}</span>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <span class="profile-onboard-badge ${p.onboarding_completed ? 'yes' : 'no'}">${p.onboarding_completed ? 'Onboarded' : 'Not onboarded'}</span>
+          <span class="profile-sport">${p.favorite_sport || '—'}</span>
+        </div>
       </div>
       <div class="profile-grid">
         <div><div class="profile-field-label">Goal</div><div class="profile-field-value">${p.main_goal || '—'}</div></div>
         <div><div class="profile-field-label">Experience</div><div class="profile-field-value">${p.experience_level || '—'}</div></div>
         <div><div class="profile-field-label">Coach style</div><div class="profile-field-value">${p.coach_personality || '—'}</div></div>
         <div><div class="profile-field-label">Age range</div><div class="profile-field-value">${p.age_range || '—'}</div></div>
-        <div><div class="profile-field-label">Position(s)</div><div class="profile-field-value">${positions}</div></div>
+        <div><div class="profile-field-label">Position(s)</div><div class="profile-field-value">${positionsStr || '—'}</div></div>
         <div><div class="profile-field-label">Equipment</div><div class="profile-field-value">${p.equipment_access || '—'}</div></div>
         <div><div class="profile-field-label">Team/solo</div><div class="profile-field-value">${p.team_or_solo || '—'}</div></div>
         <div><div class="profile-field-label">Challenge</div><div class="profile-field-value">${p.biggest_challenge || '—'}</div></div>
         ${p.upcoming_goal ? `<div style="grid-column:1 / -1;"><div class="profile-field-label">Upcoming goal</div><div class="profile-field-value">${p.upcoming_goal}</div></div>` : ''}
       </div>
-      ${p.has_prior_injury ? `<div class="profile-injury">⚠️ Reported injury history: ${injuryAreas || 'area not specified'}</div>` : ''}
+      ${p.has_prior_injury ? `<div class="profile-injury">⚠️ Reported injury history: ${injuryAreasStr || 'area not specified'}</div>` : ''}
+      <button class="feedback-delete" style="color:var(--ink);" onclick="editProfile('${uid}')">Edit</button>
     </div>
-  `; }).join('');
+  `;
+  }
+
+  // Editing mode — plain text inputs for everything, kept simple and
+  // flexible rather than trying to mirror every exact onboarding chip.
+  const field = (label, key, value) => `
+    <div>
+      <div class="profile-field-label">${label}</div>
+      <input type="text" class="profile-edit-input" data-field="${key}" value="${(value || '').toString().replace(/"/g, '&quot;')}">
+    </div>`;
+
+  return `
+    <div class="profile-card" id="profile-${uid}">
+      <div class="profile-top">
+        <span class="profile-email">${p.email}</span>
+        <select class="profile-edit-input" data-field="onboarding_completed" style="width:auto;">
+          <option value="true" ${p.onboarding_completed ? 'selected' : ''}>Onboarded</option>
+          <option value="false" ${!p.onboarding_completed ? 'selected' : ''}>Not onboarded</option>
+        </select>
+      </div>
+      <div class="profile-grid">
+        ${field('Sport', 'favorite_sport', p.favorite_sport)}
+        ${field('Goal', 'main_goal', p.main_goal)}
+        ${field('Experience', 'experience_level', p.experience_level)}
+        ${field('Coach style', 'coach_personality', p.coach_personality)}
+        ${field('Age range', 'age_range', p.age_range)}
+        ${field('Position(s) — comma separated', 'positions', positionsStr)}
+        ${field('Equipment', 'equipment_access', p.equipment_access)}
+        ${field('Team/solo', 'team_or_solo', p.team_or_solo)}
+        ${field('Challenge', 'biggest_challenge', p.biggest_challenge)}
+        ${field('Upcoming goal', 'upcoming_goal', p.upcoming_goal)}
+      </div>
+      <div style="margin-top:10px;">
+        <select class="profile-edit-input" data-field="has_prior_injury" style="width:auto;">
+          <option value="false" ${!p.has_prior_injury ? 'selected' : ''}>No injury history</option>
+          <option value="true" ${p.has_prior_injury ? 'selected' : ''}>Has injury history</option>
+        </select>
+        <input type="text" class="profile-edit-input" data-field="injury_areas" placeholder="Injury areas — comma separated" value="${injuryAreasStr}" style="margin-top:6px;">
+      </div>
+      <div style="margin-top:12px; display:flex; gap:10px;">
+        <button class="btn" style="width:auto; padding:9px 16px;" onclick="saveProfile('${uid}')">Save</button>
+        <button class="feedback-delete" onclick="cancelEditProfile('${uid}')">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function editProfile(userId){
+  const p = currentProfiles.find(x => x.user_id === userId);
+  if(!p) return;
+  document.getElementById(`profile-${userId}`).outerHTML = profileCardHTML(p, true);
+}
+
+function cancelEditProfile(userId){
+  const p = currentProfiles.find(x => x.user_id === userId);
+  if(!p) return;
+  document.getElementById(`profile-${userId}`).outerHTML = profileCardHTML(p, false);
+}
+
+async function saveProfile(userId){
+  const card = document.getElementById(`profile-${userId}`);
+  const inputs = card.querySelectorAll('.profile-edit-input');
+  const updates = {};
+  inputs.forEach(el => {
+    const key = el.dataset.field;
+    let value = el.value;
+    if(key === 'positions' || key === 'injury_areas'){
+      updates[key] = value.split(',').map(s => s.trim()).filter(Boolean);
+    }else if(key === 'onboarding_completed' || key === 'has_prior_injury'){
+      updates[key] = value === 'true';
+    }else{
+      updates[key] = value.trim() || null;
+    }
+  });
+
+  try{
+    const res = await fetch('/api/admin-profiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ user_id: userId, updates })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not save changes.');
+      return;
+    }
+    loadProfiles(); // refresh from the server so the card reflects what actually saved
+  }catch(err){
+    alert('Something went wrong saving that — try again.');
+  }
 }
 
 async function loadFeedback(){
