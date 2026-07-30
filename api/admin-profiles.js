@@ -16,15 +16,51 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({ ok: false, error: 'Wrong admin password.' });
   }
 
-  if (req.method !== 'GET') {
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
-  }
-
   const baseHeaders = {
     apikey: serviceKey,
     Authorization: `Bearer ${serviceKey}`,
     'Content-Type': 'application/json',
   };
+
+  if (req.method === 'PATCH') {
+    const { user_id, updates } = req.body || {};
+    if (!user_id || !updates || typeof updates !== 'object') {
+      return res.status(400).json({ ok: false, error: 'user_id and updates are required.' });
+    }
+    // Only allow editing real, known onboarding fields — never let a
+    // request overwrite something like share_token or the user_id itself.
+    const editableFields = new Set([
+      'favorite_sport', 'main_goal', 'experience_level', 'coach_personality',
+      'age_range', 'positions', 'equipment_access', 'team_or_solo',
+      'biggest_challenge', 'has_prior_injury', 'injury_areas', 'upcoming_goal',
+      'onboarding_completed',
+    ]);
+    const safeUpdates = {};
+    for (const key of Object.keys(updates)) {
+      if (editableFields.has(key)) safeUpdates[key] = updates[key];
+    }
+    if (Object.keys(safeUpdates).length === 0) {
+      return res.status(400).json({ ok: false, error: 'No editable fields were provided.' });
+    }
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/user_profile?user_id=eq.${encodeURIComponent(user_id)}`,
+        { method: 'PATCH', headers: baseHeaders, body: JSON.stringify(safeUpdates) }
+      );
+      if (!response.ok) {
+        const errText = await response.text();
+        return res.status(400).json({ ok: false, error: errText });
+      }
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: String(err) });
+    }
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
 
   try {
     const response = await fetch(
