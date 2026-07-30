@@ -2217,16 +2217,23 @@
       <span class="onboard-dot" data-step="9"></span>
       <span class="onboard-dot" data-step="10"></span>
       <span class="onboard-dot" data-step="11"></span>
+      <span class="onboard-dot" data-step="12"></span>
     </div>
 
     <div class="onboard-step active" id="onboard-step-1">
+      <h2>What should we call you?</h2>
+      <p class="onboard-sub">Sometimes a Google account name isn't what you actually go by — use your name or a nickname, whatever you'd like to see here.</p>
+      <input type="text" id="onboard-name-input" class="onboard-text-input" placeholder="e.g. Aaryav, or a nickname" oninput="document.getElementById('onboard-next-btn').disabled = !this.value.trim();">
+    </div>
+
+    <div class="onboard-step" id="onboard-step-2">
       <h2>Welcome to Gritto</h2>
       <p class="onboard-sub">Quick questions so we can tailor things to you — takes about a minute.</p>
       <div class="section-label" style="margin-top:18px;">What's your main sport?</div>
       <div class="sport-grid" id="onboard-sport-grid"></div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-2">
+    <div class="onboard-step" id="onboard-step-3">
       <h2>What's your goal?</h2>
       <p class="onboard-sub">We'll shape your drills and routine suggestions around this.</p>
       <div class="onboard-chip-grid" id="onboard-goal-grid">
@@ -2238,7 +2245,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-3">
+    <div class="onboard-step" id="onboard-step-4">
       <h2>How experienced are you?</h2>
       <p class="onboard-sub">So the drills match your level.</p>
       <div class="onboard-chip-grid" id="onboard-level-grid">
@@ -2248,7 +2255,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-4">
+    <div class="onboard-step" id="onboard-step-5">
       <h2>Pick your coach</h2>
       <p class="onboard-sub">This changes how Gritto talks to you in every drill and tip.</p>
       <div class="onboard-chip-grid" id="onboard-coach-grid">
@@ -2258,7 +2265,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-5">
+    <div class="onboard-step" id="onboard-step-6">
       <h2>How old are you?</h2>
       <p class="onboard-sub">Helps keep everything age-appropriate.</p>
       <div class="onboard-chip-grid" id="onboard-age-grid">
@@ -2269,13 +2276,13 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-6">
+    <div class="onboard-step" id="onboard-step-7">
       <h2>What position(s) do you play?</h2>
       <p class="onboard-sub" id="onboard-position-sub">So drills can lean toward what actually matters for your role.</p>
       <div class="onboard-chip-grid onboard-chip-grid-multi" id="onboard-position-grid"></div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-7">
+    <div class="onboard-step" id="onboard-step-8">
       <h2>What equipment do you have?</h2>
       <p class="onboard-sub">So suggested drills actually work with what's around you.</p>
       <div class="onboard-chip-grid" id="onboard-equipment-grid">
@@ -2285,7 +2292,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-8">
+    <div class="onboard-step" id="onboard-step-9">
       <h2>Team or solo?</h2>
       <p class="onboard-sub">Are you on a team right now, or practicing on your own?</p>
       <div class="onboard-chip-grid" id="onboard-teamsolo-grid">
@@ -2295,7 +2302,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-9">
+    <div class="onboard-step" id="onboard-step-10">
       <h2>What's your biggest challenge?</h2>
       <p class="onboard-sub">Right now, what's the hardest part?</p>
       <div class="onboard-chip-grid" id="onboard-challenge-grid">
@@ -2306,7 +2313,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-10">
+    <div class="onboard-step" id="onboard-step-11">
       <h2>Any major injuries?</h2>
       <p class="onboard-sub">So we never suggest anything that could bring one back.</p>
       <div class="onboard-chip-grid" id="onboard-injury-grid">
@@ -2327,7 +2334,7 @@
       </div>
     </div>
 
-    <div class="onboard-step" id="onboard-step-11">
+    <div class="onboard-step" id="onboard-step-12">
       <h2>Anything coming up?</h2>
       <p class="onboard-sub">A tryout, a big game, a season starting — totally optional.</p>
       <input type="text" id="onboard-goal-deadline-input" class="onboard-text-input" placeholder="e.g. Tryouts in 6 weeks (optional)">
@@ -3752,9 +3759,9 @@ function selectSport(name){
 
 // ---- Onboarding (first-time welcome questions) ----
 let onboardStep = 1;
-const ONBOARD_TOTAL_STEPS = 11;
+const ONBOARD_TOTAL_STEPS = 12;
 let onboardAnswers = {
-  sport: null, goal: null, level: null, coach: null,
+  name: null, sport: null, goal: null, level: null, coach: null,
   age: null, positions: [], equipment: null, teamOrSolo: null,
   challenge: null, hasInjury: null, injuryAreas: [], upcomingGoal: null
 };
@@ -3763,9 +3770,11 @@ let onboardAnswers = {
 // include it without an extra database round-trip each time.
 let userInjuryProfile = { hasPriorInjury: false, injuryAreas: [] };
 
+let preferredName = null;
+
 async function checkOnboarding(userId){
   try{
-    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality, has_prior_injury, injury_areas').eq('user_id', userId).maybeSingle();
+    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality, has_prior_injury, injury_areas, preferred_name').eq('user_id', userId).maybeSingle();
     if(error){ console.error('Could not check onboarding:', error.message); return; }
     if(!data || !data.onboarding_completed){
       showOnboarding();
@@ -3775,6 +3784,12 @@ async function checkOnboarding(userId){
         hasPriorInjury: !!data.has_prior_injury,
         injuryAreas: data.injury_areas || []
       };
+      preferredName = data.preferred_name || null;
+      // checkOnboarding can run after the greeting's already been set
+      // once with the Google-derived name — refresh it now that we
+      // actually know the preferred one.
+      const greetingEl = document.getElementById('home-greeting-text');
+      if(greetingEl && preferredName) greetingEl.textContent = `Hey ${preferredName} 👋`;
     }
   }catch(err){
     console.error('Onboarding check failed:', err.message);
@@ -3809,10 +3824,11 @@ function getInjurySafetyInstruction(){
 function showOnboarding(){
   onboardStep = 1;
   onboardAnswers = {
-    sport: null, goal: null, level: null, coach: null,
+    name: null, sport: null, goal: null, level: null, coach: null,
     age: null, positions: [], equipment: null, teamOrSolo: null,
     challenge: null, hasInjury: null, injuryAreas: [], upcomingGoal: null
   };
+  document.getElementById('onboard-name-input').value = '';
   populateOnboardSportGrid();
   updateOnboardStep();
   document.getElementById('onboard-overlay').classList.add('show');
@@ -3927,17 +3943,18 @@ document.addEventListener('click', (e) => {
 
 function isCurrentOnboardStepValid(){
   switch(onboardStep){
-    case 1: return !!onboardAnswers.sport;
-    case 2: return !!onboardAnswers.goal;
-    case 3: return !!onboardAnswers.level;
-    case 4: return !!onboardAnswers.coach;
-    case 5: return !!onboardAnswers.age;
-    case 6: return (sportPositions[onboardAnswers.sport] || []).length === 0 || onboardAnswers.positions.length > 0;
-    case 7: return !!onboardAnswers.equipment;
-    case 8: return !!onboardAnswers.teamOrSolo;
-    case 9: return !!onboardAnswers.challenge;
-    case 10: return onboardAnswers.hasInjury === false || (onboardAnswers.hasInjury === true && onboardAnswers.injuryAreas.length > 0);
-    case 11: return true; // optional — never blocks
+    case 1: return !!(onboardAnswers.name && onboardAnswers.name.trim());
+    case 2: return !!onboardAnswers.sport;
+    case 3: return !!onboardAnswers.goal;
+    case 4: return !!onboardAnswers.level;
+    case 5: return !!onboardAnswers.coach;
+    case 6: return !!onboardAnswers.age;
+    case 7: return (sportPositions[onboardAnswers.sport] || []).length === 0 || onboardAnswers.positions.length > 0;
+    case 8: return !!onboardAnswers.equipment;
+    case 9: return !!onboardAnswers.teamOrSolo;
+    case 10: return !!onboardAnswers.challenge;
+    case 11: return onboardAnswers.hasInjury === false || (onboardAnswers.hasInjury === true && onboardAnswers.injuryAreas.length > 0);
+    case 12: return true; // optional — never blocks
     default: return false;
   }
 }
@@ -3949,14 +3966,17 @@ function updateOnboardStep(){
     d.classList.toggle('active', parseInt(d.dataset.step) <= onboardStep);
   });
 
-  if(onboardStep === 6) populateOnboardPositionGrid(); // depends on sport picked in step 1
+  if(onboardStep === 7) populateOnboardPositionGrid(); // depends on sport picked in step 2
 
   document.getElementById('onboard-next-btn').disabled = !isCurrentOnboardStepValid();
   document.getElementById('onboard-next-btn').textContent = onboardStep === ONBOARD_TOTAL_STEPS ? "Let's go!" : 'Continue';
 }
 
 function onboardNext(){
-  if(onboardStep === 11){
+  if(onboardStep === 1){
+    onboardAnswers.name = document.getElementById('onboard-name-input').value.trim();
+  }
+  if(onboardStep === 12){
     onboardAnswers.upcomingGoal = document.getElementById('onboard-goal-deadline-input').value.trim() || null;
   }
   if(onboardStep < ONBOARD_TOTAL_STEPS){
@@ -3995,6 +4015,7 @@ async function finishOnboarding(){
       experience_level: onboardAnswers.level,
       coach_personality: onboardAnswers.coach,
       age_range: onboardAnswers.age,
+      preferred_name: onboardAnswers.name,
       positions: onboardAnswers.positions,
       equipment_access: onboardAnswers.equipment,
       team_or_solo: onboardAnswers.teamOrSolo,
@@ -4014,10 +4035,14 @@ async function finishOnboarding(){
     hasPriorInjury: !!onboardAnswers.hasInjury,
     injuryAreas: onboardAnswers.hasInjury ? onboardAnswers.injuryAreas : []
   };
+  preferredName = onboardAnswers.name || null;
 
   if(onboardAnswers.sport){
     selectSport(onboardAnswers.sport);
   }
+
+  const greetingEl = document.getElementById('home-greeting-text');
+  if(greetingEl && preferredName) greetingEl.textContent = `Hey ${preferredName} 👋`;
 
   const nameEl = document.getElementById('home-greeting-sub');
   if(nameEl && onboardAnswers.goal){
@@ -4215,7 +4240,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.3.1';
+const APP_VERSION = '4.4.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4500,7 +4525,7 @@ async function submitFeedback(){
 }
 
 function setHomeGreeting(user){
-  const name = (user.user_metadata?.full_name || user.email || 'there').split(' ')[0];
+  const name = preferredName || (user.user_metadata?.full_name || user.email || 'there').split(' ')[0];
   document.getElementById('home-greeting-text').textContent = `Hey ${name} 👋`;
 }
 
