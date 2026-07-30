@@ -810,6 +810,44 @@
     border-radius:14px;
     padding:16px;
   }
+  .settings-menu{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+    margin-top:20px;
+  }
+  .settings-menu-item{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:15px 16px;
+    border-top:1px solid var(--line);
+    cursor:pointer;
+  }
+  .settings-menu-item:first-child{border-top:none;}
+  .settings-menu-item:active{background:var(--paper, #F7F9FB);}
+  .settings-menu-icon{font-size:19px; flex-shrink:0;}
+  .settings-menu-label{
+    flex:1;
+    font-size:14px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .settings-menu-chevron{
+    font-size:20px;
+    color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .settings-back-btn{
+    background:none;
+    border:none;
+    color:var(--turf);
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    padding:0;
+  }
   .settings-row{
     display:flex;
     justify-content:space-between;
@@ -2554,67 +2592,142 @@
       </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">App info</div>
-    <div class="settings-card">
-      <div class="settings-row"><span>Version</span><span class="settings-row-value" id="settings-version">Gritto</span></div>
-      <div class="settings-row"><span>Status</span><span class="settings-row-value">Beta / testing mode</span></div>
-    </div>
-
-    <div class="section-label" style="margin-top:20px;">Reminders</div>
-    <div class="settings-card">
-      <div class="settings-row" style="border-top:none; align-items:center;">
-        <span>Remind me if I haven't done my routine</span>
-        <button class="settings-toggle-btn" id="reminders-toggle-btn" onclick="toggleReminders()">Turn on</button>
+    <div class="settings-menu" id="settings-menu">
+      <div class="settings-menu-item" onclick="showSettingsSubpage('appinfo')">
+        <span class="settings-menu-icon">ℹ️</span>
+        <span class="settings-menu-label">App Info</span>
+        <span class="settings-menu-chevron">›</span>
       </div>
-      <p class="settings-reminder-note" id="reminders-note">On iPhone, this only works if Gritto is added to your home screen — regular browser tabs can't send reminders.</p>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('reminders')">
+        <span class="settings-menu-icon">🔔</span>
+        <span class="settings-menu-label">Reminders</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('achievements')">
+        <span class="settings-menu-icon">🏅</span>
+        <span class="settings-menu-label">Achievements</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('theme')">
+        <span class="settings-menu-icon">🎨</span>
+        <span class="settings-menu-label">App Theme</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('help')">
+        <span class="settings-menu-icon">❓</span>
+        <span class="settings-menu-label">How Gritto Works</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('data')">
+        <span class="settings-menu-icon">🗑️</span>
+        <span class="settings-menu-label">Manage My Data</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('feedback')">
+        <span class="settings-menu-icon">💬</span>
+        <span class="settings-menu-label">Report a Bug / Feedback</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('share')">
+        <span class="settings-menu-icon">🔗</span>
+        <span class="settings-menu-label">Share My Progress</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('legal')">
+        <span class="settings-menu-icon">📄</span>
+        <span class="settings-menu-label">Legal</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">Achievements</div>
-    <div class="settings-card">
-      <div class="badge-grid" id="badge-grid"></div>
-      <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">Badges unlock permanently as you practice, complete video checks, and build streaks.</p>
+    <div class="settings-subpage hidden" id="settings-subpage-appinfo">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">App info</div>
+      <div class="settings-card">
+        <div class="settings-row"><span>Version</span><span class="settings-row-value" id="settings-version">Gritto</span></div>
+        <div class="settings-row"><span>Status</span><span class="settings-row-value">Beta / testing mode</span></div>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">App theme</div>
-    <div class="settings-card">
-      <img id="theme-preview-img" class="theme-preview-img" src="" alt="Current theme">
-      <div class="theme-grid" id="theme-grid"></div>
-      <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">Themes unlock permanently once you hit a best-ever streak — they never lock again, even if the streak later breaks.</p>
+    <div class="settings-subpage hidden" id="settings-subpage-reminders">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Reminders</div>
+      <div class="settings-card">
+        <div class="settings-row" style="border-top:none; align-items:center;">
+          <span>Remind me if I haven't done my routine</span>
+          <button class="settings-toggle-btn" id="reminders-toggle-btn" onclick="toggleReminders()">Turn on</button>
+        </div>
+        <p class="settings-reminder-note" id="reminders-note">On iPhone, this only works if Gritto is added to your home screen — regular browser tabs can't send reminders.</p>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">How Gritto works</div>
-    <div class="settings-card settings-help">
-      <p><b>Drills</b> — pick a sport, then describe what you're working on or upload a short video. Gritto gives you real drills with a cue and an animated demo for each.</p>
-      <p><b>Daily Routine</b> — build a short 5–10 minute routine around one goal. Check it off each day to build a streak, and log how long you practiced.</p>
-      <p><b>Home</b> — your greeting, both streaks, recent activity, and your video history all in one place.</p>
-      <p style="color:var(--ink-soft); font-size:12px; margin-top:10px;">Prototype — advice is general coaching info, not a substitute for an in-person coach.</p>
-      <button class="settings-action-btn" style="margin-top:10px;" onclick="switchPage('home'); startTutorial();">Replay the tutorial</button>
+    <div class="settings-subpage hidden" id="settings-subpage-achievements">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Achievements</div>
+      <div class="settings-card">
+        <div class="badge-grid" id="badge-grid"></div>
+        <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">Badges unlock permanently as you practice, complete video checks, and build streaks.</p>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">Manage my data</div>
-    <div class="settings-card">
-      <button class="settings-action-btn" onclick="clearVideoHistoryData()">Clear my video history</button>
-      <button class="settings-action-btn" onclick="clearActivityLogData()">Clear my activity log</button>
-      <button class="settings-action-btn" onclick="clearScoreHistoryData()">Clear my score averages</button>
+    <div class="settings-subpage hidden" id="settings-subpage-theme">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">App theme</div>
+      <div class="settings-card">
+        <img id="theme-preview-img" class="theme-preview-img" src="" alt="Current theme">
+        <div class="theme-grid" id="theme-grid"></div>
+        <p style="font-size:11.5px; color:var(--ink-soft); margin:10px 0 0;">Themes unlock permanently once you hit a best-ever streak — they never lock again, even if the streak later breaks.</p>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">Report a bug or send feedback</div>
-    <div class="settings-card">
-      <textarea id="feedback-input" placeholder="Found something broken, or have an idea? Tell me about it here."></textarea>
-      <button class="go-btn" style="margin-top:10px;" onclick="submitFeedback()">Send</button>
-      <div class="status" id="feedback-status"></div>
+    <div class="settings-subpage hidden" id="settings-subpage-help">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">How Gritto works</div>
+      <div class="settings-card settings-help">
+        <p><b>Drills</b> — pick a sport, then describe what you're working on or upload a short video. Gritto gives you real drills with a cue and an animated demo for each.</p>
+        <p><b>Daily Routine</b> — build a short 5–10 minute routine around one goal. Check it off each day to build a streak, and log how long you practiced.</p>
+        <p><b>Home</b> — your greeting, both streaks, recent activity, and your video history all in one place.</p>
+        <p style="color:var(--ink-soft); font-size:12px; margin-top:10px;">Prototype — advice is general coaching info, not a substitute for an in-person coach.</p>
+        <button class="settings-action-btn" style="margin-top:10px;" onclick="switchPage('home'); startTutorial();">Replay the tutorial</button>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">Share my progress</div>
-    <div class="settings-card">
-      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Generate a private link a parent or coach can open to see your streaks and scores — no account needed on their end. You control it, and can turn it off anytime.</p>
-      <div id="share-link-area"></div>
+    <div class="settings-subpage hidden" id="settings-subpage-data">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Manage my data</div>
+      <div class="settings-card">
+        <button class="settings-action-btn" onclick="clearVideoHistoryData()">Clear my video history</button>
+        <button class="settings-action-btn" onclick="clearActivityLogData()">Clear my activity log</button>
+        <button class="settings-action-btn" onclick="clearScoreHistoryData()">Clear my score averages</button>
+      </div>
     </div>
 
-    <div class="section-label" style="margin-top:20px;">Legal</div>
-    <div class="settings-card">
-      <a href="privacy.html" class="settings-action-btn" style="display:block; text-decoration:none; text-align:left; margin-bottom:8px;">Privacy Policy &amp; Terms</a>
-      <button class="settings-action-btn" onclick="openCookieManage()">Manage Cookies &amp; Local Storage</button>
+    <div class="settings-subpage hidden" id="settings-subpage-feedback">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Report a bug or send feedback</div>
+      <div class="settings-card">
+        <textarea id="feedback-input" placeholder="Found something broken, or have an idea? Tell me about it here."></textarea>
+        <button class="go-btn" style="margin-top:10px;" onclick="submitFeedback()">Send</button>
+        <div class="status" id="feedback-status"></div>
+      </div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-share">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Share my progress</div>
+      <div class="settings-card">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Generate a private link a parent or coach can open to see your streaks and scores — no account needed on their end. You control it, and can turn it off anytime.</p>
+        <div id="share-link-area"></div>
+      </div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-legal">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Legal</div>
+      <div class="settings-card">
+        <a href="privacy.html" class="settings-action-btn" style="display:block; text-decoration:none; text-align:left; margin-bottom:8px;">Privacy Policy &amp; Terms</a>
+        <button class="settings-action-btn" onclick="openCookieManage()">Manage Cookies &amp; Local Storage</button>
+      </div>
     </div>
   </div>
 
@@ -4240,7 +4353,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.4.0';
+const APP_VERSION = '4.5.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4288,7 +4401,19 @@ function openCookieManage(){
   document.getElementById('cookie-manage-overlay').classList.add('show');
 }
 
+function showSettingsMenu(){
+  document.getElementById('settings-menu').classList.remove('hidden');
+  document.querySelectorAll('.settings-subpage').forEach(el => el.classList.add('hidden'));
+}
+
+function showSettingsSubpage(id){
+  document.getElementById('settings-menu').classList.add('hidden');
+  document.querySelectorAll('.settings-subpage').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`settings-subpage-${id}`).classList.remove('hidden');
+}
+
 async function renderSettingsPage(){
+  showSettingsMenu(); // always land on the menu, never a stale sub-page from last visit
   document.getElementById('settings-version').textContent = `Gritto v${APP_VERSION}`;
 
   const { data: { session } } = await sb.auth.getSession();
