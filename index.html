@@ -891,6 +891,7 @@
     padding:10px 4px;
     border-radius:12px;
     background:var(--paper, #F7F9FB);
+    cursor:pointer;
   }
   .badge-item .badge-emoji{
     font-size:26px;
@@ -906,6 +907,74 @@
     line-height:1.25;
   }
   .badge-item.unlocked .badge-name{color:var(--ink);}
+
+  .badge-detail-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(18,23,43,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:280;
+    padding:20px;
+  }
+  .badge-detail-overlay.show{display:flex;}
+  .badge-detail-card{
+    background:#fff;
+    border-radius:20px;
+    padding:30px 24px 24px;
+    width:100%;
+    max-width:320px;
+    text-align:center;
+    position:relative;
+  }
+  .badge-detail-close{
+    position:absolute;
+    top:12px; right:14px;
+    background:none;
+    border:none;
+    font-size:22px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    line-height:1;
+  }
+  .badge-detail-emoji{font-size:44px; margin-bottom:8px;}
+  .badge-detail-status{
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    padding:3px 10px;
+    border-radius:20px;
+    background:#F0F0F0;
+    color:var(--ink-soft);
+    margin-bottom:10px;
+  }
+  .badge-detail-status.unlocked{background:#EAF6EE; color:var(--turf);}
+  .badge-detail-card h3{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:20px;
+    margin:0 0 8px;
+    color:var(--ink);
+  }
+  .badge-detail-card p{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    margin:0 0 14px;
+    line-height:1.5;
+  }
+  .badge-detail-progress{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink);
+    background:var(--paper, #F7F9FB);
+    border-radius:10px;
+    padding:10px 12px;
+  }
 
   .unlock-overlay{
     position:fixed;
@@ -2294,6 +2363,17 @@
   </div>
 </div>
 
+<div class="badge-detail-overlay" id="badge-detail-overlay" onclick="if(event.target === this) closeBadgeDetail()">
+  <div class="badge-detail-card">
+    <button class="badge-detail-close" onclick="closeBadgeDetail()">&times;</button>
+    <div class="badge-detail-emoji" id="badge-detail-emoji">🏅</div>
+    <div class="badge-detail-status" id="badge-detail-status">Locked</div>
+    <h3 id="badge-detail-name">Badge name</h3>
+    <p id="badge-detail-desc"></p>
+    <div class="badge-detail-progress" id="badge-detail-progress"></div>
+  </div>
+</div>
+
 <div class="cookie-manage-overlay" id="cookie-manage-overlay">
   <div class="cookie-manage-card">
     <h3>Cookies &amp; Local Storage</h3>
@@ -3102,17 +3182,17 @@ function selectTheme(themeId){
 // Everything here is computed from stats we already track — no new
 // database columns needed. A badge, once unlocked, stays unlocked.
 const BADGES = [
-  { id: 'first_drill',   name: 'First Steps',       emoji: '🌱', check: s => s.totalDrills >= 1 },
-  { id: 'drills_10',     name: 'Getting Started',    emoji: '💪', check: s => s.totalDrills >= 10 },
-  { id: 'drills_50',     name: 'Dedicated',          emoji: '🔥', check: s => s.totalDrills >= 50 },
-  { id: 'drills_100',    name: 'Century Club',       emoji: '💯', check: s => s.totalDrills >= 100 },
-  { id: 'first_video',   name: 'Lights, Camera',     emoji: '🎬', check: s => s.videoCount >= 1 },
-  { id: 'video_5',       name: 'Film Study',         emoji: '📹', check: s => s.videoCount >= 5 },
-  { id: 'video_20',      name: 'Tape Junkie',        emoji: '🎞️', check: s => s.videoCount >= 20 },
-  { id: 'perfect_score', name: 'Elite Form',         emoji: '⭐', check: s => s.maxScore >= 90 },
-  { id: 'active_10',     name: 'Showing Up',         emoji: '📅', check: s => s.activeDays >= 10 },
-  { id: 'active_30',     name: 'All In',             emoji: '🗓️', check: s => s.activeDays >= 30 },
-  { id: 'multi_sport',   name: 'Multi-Sport',        emoji: '🏅', check: s => s.distinctSports >= 2 },
+  { id: 'first_drill',   name: 'First Steps',       emoji: '🌱', desc: 'Complete your very first drill.',            check: s => s.totalDrills >= 1,   progress: s => `${Math.min(s.totalDrills, 1)}/1 drills completed` },
+  { id: 'drills_10',     name: 'Getting Started',    emoji: '💪', desc: 'Complete 10 drills total.',                  check: s => s.totalDrills >= 10,  progress: s => `${Math.min(s.totalDrills, 10)}/10 drills completed` },
+  { id: 'drills_50',     name: 'Dedicated',          emoji: '🔥', desc: 'Complete 50 drills total.',                  check: s => s.totalDrills >= 50,  progress: s => `${Math.min(s.totalDrills, 50)}/50 drills completed` },
+  { id: 'drills_100',    name: 'Century Club',       emoji: '💯', desc: 'Complete 100 drills total.',                 check: s => s.totalDrills >= 100, progress: s => `${Math.min(s.totalDrills, 100)}/100 drills completed` },
+  { id: 'first_video',   name: 'Lights, Camera',     emoji: '🎬', desc: 'Complete your first video form check.',      check: s => s.videoCount >= 1,    progress: s => `${Math.min(s.videoCount, 1)}/1 video checks` },
+  { id: 'video_5',       name: 'Film Study',         emoji: '📹', desc: 'Complete 5 video form checks.',              check: s => s.videoCount >= 5,    progress: s => `${Math.min(s.videoCount, 5)}/5 video checks` },
+  { id: 'video_20',      name: 'Tape Junkie',        emoji: '🎞️', desc: 'Complete 20 video form checks.',             check: s => s.videoCount >= 20,   progress: s => `${Math.min(s.videoCount, 20)}/20 video checks` },
+  { id: 'perfect_score', name: 'Elite Form',         emoji: '⭐', desc: 'Score 90 or higher on any category in a video check.', check: s => s.maxScore >= 90, progress: s => `Best score so far: ${s.maxScore}/90 needed` },
+  { id: 'active_10',     name: 'Showing Up',         emoji: '📅', desc: 'Practice on 10 different days.',             check: s => s.activeDays >= 10,   progress: s => `${Math.min(s.activeDays, 10)}/10 active days` },
+  { id: 'active_30',     name: 'All In',             emoji: '🗓️', desc: 'Practice on 30 different days.',             check: s => s.activeDays >= 30,   progress: s => `${Math.min(s.activeDays, 30)}/30 active days` },
+  { id: 'multi_sport',   name: 'Multi-Sport',        emoji: '🏅', desc: 'Practice at least 2 different sports.',      check: s => s.distinctSports >= 2, progress: s => `${Math.min(s.distinctSports, 2)}/2 sports practiced` },
 ];
 
 let badgeStats = { totalDrills: 0, videoCount: 0, maxScore: 0, activeDays: 0, distinctSports: 0 };
@@ -3153,11 +3233,37 @@ function renderBadgeGrid(){
   if(!gridEl) return;
   const unlockedIds = new Set(getUnlockedBadges().map(b => b.id));
   gridEl.innerHTML = BADGES.map(b => `
-    <div class="badge-item ${unlockedIds.has(b.id) ? 'unlocked' : ''}">
+    <div class="badge-item ${unlockedIds.has(b.id) ? 'unlocked' : ''}" onclick="showBadgeDetail('${b.id}')">
       <div class="badge-emoji">${b.emoji}</div>
       <div class="badge-name">${b.name}</div>
     </div>
   `).join('');
+}
+
+function showBadgeDetail(badgeId){
+  const badge = BADGES.find(b => b.id === badgeId);
+  if(!badge) return;
+  const unlocked = getUnlockedBadges().some(b => b.id === badgeId);
+  const isAdminBypass = currentUserEmail === THEME_ADMIN_EMAIL;
+
+  document.getElementById('badge-detail-emoji').textContent = badge.emoji;
+  document.getElementById('badge-detail-name').textContent = badge.name;
+  document.getElementById('badge-detail-desc').textContent = badge.desc;
+  document.getElementById('badge-detail-status').textContent = unlocked ? 'Unlocked' : 'Locked';
+  document.getElementById('badge-detail-status').className = unlocked ? 'badge-detail-status unlocked' : 'badge-detail-status';
+
+  const progressEl = document.getElementById('badge-detail-progress');
+  if(isAdminBypass && unlocked){
+    progressEl.textContent = 'Unlocked for testing on this account.';
+  }else{
+    progressEl.textContent = badge.progress ? badge.progress(badgeStats) : '';
+  }
+
+  document.getElementById('badge-detail-overlay').classList.add('show');
+}
+
+function closeBadgeDetail(){
+  document.getElementById('badge-detail-overlay').classList.remove('show');
 }
 
 // ---- Unlock celebration ----
@@ -3514,7 +3620,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.29.0';
+const APP_VERSION = '4.0.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
