@@ -3507,7 +3507,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.26.0';
+const APP_VERSION = '3.26.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5074,7 +5074,16 @@ async function extractFrames(rawFile){
     const canvas = document.createElement('canvas');
     canvas.width = 640;
     canvas.height = 640 * (video.videoHeight / video.videoWidth || 0.75);
-    const ctx = canvas.getContext('2d');
+    // Explicitly requesting sRGB here matters for HDR video specifically
+    // (common on newer iPhones with HDR Video recording enabled) — HDR
+    // color data drawn onto a canvas without this can come out solid
+    // black instead of being properly converted to normal screen colors.
+    const ctx = canvas.getContext('2d', { colorSpace: 'srgb' });
+    // What we ASKED for isn't always what we GET — this confirms what
+    // the browser actually negotiated, which matters a lot for
+    // diagnosing HDR-related black frames specifically.
+    const actualColorSpace = ctx.getContextAttributes ? ctx.getContextAttributes().colorSpace : 'unknown';
+    console.log(`Video setup: videoWidth=${video.videoWidth} videoHeight=${video.videoHeight} canvasWidth=${canvas.width} canvasHeight=${canvas.height} requestedColorSpace=srgb actualColorSpace=${actualColorSpace}`);
     extractedFrames = [];
     const rawDataUrls = [];
     const strip = document.getElementById('frame-strip');
@@ -5086,19 +5095,29 @@ async function extractFrames(rawFile){
     // isn't enough: a mostly-black frame with a little noise or a faint
     // highlight can have "enough" contrast to slip past a contrast-only
     // check while still looking essentially black to a person.
-    function looksBlank(){
+    function looksBlank(logLabel){
       const w = canvas.width, h = canvas.height;
       const sampleSize = 40;
       const data = ctx.getImageData(0, 0, w, h).data;
       const step = Math.max(1, Math.floor((w * h) / (sampleSize * sampleSize)));
       let sum = 0, sumSq = 0, n = 0;
+      let minLum = 255, maxLum = 0;
       for(let i = 0; i < data.length; i += step * 4){
         const lum = (data[i] + data[i+1] + data[i+2]) / 3;
         sum += lum; sumSq += lum * lum; n++;
+        if(lum < minLum) minLum = lum;
+        if(lum > maxLum) maxLum = lum;
       }
       const mean = sum / n;
       const variance = (sumSq / n) - (mean * mean);
-      return variance < 30 || mean < 28; // too flat, OR too dark overall
+      const isBlank = variance < 30 || mean < 28;
+      if(logLabel){
+        // Real numbers, not just true/false — this is what actually lets
+        // us tell "genuinely all-zero/black" apart from "just dark" or
+        // "HDR values getting clipped to near-black" from a debug log.
+        console.log(`${logLabel}: mean=${mean.toFixed(1)} variance=${variance.toFixed(1)} min=${minLum.toFixed(0)} max=${maxLum.toFixed(0)} blank=${isBlank}`);
+      }
+      return isBlank;
     }
 
     async function captureAt(t){
@@ -5149,12 +5168,13 @@ async function extractFrames(rawFile){
           // we have so one stubborn frame can't eat the whole time budget.
           let attempts = 1;
           const nudges = [0.4, -0.4, 0.8];
-          while(looksBlank() && attempts <= nudges.length){
+          while(looksBlank(`Frame ${idx + 1} attempt ${attempts}`) && attempts <= nudges.length){
             console.log(`Frame ${idx + 1}: looked blank/dark, retrying (attempt ${attempts + 1})`);
             await captureAt(t + nudges[attempts - 1]);
             attempts++;
           }
-          if(looksBlank()){
+          const finalBlank = looksBlank(`Frame ${idx + 1} final`);
+          if(finalBlank){
             framesStillBadAfterRetries++;
             console.log(`Frame ${idx + 1} of ${timestamps.length}: still looks blank/dark after all retries — this frame likely isn't clearly visible`);
           }else{
@@ -5171,7 +5191,7 @@ async function extractFrames(rawFile){
           // dark" — it's a sign the video isn't decoding at all (the
           // Photos-picker handoff issue). No point grinding through the
           // remaining ~12 frames the same way; stop and say so clearly.
-          if(idx < 3 && looksBlank()){
+          if(idx < 3 && finalBlank){
             consecutiveBlankFromStart++;
           }else if(idx < 3){
             consecutiveBlankFromStart = 0; // a real frame came through, this isn't the failure pattern
@@ -5199,7 +5219,7 @@ async function extractFrames(rawFile){
         // opposed to Files) hands off before its data is fully synced
         // locally, especially for videos still in iCloud. Files-picker
         // uploads use a real local file and don't have this problem.
-        statusEl.innerHTML = "This iPhone didn't provide this video's picture data correctly — this can happen with clips still in iCloud.<br><br><b>Try this:</b> open the video in Photos → tap Share → Save to Files → come back and choose it from Files instead.";
+        statusEl.innerHTML = "This video's picture data isn't coming through correctly on this phone. Two things that commonly cause this:<br><br><b>1. HDR Video</b> — if it's turned on (Settings → Camera → Record Video), try turning it off and re-filming the clip.<br><br><b>2. A clip still in iCloud</b> — open the video in Photos → tap Share → Save to Files → choose it from Files instead.";
       }else if(framesStillBadAfterRetries >= timestamps.length * 0.5){
         // Most frames never became clearly visible even after every
         // retry — likely means the actual video is too dark/low-
