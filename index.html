@@ -2534,7 +2534,7 @@ async function recordDrillCompletion(sport, source, summary, score){
     newLongest = Math.max(newLongest, newStreak);
   }
 
-  await sb.from('user_progress').upsert({
+  const { error: progressError } = await sb.from('user_progress').upsert({
     user_id: userId,
     current_streak: newStreak,
     longest_streak: newLongest,
@@ -2542,14 +2542,16 @@ async function recordDrillCompletion(sport, source, summary, score){
     last_active_date: today,
     updated_at: new Date().toISOString()
   });
+  if(progressError) console.error('Could not save progress/streak:', progressError.message, JSON.stringify(progressError));
 
-  await sb.from('drill_history').insert({
+  const { error: historyError } = await sb.from('drill_history').insert({
     user_id: userId,
     sport,
     source,
     summary: summary || null,
     score: typeof score === 'number' ? score : null
   });
+  if(historyError) console.error('Could not save drill history:', historyError.message, JSON.stringify(historyError));
 
   await loadProgress(userId);
 }
@@ -2562,7 +2564,7 @@ async function saveVideoHistory(sport, role, parsed){
 
   const midFrame = extractedFrames[Math.floor(extractedFrames.length / 2)];
   try{
-    await sb.from('video_analysis_history').insert({
+    const { error } = await sb.from('video_analysis_history').insert({
       user_id: session.user.id,
       sport,
       role,
@@ -2574,8 +2576,9 @@ async function saveVideoHistory(sport, role, parsed){
       score: typeof parsed.score === 'number' ? parsed.score : null,
       categories: parsed.categories || null
     });
+    if(error) console.error('Could not save video history:', error.message, JSON.stringify(error));
   }catch(err){
-    console.error('Could not save video history:', err.message);
+    console.error('Could not save video history (thrown):', err.message);
   }
 }
 </script>
@@ -3375,12 +3378,13 @@ async function skipOnboarding(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
   try{
-    await sb.from('user_profile').upsert({
+    const { error } = await sb.from('user_profile').upsert({
       user_id: session.user.id,
       onboarding_completed: true
     });
+    if(error) console.error('Could not save onboarding skip:', error.message, JSON.stringify(error));
   }catch(err){
-    console.error('Could not save onboarding skip:', err.message);
+    console.error('Could not save onboarding skip (thrown):', err.message);
   }
 }
 
@@ -3390,7 +3394,7 @@ async function finishOnboarding(){
   if(!session) return;
 
   try{
-    await sb.from('user_profile').upsert({
+    const { error } = await sb.from('user_profile').upsert({
       user_id: session.user.id,
       favorite_sport: onboardAnswers.sport,
       main_goal: onboardAnswers.goal,
@@ -3398,8 +3402,9 @@ async function finishOnboarding(){
       coach_personality: onboardAnswers.coach,
       onboarding_completed: true
     });
+    if(error) console.error('Could not save onboarding answers:', error.message, JSON.stringify(error));
   }catch(err){
-    console.error('Could not save onboarding answers:', err.message);
+    console.error('Could not save onboarding answers (thrown):', err.message);
   }
 
   coachPersonality = onboardAnswers.coach;
@@ -3509,7 +3514,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.28.0';
+const APP_VERSION = '3.29.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3626,14 +3631,19 @@ async function generateShareLink(){
   const token = crypto.randomUUID();
 
   try{
-    await sb.from('user_profile').upsert({
+    const { error } = await sb.from('user_profile').upsert({
       user_id: session.user.id,
       share_token: token,
       share_name: firstName
     });
+    if(error){
+      console.error('Could not generate share link:', error.message, JSON.stringify(error));
+      alert('Something went wrong — try again in a moment.');
+      return;
+    }
     await renderShareLinkArea(session.user);
   }catch(err){
-    console.error('Could not generate share link:', err.message);
+    console.error('Could not generate share link (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
   }
 }
@@ -3653,10 +3663,15 @@ async function turnOffSharing(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
   try{
-    await sb.from('user_profile').update({ share_token: null }).eq('user_id', session.user.id);
+    const { error } = await sb.from('user_profile').update({ share_token: null }).eq('user_id', session.user.id);
+    if(error){
+      console.error('Could not turn off sharing:', error.message, JSON.stringify(error));
+      alert('Something went wrong — try again in a moment.');
+      return;
+    }
     await renderShareLinkArea(session.user);
   }catch(err){
-    console.error('Could not turn off sharing:', err.message);
+    console.error('Could not turn off sharing (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
   }
 }
@@ -3666,11 +3681,16 @@ async function clearVideoHistoryData(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
   try{
-    await sb.from('video_analysis_history').delete().eq('user_id', session.user.id);
+    const { error } = await sb.from('video_analysis_history').delete().eq('user_id', session.user.id);
+    if(error){
+      console.error('Could not clear video history:', error.message, JSON.stringify(error));
+      alert('Something went wrong — try again in a moment.');
+      return;
+    }
     videoHistoryCache = [];
     alert('Video history cleared.');
   }catch(err){
-    console.error('Could not clear video history:', err.message);
+    console.error('Could not clear video history (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
   }
 }
@@ -3680,10 +3700,15 @@ async function clearActivityLogData(){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
   try{
-    await sb.from('drill_history').delete().eq('user_id', session.user.id);
+    const { error } = await sb.from('drill_history').delete().eq('user_id', session.user.id);
+    if(error){
+      console.error('Could not clear activity log:', error.message, JSON.stringify(error));
+      alert('Something went wrong — try again in a moment.');
+      return;
+    }
     alert('Activity log cleared.');
   }catch(err){
-    console.error('Could not clear activity log:', err.message);
+    console.error('Could not clear activity log (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
   }
 }
@@ -3695,13 +3720,18 @@ async function clearScoreHistoryData(){
   try{
     // Nulls out just the score/category fields rather than deleting the
     // whole video record — the thumbnail, summary, and drills stay intact.
-    await sb.from('video_analysis_history').update({ score: null, categories: null }).eq('user_id', session.user.id);
-    await sb.from('drill_history').update({ score: null }).eq('user_id', session.user.id).eq('source', 'video');
+    const { error: err1 } = await sb.from('video_analysis_history').update({ score: null, categories: null }).eq('user_id', session.user.id);
+    const { error: err2 } = await sb.from('drill_history').update({ score: null }).eq('user_id', session.user.id).eq('source', 'video');
+    if(err1 || err2){
+      console.error('Could not clear score history:', (err1 || err2).message, JSON.stringify(err1 || err2));
+      alert('Something went wrong — try again in a moment.');
+      return;
+    }
     alert('Score averages cleared.');
     loadSportAverages();
     loadVideoHistory();
   }catch(err){
-    console.error('Could not clear score history:', err.message);
+    console.error('Could not clear score history (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
   }
 }
@@ -3723,14 +3753,19 @@ async function submitFeedback(){
 
   statusEl.textContent = 'Sending…';
   try{
-    await sb.from('feedback_reports').insert({
+    const { error } = await sb.from('feedback_reports').insert({
       user_id: session.user.id,
       message
     });
+    if(error){
+      console.error('Could not send feedback:', error.message, JSON.stringify(error));
+      statusEl.textContent = 'Something went wrong — try again in a moment.';
+      return;
+    }
     input.value = '';
     statusEl.textContent = 'Sent — thank you!';
   }catch(err){
-    console.error('Could not send feedback:', err.message);
+    console.error('Could not send feedback (thrown):', err.message);
     statusEl.textContent = 'Something went wrong — try again in a moment.';
   }
 }
@@ -4318,9 +4353,16 @@ async function deleteCurrentRoutine(){
   const { data: { session } } = await sb.auth.getSession();
   if(session && currentRoutine.id){
     try{
-      await sb.from('user_routine').delete().eq('id', currentRoutine.id);
+      const { error } = await sb.from('user_routine').delete().eq('id', currentRoutine.id);
+      if(error){
+        console.error('Could not delete routine:', error.message, JSON.stringify(error));
+        alert("Something went wrong — this routine wasn't actually deleted. Try again in a moment.");
+        return; // don't remove it locally if the server delete didn't actually happen
+      }
     }catch(err){
-      console.error('Could not delete routine:', err.message);
+      console.error('Could not delete routine (thrown):', err.message);
+      alert("Something went wrong — this routine wasn't actually deleted. Try again in a moment.");
+      return;
     }
   }
 
@@ -4448,7 +4490,7 @@ async function saveRoutine(){
   if(!currentRoutine || !currentRoutine.id) return;
 
   try{
-    await sb.from('user_routine').update({
+    const { error } = await sb.from('user_routine').update({
       last_completed_date: currentRoutine.last_completed_date,
       current_streak: currentRoutine.current_streak || 0,
       longest_streak: currentRoutine.longest_streak || 0,
@@ -4456,10 +4498,17 @@ async function saveRoutine(){
       updated_at: new Date().toISOString()
     }).eq('id', currentRoutine.id);
 
+    if(error){
+      console.error('Could not save routine:', error.message, JSON.stringify(error));
+      if(statusEl) statusEl.textContent = "Something went wrong saving that — try again in a moment.";
+      return;
+    }
+
     const idx = userRoutines.findIndex(r => r.id === currentRoutine.id);
     if(idx > -1) userRoutines[idx] = { ...userRoutines[idx], ...currentRoutine };
   }catch(err){
-    console.error('Could not save routine:', err.message);
+    console.error('Could not save routine (thrown):', err.message);
+    if(statusEl) statusEl.textContent = "Something went wrong saving that — try again in a moment.";
   }
 }
 
@@ -4670,9 +4719,10 @@ async function updateTodaysPracticeTime(newMinutes){
 
   if(todayRoutineHistoryId){
     try{
-      await sb.from('drill_history').update({ minutes: newMinutes }).eq('id', todayRoutineHistoryId);
+      const { error } = await sb.from('drill_history').update({ minutes: newMinutes }).eq('id', todayRoutineHistoryId);
+      if(error) console.error('Could not update logged time:', error.message, JSON.stringify(error));
     }catch(err){
-      console.error('Could not update logged time:', err.message);
+      console.error('Could not update logged time (thrown):', err.message);
     }
   }
 }
