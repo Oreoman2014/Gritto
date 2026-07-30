@@ -1221,6 +1221,27 @@
     display:none; /* replaced by the big frame-viewer scrubber below */
   }
 
+  .trim-section{
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:16px;
+  }
+  .trim-time-labels{
+    display:flex;
+    justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:2px;
+  }
+  .trim-section input[type="range"]{
+    width:100%;
+    accent-color:var(--turf);
+    margin:4px 0;
+  }
+
   .frame-viewer{
     background:var(--charcoal);
     border-radius:14px;
@@ -1578,6 +1599,36 @@
     font-weight:600;
     font-size:14px;
     flex-shrink:0;
+  }
+
+  .bodypart-row{margin-top:10px;}
+  .bodypart-row-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:4px;
+  }
+  .bodypart-name{
+    font-weight:700;
+    font-size:13px;
+    color:var(--ink);
+    text-transform:capitalize;
+  }
+  .bodypart-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+  }
+  .bodypart-bar-track{
+    height:6px;
+    background:var(--line);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .bodypart-bar-fill{
+    height:100%;
+    background:var(--energy);
+    border-radius:4px;
   }
 
   .trend-chart-card{
@@ -2194,6 +2245,9 @@
       <div id="home-trend-sport-chips" class="trend-sport-chips"></div>
       <div id="home-trend-chart"></div>
       <div id="home-trend-detail"></div>
+
+      <div class="section-label" style="margin-top:16px;">Common focus areas</div>
+      <div id="home-bodyparts-list"></div>
     </div>
 
     <div class="home-quickstart">
@@ -2263,6 +2317,17 @@
       <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
 
       <button class="go-btn hidden" id="read-video-btn" onclick="startVideoExtraction()" style="margin-top:12px;">Read my video</button>
+
+      <div class="trim-section hidden" id="trim-section">
+        <div class="section-label">Focus on a specific part? (optional)</div>
+        <div class="trim-time-labels">
+          <span id="trim-start-label">0:00</span>
+          <span id="trim-end-label">0:00</span>
+        </div>
+        <input type="range" id="trim-start-slider" min="0" max="0" step="0.1" value="0" oninput="updateTrimSelection()">
+        <input type="range" id="trim-end-slider" min="0" max="0" step="0.1" value="0" oninput="updateTrimSelection()">
+        <button class="go-btn" style="margin-top:10px;" onclick="confirmTrimAndExtract()">Read this part of the video</button>
+      </div>
 
       <div class="frame-strip" id="frame-strip"></div>
 
@@ -2707,7 +2772,8 @@ async function saveVideoHistory(sport, role, parsed){
       drills: parsed.drills || [],
       thumbnail: `data:image/jpeg;base64,${midFrame}`,
       score: typeof parsed.score === 'number' ? parsed.score : null,
-      categories: parsed.categories || null
+      categories: parsed.categories || null,
+      body_parts_flagged: parsed.bodyPartsFlagged || null
     });
     if(error) console.error('Could not save video history:', error.message, JSON.stringify(error));
   }catch(err){
@@ -3745,7 +3811,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.1.0';
+const APP_VERSION = '4.1.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4270,6 +4336,61 @@ async function loadScoreTrend(){
   }
 }
 
+// Shows which body parts show up most often in your "fix" feedback
+// across all video checks — a lightweight way to spot a recurring
+// pattern (e.g. "elbow" keeps coming up) without re-reading every past
+// check individually.
+async function loadBodyPartTrend(){
+  const { data: { session } } = await sb.auth.getSession();
+  const listEl = document.getElementById('home-bodyparts-list');
+  if(!session || !listEl) return;
+
+  try{
+    const { data, error } = await sb.from('video_analysis_history')
+      .select('body_parts_flagged')
+      .eq('user_id', session.user.id)
+      .not('body_parts_flagged', 'is', null);
+    if(error){ console.error('Could not load body part trend:', error.message); return; }
+
+    const rows = data || [];
+    if(rows.length === 0){
+      listEl.innerHTML = '<div class="home-empty">Get a few video checks scored to start seeing patterns here.</div>';
+      return;
+    }
+
+    const counts = {};
+    rows.forEach(r => {
+      (r.body_parts_flagged || []).forEach(part => {
+        counts[part] = (counts[part] || 0) + 1;
+      });
+    });
+
+    const ranked = Object.entries(counts)
+      .map(([part, count]) => ({ part, count, pct: Math.round((count / rows.length) * 100) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // top 5, no need to overwhelm with all 8
+
+    if(ranked.length === 0){
+      listEl.innerHTML = '<div class="home-empty">No recurring focus areas yet — nice and clean so far!</div>';
+      return;
+    }
+
+    listEl.innerHTML = ranked.map(r => `
+      <div class="bodypart-row">
+        <div class="bodypart-row-top">
+          <span class="bodypart-name">${r.part}</span>
+          <span class="bodypart-count">${r.count} of ${rows.length} checks (${r.pct}%)</span>
+        </div>
+        <div class="bodypart-bar-track">
+          <div class="bodypart-bar-fill" style="width:${r.pct}%;"></div>
+        </div>
+      </div>
+    `).join('');
+  }catch(err){
+    console.error('Body part trend load failed:', err.message);
+  }
+}
+
 function renderTrendSportChips(sportsInOrder){
   const chipsEl = document.getElementById('home-trend-sport-chips');
   chipsEl.innerHTML = sportsInOrder.map(sport => `
@@ -4418,6 +4539,7 @@ async function loadHomeData(){
     document.getElementById('home-score-table').innerHTML = '';
     document.getElementById('home-trend-chart').innerHTML = '';
     document.getElementById('home-trend-detail').innerHTML = '';
+    document.getElementById('home-bodyparts-list').innerHTML = '';
     document.getElementById('home-stat-days').textContent = '—';
     document.getElementById('home-stat-drills').textContent = '—';
     document.getElementById('home-stat-bigday').textContent = '—';
@@ -4427,6 +4549,7 @@ async function loadHomeData(){
   await loadVideoHistory();
   await loadScoreTrend();
   await loadSportAverages();
+  await loadBodyPartTrend();
   await loadBadgeStats();
   checkForNewUnlocks();
 
@@ -5114,6 +5237,7 @@ function handleVideoSelect(evt){
   document.getElementById('vd-title').textContent = file.name;
   document.getElementById('frame-strip').innerHTML = '';
   document.getElementById('frame-viewer').classList.add('hidden');
+  document.getElementById('trim-section').classList.add('hidden');
   frameViewerUrls = [];
   document.getElementById('video-go-btn').disabled = true;
   document.getElementById('role-section').classList.add('hidden');
@@ -5382,11 +5506,13 @@ async function extractFrames(rawFile){
   // as soon as EITHER loadeddata fires, OR a short grace period passes
   // after loadedmetadata — whichever comes first, guaranteeing this
   // always moves forward.
+  let trimStart = 0; // declared early — a fast-path check below can call
+  let trimEnd = 0;    // showTrimUI() synchronously, before later code runs
   let extractionStarted = false;
   function startOnce(){
     if(extractionStarted) return;
     extractionStarted = true;
-    beginExtraction();
+    showTrimUI();
   }
 
   video.addEventListener('loadeddata', () => {
@@ -5430,6 +5556,69 @@ async function extractFrames(rawFile){
     startOnce();
   }
 
+  // ---- Video trim: let the person focus on a specific part of a
+  // longer clip instead of always sampling the whole thing ----
+  function formatTrimTime(t){
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  function showTrimUI(){
+    const dur = video.duration;
+    trimStart = 0;
+    trimEnd = dur;
+    const startSlider = document.getElementById('trim-start-slider');
+    const endSlider = document.getElementById('trim-end-slider');
+    startSlider.max = dur;
+    endSlider.max = dur;
+    startSlider.value = 0;
+    endSlider.value = dur;
+    updateTrimSelection();
+    document.getElementById('trim-section').classList.remove('hidden');
+    statusEl.textContent = 'Pick the part of the video to focus on, or just tap through to use the whole clip.';
+    clearTimeout(safetyTimer);
+  }
+
+  function updateTrimSelection(){
+    const startSlider = document.getElementById('trim-start-slider');
+    const endSlider = document.getElementById('trim-end-slider');
+    let start = parseFloat(startSlider.value);
+    let end = parseFloat(endSlider.value);
+    // Keep a small minimum gap so the trimmed range always has enough
+    // room to sample 15 distinct-ish moments from.
+    const minGap = Math.min(1, video.duration * 0.2);
+    if(end - start < minGap){
+      if(document.activeElement === startSlider){
+        start = Math.max(0, end - minGap);
+        startSlider.value = start;
+      }else{
+        end = Math.min(video.duration, start + minGap);
+        endSlider.value = end;
+      }
+    }
+    trimStart = start;
+    trimEnd = end;
+    document.getElementById('trim-start-label').textContent = formatTrimTime(start);
+    document.getElementById('trim-end-label').textContent = formatTrimTime(end);
+  }
+
+  function confirmTrimAndExtract(){
+    document.getElementById('trim-section').classList.add('hidden');
+    statusEl.textContent = 'Reading frames from your clip…';
+    beginExtraction();
+  }
+
+  // The trim sliders/button use inline HTML event handlers
+  // (oninput="updateTrimSelection()"), which resolve function names
+  // against the global scope — NOT the closure these functions are
+  // actually defined in. Without this, dragging a slider throws
+  // "updateTrimSelection is not defined" and silently does nothing.
+  // Re-assigned on every extractFrames() call so the handlers always
+  // point at the current video's closure, not a stale one.
+  window.updateTrimSelection = updateTrimSelection;
+  window.confirmTrimAndExtract = confirmTrimAndExtract;
+
   async function beginExtraction(){
     clearTimeout(safetyTimer);
     let duration = video.duration;
@@ -5458,7 +5647,12 @@ async function extractFrames(rawFile){
     }
 
     const count = 15;
-    const timestamps = Array.from({length: count}, (_, i) => (duration * (i + 0.5)) / count);
+    // Sample from the chosen trim range instead of always the full clip
+    // — if nobody touched the sliders, trimStart/trimEnd default to the
+    // whole video, so this works the same as before when no trim is set.
+    const rangeStart = trimEnd > trimStart ? trimStart : 0;
+    const rangeSpan = trimEnd > trimStart ? (trimEnd - trimStart) : duration;
+    const timestamps = Array.from({length: count}, (_, i) => rangeStart + (rangeSpan * (i + 0.5)) / count);
     const canvas = document.createElement('canvas');
     canvas.width = 640;
     canvas.height = 640 * (video.videoHeight / video.videoWidth || 0.75);
@@ -5707,10 +5901,10 @@ async function analyzeVideo(){
 
   const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "bodyPartsFlagged": ["one or more of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — whichever body parts are actually involved in the \"fix\" items above"], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
 Include EXACTLY 3 items in "categories" — pick the 3 most relevant technical categories for judging a "${selectedRole}" in ${selectedSport} specifically (for example, a baseball hitter might be scored on things like "Stance & Load", "Swing Path", and "Follow-Through"; a basketball shooter might be scored on "Shooting Form", "Release Point", and "Balance" — these are just illustrative, pick whatever's genuinely most relevant to this exact sport and role). Each category's "score" is a whole number from 0-100 based purely on what's visible in the frames.
 Scores must span the FULL 0-100 range honestly, based only on what you actually see — do NOT default toward the middle of the range or hesitate to score low. Score below 50, even down near 0, whenever the form shows real, significant flaws or the movement is barely recognizable as the intended technique. Reserve 90+ for genuinely strong, clean mechanics. A wide, honest range across different athletes and categories is far more useful than clustering everyone's scores together — an athlete with a badly broken technique in one category should see a low number, not a softened one. If frames are too unclear to fairly judge a specific category, still give your best-effort score based on what IS visible, and mention that limitation in that category's "note".
-Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
+Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. "bodyPartsFlagged" MUST only contain values from the same 8-option list used for "focus" below — no other values, no duplicates. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
 
   const content = [
     ...sampledFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
