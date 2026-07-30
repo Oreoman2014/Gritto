@@ -3620,7 +3620,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.0.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -3802,17 +3802,45 @@ async function clearVideoHistoryData(){
 }
 
 async function clearActivityLogData(){
-  if(!confirm("Delete your whole activity log? This can't be undone, and will also affect your Drills streak and Home page stats.")) return;
+  if(!confirm("Delete your whole activity log? This can't be undone, and will also reset your Drills streak, Home page stats, and every Daily Routine's streak and time practiced.")) return;
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return;
   try{
-    const { error } = await sb.from('drill_history').delete().eq('user_id', session.user.id);
-    if(error){
-      console.error('Could not clear activity log:', error.message, JSON.stringify(error));
+    const { error: historyErr } = await sb.from('drill_history').delete().eq('user_id', session.user.id);
+    if(historyErr){
+      console.error('Could not clear activity log:', historyErr.message, JSON.stringify(historyErr));
       alert('Something went wrong — try again in a moment.');
       return;
     }
-    alert('Activity log cleared.');
+
+    // The activity log is what these numbers are actually built from —
+    // clearing it without resetting these would leave stale streak/
+    // total numbers with nothing behind them anymore.
+    const { error: progressErr } = await sb.from('user_progress').update({
+      current_streak: 0,
+      longest_streak: 0,
+      total_drills_completed: 0,
+      last_active_date: null
+    }).eq('user_id', session.user.id);
+    if(progressErr) console.error('Could not reset drills progress:', progressErr.message, JSON.stringify(progressErr));
+
+    const { error: routineErr } = await sb.from('user_routine').update({
+      current_streak: 0,
+      longest_streak: 0,
+      total_minutes_practiced: 0,
+      last_completed_date: null
+    }).eq('user_id', session.user.id);
+    if(routineErr) console.error('Could not reset routine stats:', routineErr.message, JSON.stringify(routineErr));
+
+    // Reflect the reset immediately in the UI, not just the database.
+    drillProgress = { current_streak: 0, longest_streak: 0, total_drills_completed: 0, last_active_date: null };
+    userRoutines = userRoutines.map(r => ({ ...r, current_streak: 0, longest_streak: 0, total_minutes_practiced: 0, last_completed_date: null }));
+    if(currentRoutine) currentRoutine = { ...currentRoutine, current_streak: 0, longest_streak: 0, total_minutes_practiced: 0, last_completed_date: null };
+    renderProgressStats();
+    if(typeof renderRoutine === 'function') renderRoutine();
+    if(typeof loadHomeData === 'function') loadHomeData();
+
+    alert('Activity log cleared, and your streaks and totals have been reset.');
   }catch(err){
     console.error('Could not clear activity log (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
