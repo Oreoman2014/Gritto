@@ -961,6 +961,71 @@
   }
   .badge-item.unlocked .badge-name{color:var(--ink);}
 
+  .tutorial-spotlight{
+    position:relative !important;
+    z-index:301 !important;
+    box-shadow:0 0 0 9999px rgba(15,20,35,0.78) !important;
+    border-radius:14px;
+  }
+  .tutorial-overlay{
+    display:none;
+  }
+  .tutorial-overlay.show{
+    display:block;
+  }
+  .tutorial-tooltip{
+    position:fixed;
+    z-index:302;
+    background:#fff;
+    border-radius:16px;
+    padding:16px 18px;
+    width:min(320px, calc(100vw - 40px));
+    box-shadow:0 8px 30px rgba(0,0,0,0.3);
+  }
+  .tutorial-step-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;
+    font-weight:700;
+    color:var(--turf);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-bottom:6px;
+  }
+  .tutorial-tooltip h3{
+    font-family:'Anton',sans-serif;
+    font-weight:400;
+    text-transform:uppercase;
+    font-size:18px;
+    margin:0 0 6px;
+    color:var(--ink);
+  }
+  .tutorial-tooltip p{
+    font-size:13px;
+    color:var(--ink-soft);
+    line-height:1.5;
+    margin:0 0 14px;
+  }
+  .tutorial-actions{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .tutorial-skip{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:12.5px;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+  }
+  .tutorial-actions .go-btn{
+    padding:9px 18px;
+    font-size:13px;
+    width:auto;
+  }
+
   .badge-detail-overlay{
     position:fixed;
     inset:0;
@@ -2516,6 +2581,7 @@
       <p><b>Daily Routine</b> — build a short 5–10 minute routine around one goal. Check it off each day to build a streak, and log how long you practiced.</p>
       <p><b>Home</b> — your greeting, both streaks, recent activity, and your video history all in one place.</p>
       <p style="color:var(--ink-soft); font-size:12px; margin-top:10px;">Prototype — advice is general coaching info, not a substitute for an in-person coach.</p>
+      <button class="settings-action-btn" style="margin-top:10px;" onclick="switchPage('home'); startTutorial();">Replay the tutorial</button>
     </div>
 
     <div class="section-label" style="margin-top:20px;">Manage my data</div>
@@ -2570,6 +2636,18 @@
     <h2 id="unlock-title">Nice work!</h2>
     <p id="unlock-desc"></p>
     <button class="go-btn" onclick="closeUnlockCelebration()">Sweet!</button>
+  </div>
+</div>
+
+<div class="tutorial-overlay" id="tutorial-overlay">
+  <div class="tutorial-tooltip" id="tutorial-tooltip">
+    <div class="tutorial-step-count" id="tutorial-step-count">1 of 7</div>
+    <h3 id="tutorial-title">Welcome!</h3>
+    <p id="tutorial-text"></p>
+    <div class="tutorial-actions">
+      <button class="tutorial-skip" onclick="endTutorial()">Skip tour</button>
+      <button class="go-btn" id="tutorial-next-btn" onclick="tutorialNext()">Next</button>
+    </div>
   </div>
 </div>
 
@@ -3901,6 +3979,101 @@ async function finishOnboarding(){
   if(nameEl && onboardAnswers.goal){
     nameEl.textContent = `Let's work on: ${onboardAnswers.goal.toLowerCase()}`;
   }
+
+  setTimeout(startTutorial, 400); // small pause so the onboarding overlay is fully gone first
+}
+
+// ---- Interactive tutorial ----
+// A guided spotlight tour of the app's real pages/elements, shown once
+// after finishing onboarding, and re-runnable anytime from Settings.
+const TUTORIAL_STEPS = [
+  { page: 'home', target: '.home-streak-row', title: 'Your streaks', text: 'This is Home — your two streaks (Drills and Daily Routine), recent activity, and video history all live here.' },
+  { page: 'drills', target: '#sport-grid', title: 'Pick a sport', text: 'Start any drill request by picking your sport here.' },
+  { page: 'drills', target: '.mode-tabs', title: 'Describe or upload', text: 'Then either describe what you\'re working on in words, or upload a short video for real AI form analysis with a score.' },
+  { page: 'routine', target: '#routine-build-form', title: 'Build a daily routine', text: 'Build a short 5–10 minute routine around one goal, then check it off each day to build a streak.' },
+  { page: 'settings', target: '#badge-grid', title: 'Earn badges', text: 'Achievement badges unlock as you practice — tap any badge anytime to see exactly what it takes.' },
+  { page: 'settings', target: '#theme-grid', title: 'Unlock themes', text: 'New app themes unlock permanently based on your best-ever streak — try Ocean, Sunset, Galaxy, and more.' },
+  { page: null, target: null, title: "You're all set!", text: 'That\'s everything — jump in and start with your first drill whenever you\'re ready.' },
+];
+let tutorialStepIndex = 0;
+let tutorialSpotlitEl = null;
+
+function startTutorial(){
+  tutorialStepIndex = 0;
+  document.getElementById('tutorial-overlay').classList.add('show');
+  showTutorialStep();
+}
+
+async function showTutorialStep(){
+  clearTutorialSpotlight();
+  const step = TUTORIAL_STEPS[tutorialStepIndex];
+
+  if(step.page){
+    try{
+      switchPage(step.page);
+    }catch(err){
+      console.error('Tutorial: switchPage failed, continuing anyway:', err.message);
+    }
+    await new Promise(r => setTimeout(r, 200)); // let the page actually render before measuring positions
+  }
+
+  document.getElementById('tutorial-step-count').textContent = `${tutorialStepIndex + 1} of ${TUTORIAL_STEPS.length}`;
+  document.getElementById('tutorial-title').textContent = step.title;
+  document.getElementById('tutorial-text').textContent = step.text;
+  document.getElementById('tutorial-next-btn').textContent = tutorialStepIndex === TUTORIAL_STEPS.length - 1 ? "Let's go!" : 'Next';
+
+  const tooltip = document.getElementById('tutorial-tooltip');
+
+  if(!step.target){
+    // Closing step — just center the tooltip, no spotlight.
+    tooltip.style.top = '50%';
+    tooltip.style.left = '50%';
+    tooltip.style.transform = 'translate(-50%, -50%)';
+    return;
+  }
+
+  const targetEl = document.querySelector(step.target);
+  if(!targetEl){
+    console.error('Tutorial target not found:', step.target);
+    tutorialNext(); // don't get stuck on a missing element — just move on
+    return;
+  }
+
+  targetEl.classList.add('tutorial-spotlight');
+  tutorialSpotlitEl = targetEl;
+  targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  await new Promise(r => setTimeout(r, 250)); // let the scroll finish before measuring
+
+  const rect = targetEl.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  tooltip.style.transform = 'none';
+  tooltip.style.left = Math.max(20, Math.min(rect.left, window.innerWidth - 340)) + 'px';
+  if(spaceBelow > 180){
+    tooltip.style.top = (rect.bottom + 14) + 'px';
+  }else{
+    tooltip.style.top = Math.max(20, rect.top - 14 - tooltip.offsetHeight) + 'px';
+  }
+}
+
+function clearTutorialSpotlight(){
+  if(tutorialSpotlitEl){
+    tutorialSpotlitEl.classList.remove('tutorial-spotlight');
+    tutorialSpotlitEl = null;
+  }
+}
+
+function tutorialNext(){
+  if(tutorialStepIndex < TUTORIAL_STEPS.length - 1){
+    tutorialStepIndex++;
+    showTutorialStep();
+  }else{
+    endTutorial();
+  }
+}
+
+function endTutorial(){
+  clearTutorialSpotlight();
+  document.getElementById('tutorial-overlay').classList.remove('show');
 }
 
 // ---- Home page ----
@@ -3998,7 +4171,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.2.0';
+const APP_VERSION = '4.3.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
