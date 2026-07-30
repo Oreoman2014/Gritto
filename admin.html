@@ -71,6 +71,31 @@
     background:none; border:none; color:var(--coral); font-size:11.5px;
     text-decoration:underline; cursor:pointer; margin-top:8px; padding:0;
   }
+
+  .profile-card{
+    background:#fff; border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin-bottom:10px;
+  }
+  .profile-top{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .profile-email{font-size:13px; font-weight:700;}
+  .profile-sport{
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.04em; color:#fff; background:var(--ink);
+    padding:3px 9px; border-radius:20px;
+  }
+  .profile-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px 14px;
+    font-size:12.5px;
+  }
+  .profile-field-label{color:var(--slate-soft); font-size:10.5px; text-transform:uppercase; letter-spacing:0.03em;}
+  .profile-field-value{font-weight:600;}
+  .profile-injury{
+    grid-column:1 / -1; margin-top:6px; padding:8px 10px;
+    background:#FFF4E5; border-radius:8px; font-size:12.5px;
+  }
 </style>
 </head>
 <body>
@@ -89,6 +114,7 @@
     <div class="tab-row">
       <button class="tab-btn active" id="tab-users-btn" onclick="switchTab('users')">Beta Users</button>
       <button class="tab-btn" id="tab-feedback-btn" onclick="switchTab('feedback')">Feedback</button>
+      <button class="tab-btn" id="tab-profiles-btn" onclick="switchTab('profiles')">Profiles</button>
     </div>
 
     <div id="tab-users">
@@ -104,6 +130,11 @@
     <div id="tab-feedback" class="hidden">
       <p class="sub">Bug reports and feedback sent through the app's Settings page.</p>
       <div id="feedback-list"></div>
+    </div>
+
+    <div id="tab-profiles" class="hidden">
+      <p class="sub">Onboarding info for every user — sport, goals, position, injury history, and more.</p>
+      <div id="profiles-list"></div>
     </div>
   </div>
 
@@ -195,9 +226,61 @@ document.getElementById('admin-password-input').addEventListener('keydown', (e) 
 function switchTab(tab){
   document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
   document.getElementById('tab-feedback').classList.toggle('hidden', tab !== 'feedback');
+  document.getElementById('tab-profiles').classList.toggle('hidden', tab !== 'profiles');
   document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
+  document.getElementById('tab-profiles-btn').classList.toggle('active', tab === 'profiles');
   if(tab === 'feedback') loadFeedback();
+  if(tab === 'profiles') loadProfiles();
+}
+
+async function loadProfiles(){
+  const listEl = document.getElementById('profiles-list');
+  listEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin-profiles', {
+      headers: { 'x-admin-password': adminPassword }
+    });
+    const data = await res.json();
+    if(!data.ok){
+      listEl.innerHTML = `<div class="empty">${data.error || 'Could not load profiles.'}</div>`;
+      return;
+    }
+    renderProfiles(data.profiles || []);
+  }catch(err){
+    listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+function renderProfiles(profiles){
+  const listEl = document.getElementById('profiles-list');
+  if(profiles.length === 0){
+    listEl.innerHTML = '<div class="empty">No profiles yet.</div>';
+    return;
+  }
+  listEl.innerHTML = profiles.map(p => {
+    const positions = (p.positions && p.positions.length) ? p.positions.join(', ') : '—';
+    const injuryAreas = (p.injury_areas && p.injury_areas.length) ? p.injury_areas.join(', ') : null;
+    return `
+    <div class="profile-card">
+      <div class="profile-top">
+        <span class="profile-email">${p.email}</span>
+        <span class="profile-sport">${p.favorite_sport || '—'}</span>
+      </div>
+      <div class="profile-grid">
+        <div><div class="profile-field-label">Goal</div><div class="profile-field-value">${p.main_goal || '—'}</div></div>
+        <div><div class="profile-field-label">Experience</div><div class="profile-field-value">${p.experience_level || '—'}</div></div>
+        <div><div class="profile-field-label">Coach style</div><div class="profile-field-value">${p.coach_personality || '—'}</div></div>
+        <div><div class="profile-field-label">Age range</div><div class="profile-field-value">${p.age_range || '—'}</div></div>
+        <div><div class="profile-field-label">Position(s)</div><div class="profile-field-value">${positions}</div></div>
+        <div><div class="profile-field-label">Equipment</div><div class="profile-field-value">${p.equipment_access || '—'}</div></div>
+        <div><div class="profile-field-label">Team/solo</div><div class="profile-field-value">${p.team_or_solo || '—'}</div></div>
+        <div><div class="profile-field-label">Challenge</div><div class="profile-field-value">${p.biggest_challenge || '—'}</div></div>
+        ${p.upcoming_goal ? `<div style="grid-column:1 / -1;"><div class="profile-field-label">Upcoming goal</div><div class="profile-field-value">${p.upcoming_goal}</div></div>` : ''}
+      </div>
+      ${p.has_prior_injury ? `<div class="profile-injury">⚠️ Reported injury history: ${injuryAreas || 'area not specified'}</div>` : ''}
+    </div>
+  `; }).join('');
 }
 
 async function loadFeedback(){
