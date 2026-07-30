@@ -3507,7 +3507,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.25.1';
+const APP_VERSION = '3.26.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4926,7 +4926,48 @@ function stepFrame(delta){
   showFrameViewer(frameViewerIndex + delta);
 }
 
-function extractFrames(file){
+// On some iPhones, a video picked from Photos (as opposed to Files) can
+// hand off a file reference before the actual video data is fully
+// available locally — especially for videos still stored in iCloud.
+// The video element then reports correct metadata (duration, etc) but
+// every decoded frame comes back black, since there's no real data
+// behind it yet. Forcing a full read via arrayBuffer() up front makes
+// the browser actually fetch/materialize the complete file before we
+// ever try to decode it as video — this is the single biggest known
+// fix for that exact symptom.
+const MATERIALIZE_SIZE_LIMIT = 150 * 1024 * 1024; // 150MB — a 5-15s clip is normally well under this
+
+async function materializeVideoFile(originalFile){
+  if(originalFile.size > MATERIALIZE_SIZE_LIMIT){
+    console.log(`Skipping materialization — file is ${(originalFile.size / 1024 / 1024).toFixed(1)}MB, over the ${MATERIALIZE_SIZE_LIMIT / 1024 / 1024}MB threshold. Using original file directly.`);
+    return originalFile;
+  }
+  const startTime = performance.now();
+  try{
+    const buffer = await originalFile.arrayBuffer();
+    if(!buffer.byteLength){
+      throw new Error('The selected video contains no readable data.');
+    }
+    const mimeType = originalFile.type && originalFile.type.startsWith('video/') ? originalFile.type : 'video/mp4';
+    const materialized = new File([buffer], originalFile.name || 'uploaded-video.mp4', {
+      type: mimeType,
+      lastModified: originalFile.lastModified || Date.now(),
+    });
+    console.log('Materialized video file:', JSON.stringify({
+      originalSize: originalFile.size,
+      materializedSize: materialized.size,
+      bytesRead: buffer.byteLength,
+      durationMs: Math.round(performance.now() - startTime),
+    }));
+    return materialized;
+  }catch(err){
+    console.error('Video materialization failed, falling back to original file:', err.message);
+    return originalFile; // don't block the whole flow if this step itself fails
+  }
+}
+
+async function extractFrames(rawFile){
+  const file = await materializeVideoFile(rawFile);
   const video = document.createElement('video');
   video.muted = true;
   video.playsInline = true;
@@ -5096,6 +5137,8 @@ function extractFrames(file){
     try{
       console.log(`Starting frame extraction: ${timestamps.length} timestamps, duration ${duration.toFixed(1)}s`);
       let framesStillBadAfterRetries = 0;
+      let consecutiveBlankFromStart = 0;
+      let failedFast = false;
       const extractionWork = (async () => {
         for(let idx = 0; idx < timestamps.length; idx++){
           const t = timestamps[idx];
@@ -5121,6 +5164,23 @@ function extractFrames(file){
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           extractedFrames.push(dataUrl.split(',')[1]);
           rawDataUrls.push(dataUrl);
+
+          // Fail fast: if this is one of the first 3 timestamps and every
+          // single one has come back conclusively blank even after every
+          // retry, this isn't "this particular moment happens to be
+          // dark" — it's a sign the video isn't decoding at all (the
+          // Photos-picker handoff issue). No point grinding through the
+          // remaining ~12 frames the same way; stop and say so clearly.
+          if(idx < 3 && looksBlank()){
+            consecutiveBlankFromStart++;
+          }else if(idx < 3){
+            consecutiveBlankFromStart = 0; // a real frame came through, this isn't the failure pattern
+          }
+          if(idx === 2 && consecutiveBlankFromStart === 3){
+            console.log('First 3 frames all conclusively blank after retries — stopping early instead of continuing through all frames.');
+            failedFast = true;
+            break;
+          }
         }
       })();
 
@@ -5132,7 +5192,15 @@ function extractFrames(file){
       });
       await Promise.race([extractionWork, overallTimeout]);
 
-      if(framesStillBadAfterRetries >= timestamps.length * 0.5){
+      if(failedFast){
+        // This specific pattern — metadata loads fine, duration is
+        // correct, but every frame is conclusively black — matches a
+        // known iPhone issue where a video picked from Photos (as
+        // opposed to Files) hands off before its data is fully synced
+        // locally, especially for videos still in iCloud. Files-picker
+        // uploads use a real local file and don't have this problem.
+        statusEl.innerHTML = "This iPhone didn't provide this video's picture data correctly — this can happen with clips still in iCloud.<br><br><b>Try this:</b> open the video in Photos → tap Share → Save to Files → come back and choose it from Files instead.";
+      }else if(framesStillBadAfterRetries >= timestamps.length * 0.5){
         // Most frames never became clearly visible even after every
         // retry — likely means the actual video is too dark/low-
         // contrast, not something more retrying can fix. Say so
@@ -5141,10 +5209,12 @@ function extractFrames(file){
       }else{
         statusEl.textContent = extractedFrames.length + ' frames captured — scrub through your video below, or pick your role to continue.';
       }
-      if(extractedFrames.length){
+      if(extractedFrames.length && !failedFast){
         openFrameViewer(0);
       }
-      renderRoleOptions(selectedSport);
+      if(!failedFast){
+        renderRoleOptions(selectedSport);
+      }
       // The silhouette "Your Motion" flipbook only needs enough frames
       // for a smooth-looking loop — running MediaPipe on all of them
       // would be noticeably slower for no real visual benefit.
@@ -5155,7 +5225,7 @@ function extractFrames(file){
             const idx = Math.round((i + 0.5) * rawDataUrls.length / SILHOUETTE_FRAME_COUNT);
             return rawDataUrls[Math.min(idx, rawDataUrls.length - 1)];
           });
-      processSilhouettes(silhouetteSample); // runs in the background, no need to wait
+      if(!failedFast) processSilhouettes(silhouetteSample); // runs in the background, no need to wait
     }catch(err){
       statusEl.textContent = "Couldn't read that video — try a different clip or format (MP4 works best).";
       console.error(err);
