@@ -321,6 +321,59 @@
     border-radius:20px;
   }
 
+  .followup-section{margin-top:8px;}
+  .followup-thread{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:10px;
+    max-height:260px;
+    overflow-y:auto;
+  }
+  .followup-q{
+    align-self:flex-end;
+    background:var(--charcoal);
+    color:#fff;
+    padding:9px 13px;
+    border-radius:14px 14px 3px 14px;
+    font-size:13px;
+    max-width:85%;
+  }
+  .followup-a{
+    align-self:flex-start;
+    background:var(--paper, #F7F9FB);
+    border:1px solid var(--line);
+    color:var(--ink);
+    padding:9px 13px;
+    border-radius:14px 14px 14px 3px;
+    font-size:13px;
+    max-width:85%;
+    line-height:1.5;
+  }
+  .followup-a.followup-loading{color:var(--ink-soft); font-style:italic;}
+  .followup-input-row{
+    display:flex;
+    gap:8px;
+  }
+  .followup-input-row input{
+    flex:1;
+    border:1.5px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:13.5px;
+    font-family:'Inter',sans-serif;
+  }
+  .followup-input-row button{
+    background:var(--turf);
+    color:#fff;
+    border:none;
+    font-weight:700;
+    font-size:13px;
+    padding:0 16px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+
   /* ---- Silhouette drill animation ---- */
   .drill-demo{
     display:flex;
@@ -2982,6 +3035,78 @@ function buildSilhouetteFigureSVG(sport){
   `;
 }
 
+// ---- Follow-up questions ----
+// Lets someone ask a quick clarifying question right after getting
+// drills or a video breakdown, without starting over. Keeps context
+// from what was just discussed so the AI's answer is actually relevant.
+let followUpContext = null; // { sport, summary } of whatever was just shown
+let followUpThread = [];    // [{ question, answer }]
+
+function buildFollowUpSection(containerId, sport, summary){
+  followUpContext = { sport, summary };
+  followUpThread = [];
+
+  const wrap = document.createElement('div');
+  wrap.className = 'followup-section';
+  wrap.id = `${containerId}-followup`;
+  wrap.innerHTML = `
+    <div class="section-label" style="margin-top:22px;">Have a question about this?</div>
+    <div class="followup-thread" id="${containerId}-followup-thread"></div>
+    <div class="followup-input-row">
+      <input type="text" id="${containerId}-followup-input" placeholder="Ask something…" onkeydown="if(event.key==='Enter') askFollowUp('${containerId}')">
+      <button onclick="askFollowUp('${containerId}')">Ask</button>
+    </div>
+  `;
+  return wrap;
+}
+
+async function askFollowUp(containerId){
+  const input = document.getElementById(`${containerId}-followup-input`);
+  const question = input.value.trim();
+  if(!question || !followUpContext) return;
+
+  const threadEl = document.getElementById(`${containerId}-followup-thread`);
+  const qIndex = followUpThread.length;
+  followUpThread.push({ question, answer: null });
+  input.value = '';
+  input.disabled = true;
+
+  renderFollowUpThread(threadEl, containerId);
+
+  try{
+    const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You just gave a young athlete some drills/feedback for ${followUpContext.sport}, summarized as: "${followUpContext.summary}". They now have a quick follow-up question. Answer it directly and helpfully in 2-4 sentences — no JSON, no markdown, just plain conversational text. Stay focused on their sport and what was just discussed. Keep language age-appropriate and safe (no advice that risks injury).`;
+
+    const response = await fetch(AI_HELPER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 400,
+        system: systemPrompt,
+        messages: [{ role: "user", content: question }]
+      })
+    });
+    const data = await response.json();
+    const answer = extractAIText(data).trim();
+    followUpThread[qIndex].answer = answer;
+  }catch(err){
+    console.error('Follow-up question failed:', err.message);
+    followUpThread[qIndex].answer = "Sorry, something went wrong answering that — try again.";
+  }
+
+  input.disabled = false;
+  renderFollowUpThread(threadEl, containerId);
+}
+
+function renderFollowUpThread(threadEl, containerId){
+  threadEl.innerHTML = followUpThread.map(t => `
+    <div class="followup-q">${t.question}</div>
+    ${t.answer
+      ? `<div class="followup-a">${t.answer}</div>`
+      : `<div class="followup-a followup-loading">Thinking…</div>`}
+  `).join('');
+  threadEl.scrollTop = threadEl.scrollHeight;
+}
+
 function buildDrillDemo(motion, focus, sport){
   const m = validMotions.includes(motion) ? motion : 'rotate';
   const f = validFocuses.includes(focus) ? focus : 'core';
@@ -3620,7 +3745,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.0.1';
+const APP_VERSION = '4.1.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4926,6 +5051,8 @@ Include exactly 4 drills, ordered from most foundational to more advanced. The "
       resultsEl.appendChild(card);
     });
 
+    resultsEl.appendChild(buildFollowUpSection('results', selectedSport, parsed.summary));
+
     recordDrillCompletion(selectedSport, 'text', parsed.summary);
   }catch(err){
     statusEl.textContent = '';
@@ -5655,6 +5782,8 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       `;
       resultsEl.appendChild(card);
     });
+
+    resultsEl.appendChild(buildFollowUpSection('video-results', selectedSport, parsed.summary));
 
     recordDrillCompletion(selectedSport, 'video', parsed.summary, parsed.score);
     saveVideoHistory(selectedSport, selectedRole, parsed);
