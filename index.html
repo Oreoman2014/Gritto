@@ -3507,7 +3507,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.26.1';
+const APP_VERSION = '3.27.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5083,7 +5083,7 @@ async function extractFrames(rawFile){
     // the browser actually negotiated, which matters a lot for
     // diagnosing HDR-related black frames specifically.
     const actualColorSpace = ctx.getContextAttributes ? ctx.getContextAttributes().colorSpace : 'unknown';
-    console.log(`Video setup: videoWidth=${video.videoWidth} videoHeight=${video.videoHeight} canvasWidth=${canvas.width} canvasHeight=${canvas.height} requestedColorSpace=srgb actualColorSpace=${actualColorSpace}`);
+    console.log(`Video setup: videoWidth=${video.videoWidth} videoHeight=${video.videoHeight} canvasWidth=${canvas.width} canvasHeight=${canvas.height} requestedColorSpace=srgb actualColorSpace=${actualColorSpace} requestVideoFrameCallback=${typeof video.requestVideoFrameCallback === 'function'}`);
     extractedFrames = [];
     const rawDataUrls = [];
     const strip = document.getElementById('frame-strip');
@@ -5120,6 +5120,30 @@ async function extractFrames(rawFile){
       return isBlank;
     }
 
+    // Waits for an ACTUAL decoded frame to be presented, not just for a
+    // seek operation to nominally complete. "seeked" firing doesn't
+    // guarantee the decoder has produced real pixel data yet — on some
+    // devices it can fire before decoding catches up, which is exactly
+    // what produces solid-black frames (mean=0, variance=0) even though
+    // everything else reports success. requestVideoFrameCallback is a
+    // real, purpose-built API for "tell me when a frame is genuinely
+    // ready to read," unlike "seeked."
+    const supportsFrameCallback = typeof video.requestVideoFrameCallback === 'function';
+    function waitForPresentedFrame(){
+      return new Promise((resolve) => {
+        let done = false;
+        const finishOnce = () => { if(!done){ done = true; resolve(); } };
+        if(supportsFrameCallback){
+          video.requestVideoFrameCallback(() => finishOnce());
+          setTimeout(finishOnce, 500); // don't hang if it never fires either
+        }else{
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => finishOnce());
+          });
+        }
+      });
+    }
+
     async function captureAt(t){
       return new Promise((resolve) => {
         let finished = false;
@@ -5128,11 +5152,9 @@ async function extractFrames(rawFile){
           finished = true;
           video.removeEventListener('seeked', onSeeked);
           clearTimeout(timeoutId);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-              resolve();
-            });
+          waitForPresentedFrame().then(() => {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            resolve();
           });
         };
         const onSeeked = () => finish();
@@ -5208,7 +5230,7 @@ async function extractFrames(rawFile){
       // prevent hanging forever, but this catches anything unexpected
       // so the status message never gets stuck for good.
       const overallTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Extraction took too long overall')), 60000);
+        setTimeout(() => reject(new Error('Extraction took too long overall')), 75000);
       });
       await Promise.race([extractionWork, overallTimeout]);
 
