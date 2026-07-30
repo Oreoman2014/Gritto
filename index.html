@@ -321,6 +321,43 @@
     border-radius:20px;
   }
 
+  .drill-timer{
+    margin-top:10px;
+    background:var(--paper, #F7F9FB);
+    border-radius:10px;
+    padding:8px 10px;
+  }
+  .drill-timer-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .drill-timer-row + .drill-timer-row{margin-top:6px;}
+  .drill-timer-display{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    font-weight:700;
+    color:var(--ink);
+    min-width:44px;
+  }
+  .drill-timer-reps{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+    min-width:44px;
+  }
+  .drill-timer-btns{display:flex; gap:6px;}
+  .drill-timer-btns button{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:5px 10px;
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--ink);
+    cursor:pointer;
+  }
+
   .followup-section{margin-top:8px;}
   .followup-thread{
     display:flex;
@@ -3463,6 +3500,103 @@ function renderFollowUpThread(threadEl, containerId){
   threadEl.scrollTop = threadEl.scrollHeight;
 }
 
+// ---- Drill timer / rep counter ----
+// A simple stopwatch + tap counter, reusable on both drill cards and
+// routine checklist items. Multiple can run independently at once —
+// state is tracked per widget ID, not globally.
+const drillTimers = new Map(); // id -> { elapsedMs, isRunning, startedAt, reps, intervalId }
+
+function buildTimerWidget(id){
+  const state = drillTimers.get(id);
+  const liveElapsed = state ? state.elapsedMs + (state.isRunning ? Date.now() - state.startedAt : 0) : 0;
+  const displayText = formatTimerMs(liveElapsed);
+  const btnText = state && state.isRunning ? 'Pause' : 'Start';
+  const repsText = state ? `${state.reps} rep${state.reps === 1 ? '' : 's'}` : '0 reps';
+  return `
+    <div class="drill-timer" id="timer-${id}">
+      <div class="drill-timer-row">
+        <span class="drill-timer-display" id="timer-display-${id}">${displayText}</span>
+        <div class="drill-timer-btns">
+          <button onclick="toggleDrillTimer('${id}')" id="timer-toggle-${id}">${btnText}</button>
+          <button onclick="resetDrillTimer('${id}')">Reset</button>
+        </div>
+      </div>
+      <div class="drill-timer-row">
+        <span class="drill-timer-reps" id="timer-reps-${id}">${repsText}</span>
+        <div class="drill-timer-btns">
+          <button onclick="incrementDrillReps('${id}')">+1 rep</button>
+          <button onclick="resetDrillReps('${id}')">Reset</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getTimerState(id){
+  if(!drillTimers.has(id)){
+    drillTimers.set(id, { elapsedMs: 0, isRunning: false, startedAt: null, reps: 0, intervalId: null });
+  }
+  return drillTimers.get(id);
+}
+
+function formatTimerMs(ms){
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function updateTimerDisplay(id){
+  const state = getTimerState(id);
+  const el = document.getElementById(`timer-display-${id}`);
+  if(!el) return; // widget no longer on screen (e.g. re-rendered away) — stop trying
+  const liveElapsed = state.elapsedMs + (state.isRunning ? Date.now() - state.startedAt : 0);
+  el.textContent = formatTimerMs(liveElapsed);
+}
+
+function toggleDrillTimer(id){
+  const state = getTimerState(id);
+  const btn = document.getElementById(`timer-toggle-${id}`);
+  if(state.isRunning){
+    state.elapsedMs += Date.now() - state.startedAt;
+    state.isRunning = false;
+    clearInterval(state.intervalId);
+    state.intervalId = null;
+    if(btn) btn.textContent = 'Start';
+  }else{
+    state.startedAt = Date.now();
+    state.isRunning = true;
+    state.intervalId = setInterval(() => updateTimerDisplay(id), 1000);
+    if(btn) btn.textContent = 'Pause';
+  }
+}
+
+function resetDrillTimer(id){
+  const state = getTimerState(id);
+  clearInterval(state.intervalId);
+  state.elapsedMs = 0;
+  state.isRunning = false;
+  state.startedAt = null;
+  state.intervalId = null;
+  const btn = document.getElementById(`timer-toggle-${id}`);
+  if(btn) btn.textContent = 'Start';
+  updateTimerDisplay(id);
+}
+
+function incrementDrillReps(id){
+  const state = getTimerState(id);
+  state.reps++;
+  const el = document.getElementById(`timer-reps-${id}`);
+  if(el) el.textContent = `${state.reps} rep${state.reps === 1 ? '' : 's'}`;
+}
+
+function resetDrillReps(id){
+  const state = getTimerState(id);
+  state.reps = 0;
+  const el = document.getElementById(`timer-reps-${id}`);
+  if(el) el.textContent = '0 reps';
+}
+
 function buildDrillDemo(motion, focus, sport){
   const m = validMotions.includes(motion) ? motion : 'rotate';
   const f = validFocuses.includes(focus) ? focus : 'core';
@@ -4353,7 +4487,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.5.0';
+const APP_VERSION = '4.6.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5458,6 +5592,7 @@ function renderRoutine(){
   const stepsHtml = currentRoutine.items.map((it, i) => {
     const isChecked = doneToday || routineChecks.has(i);
     const duration = it.reps ? `${it.reps} reps` : `${it.minutes} min`;
+    const timerId = `routine-${currentRoutine.id}-${i}`;
     return `
       <div class="routine-path-step">
         <div class="routine-path-connector">
@@ -5473,6 +5608,7 @@ function renderRoutine(){
             <span class="routine-item-min">${duration}</span>
           </div>
           <div class="routine-item-cue">${it.cue || ''}</div>
+          ${buildTimerWidget(timerId)}
         </div>
       </div>
     `;
@@ -5714,16 +5850,19 @@ Include exactly 4 drills, ordered from most foundational to more advanced. The "
     summaryP.textContent = parsed.summary || '';
     resultsEl.appendChild(summaryP);
 
+    const textDrillBatchId = Date.now();
     parsed.drills.forEach((d, i) => {
       const card = document.createElement('div');
       card.className = 'drill-card';
       card.style.animationDelay = (i * 0.06) + 's';
+      const timerId = `text-${textDrillBatchId}-${i}`;
       card.innerHTML = `
         <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
         <div class="drill-title">${d.title}</div>
         ${buildDrillDemo(d.motion, d.focus, selectedSport)}
         <div class="drill-desc">${d.description}</div>
         ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
+        ${buildTimerWidget(timerId)}
       `;
       resultsEl.appendChild(card);
     });
@@ -6517,16 +6656,19 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       resultsEl.insertBefore(buildYourMotionBlock(), obsCard);
     }
 
+    const videoDrillBatchId = Date.now();
     (parsed.drills || []).forEach((d, i) => {
       const card = document.createElement('div');
       card.className = 'drill-card';
       card.style.animationDelay = (i * 0.06) + 's';
+      const timerId = `video-${videoDrillBatchId}-${i}`;
       card.innerHTML = `
         <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
         <div class="drill-title">${d.title}</div>
         ${buildDrillDemo(d.motion, d.focus, selectedSport)}
         <div class="drill-desc">${d.description}</div>
         ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
+        ${buildTimerWidget(timerId)}
       `;
       resultsEl.appendChild(card);
     });
