@@ -2140,6 +2140,8 @@
       </div>
       <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
 
+      <button class="go-btn hidden" id="read-video-btn" onclick="startVideoExtraction()" style="margin-top:12px;">Read my video</button>
+
       <div class="frame-strip" id="frame-strip"></div>
 
       <div class="frame-viewer hidden" id="frame-viewer">
@@ -3507,7 +3509,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '3.27.0';
+const APP_VERSION = '3.28.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4786,6 +4788,8 @@ let silhouetteFrames = []; // data URLs of the real athlete, silhouetted
 let selfieSegmenter = null;
 let latestSegResult = null;
 
+let pendingVideoFile = null;
+
 function handleVideoSelect(evt){
   const file = evt.target.files[0];
   if(!file) return;
@@ -4801,13 +4805,31 @@ function handleVideoSelect(evt){
   document.getElementById('frame-viewer').classList.add('hidden');
   frameViewerUrls = [];
   document.getElementById('video-go-btn').disabled = true;
-  document.getElementById('video-status').textContent = 'Reading frames from your clip…';
   document.getElementById('role-section').classList.add('hidden');
   selectedRole = null;
   silhouetteFrames = [];
   if(window._yourMotionTimer) clearInterval(window._yourMotionTimer);
   document.querySelectorAll('.gritto-hidden-capture-video').forEach(el => el.remove()); // clean up any leftover from a previous attempt
-  extractFrames(file);
+
+  // Deliberately NOT starting extraction here. On some iPhones, reading
+  // real video frames requires a genuinely fresh tap to reliably start
+  // the decoder — and everything up to this point (including reading
+  // the file itself) happens asynchronously, which can cause iOS to
+  // treat the original tap's "permission" as expired by the time we'd
+  // try to use it. Requiring one more explicit tap guarantees a valid,
+  // fresh user gesture right when the decoder actually needs one.
+  pendingVideoFile = file;
+  document.getElementById('video-status').textContent = 'Video selected — tap below to read it.';
+  document.getElementById('read-video-btn').classList.remove('hidden');
+}
+
+async function startVideoExtraction(){
+  if(!pendingVideoFile) return;
+  const file = pendingVideoFile;
+  pendingVideoFile = null;
+  document.getElementById('read-video-btn').classList.add('hidden');
+  document.getElementById('video-status').textContent = 'Reading frames from your clip…';
+  await extractFrames(file);
 }
 
 function loadImageFromDataUrl(src){
@@ -4967,12 +4989,10 @@ async function materializeVideoFile(originalFile){
 }
 
 async function extractFrames(rawFile){
-  const file = await materializeVideoFile(rawFile);
   const video = document.createElement('video');
   video.muted = true;
   video.playsInline = true;
   video.preload = 'auto'; // buffer more upfront so seeking lands on the real frame, not a stale one
-  video.src = URL.createObjectURL(file);
 
   // On some mobile browsers, capturing frames from a video element that
   // isn't actually part of the page can silently produce blank/black
@@ -4990,6 +5010,52 @@ async function extractFrames(rawFile){
   video.style.left = '-9999px';
   video.style.pointerEvents = 'none';
   document.body.appendChild(video);
+
+  // Prime the decoder with a real play() call, done as early as possible
+  // — this function is called directly from a fresh button tap, and
+  // iOS only reliably allows real decoder activity within a short
+  // window after a genuine user gesture. Seeking alone (without ever
+  // actually playing) has been observed to not fully wake the hardware
+  // decoder for certain files on certain iPhones — a brief muted play()
+  // forces real decoding to happen, which is what a plain seek doesn't
+  // guarantee. This uses the raw file directly, before the slower
+  // materialization step below, to stay as close to the tap as possible.
+  video.src = URL.createObjectURL(rawFile);
+  console.log('Priming decoder with an initial play() call…');
+  try{
+    const playResult = video.play();
+    await Promise.race([
+      playResult,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('play() timed out')), 3000))
+    ]);
+    console.log('Decoder priming: play() succeeded');
+  }catch(err){
+    console.log('Decoder priming: play() did not complete —', err.message);
+  }
+  video.pause();
+
+  // Now materialize the full file (forces complete local availability —
+  // important for files still syncing from iCloud) and switch to that
+  // as the real source used for the actual frame extraction below.
+  const file = await materializeVideoFile(rawFile);
+  URL.revokeObjectURL(video.src);
+  video.src = URL.createObjectURL(file);
+
+  // Assigning a new src resets the video element's decode state, which
+  // means the priming above doesn't carry over to this final source —
+  // so prime again here, on the actual file that extraction will use.
+  console.log('Priming decoder again on the final (materialized) source…');
+  try{
+    const playResult2 = video.play();
+    await Promise.race([
+      playResult2,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('play() timed out')), 3000))
+    ]);
+    console.log('Second decoder priming: play() succeeded');
+  }catch(err){
+    console.log('Second decoder priming: play() did not complete —', err.message);
+  }
+  video.pause();
 
   const statusEl = document.getElementById('video-status');
   const safetyTimer = setTimeout(() => {
@@ -5041,6 +5107,17 @@ async function extractFrames(rawFile){
       setTimeout(startOnce, 150); // small head start for loadeddata; never blocks indefinitely
     }
   });
+
+  // The decoder-priming play() above can cause loadedmetadata/loadeddata
+  // to have ALREADY fired before we finished attaching the listeners
+  // above — events don't replay for listeners added after the fact. If
+  // the video already has real data by this point, start directly
+  // instead of waiting for events that already happened and won't fire
+  // again.
+  if(video.readyState >= 2 && isFinite(video.duration)){ // HAVE_CURRENT_DATA or better
+    console.log('Data was already available from priming — starting extraction directly.');
+    startOnce();
+  }
 
   async function beginExtraction(){
     clearTimeout(safetyTimer);
