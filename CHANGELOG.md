@@ -1,5 +1,55 @@
 # Gritto — Version Log
 
+## v4.0.0 — Milestone version bump
+- No functional changes — just marking this as a real milestone after everything built: AI drills, video form checks with scoring, daily routines, achievement badges, unlockable themes, push notifications, sharing, and a whole lot of hard-won iOS video bug fixes along the way
+
+## v3.30.0 — Tap a badge to see how you earned it
+- Every badge in Settings now has a real description explaining what it takes to unlock
+- Tap any badge (locked or unlocked) to see a detail popup: what it's called, what it takes, whether you've unlocked it, and your actual current progress toward it
+- Locked badges show real numbers ("15/50 drills completed"), unlocked ones show the goal met cleanly (never shows something odd like "15/10")
+- Verified with a real test: confirmed an unlocked badge shows correctly capped progress, a locked badge shows genuine current progress, and score-based badges show your actual best score against the target
+
+## v3.29.0 — Fixed a real, systemic bug: silent database failures across the whole app
+- Found the actual cause of the feedback 400 error: Supabase's client library doesn't throw an exception when a database write fails — it resolves normally with an `{error}` field that the code was never checking. This meant the feedback form could fail completely while still telling you "Sent — thank you!"
+- Audited the whole app for this exact pattern and found it in 14 other places — fixed all of them: sending feedback, saving drill/video progress and streaks, clearing video history/activity log/score averages, generating and turning off share links, onboarding, deleting a routine, saving routine completions, and editing logged practice time
+- The routine-delete fix matters especially: previously, even if the server delete silently failed, the app would still remove the routine from your screen — meaning it could reappear later since it was never actually deleted. Now it only removes it locally if the server confirms success.
+- All failures now log the real error message to the debug panel, so if something like this happens again, it'll actually be visible instead of invisible
+- Verified the exact bug and fix with a real test: confirmed the old code said "Sent!" on a genuinely failed insert, confirmed the new code correctly reports failure in that case while still reporting success correctly when it actually works
+
+## v3.28.0 — Two-step upload flow with real decoder priming (architectural fix)
+- Your architectural instinct was right: split "select video" from "analyze" into two genuinely separate steps
+- New flow: pick a video → tap a new "Read my video" button → extraction begins. That second tap is a fresh, guaranteed-valid user gesture, which iOS needs to reliably let a video actually start decoding
+- Real fix: the app now calls video.play() (briefly, muted) to genuinely prime the decoder, instead of relying only on seeking — seeking alone doesn't guarantee real decoding happens on every device, which is what caused frames to come back as pure black (mean=0, variance=0) even though everything else reported success
+- Primes twice: once immediately on the raw file (closest to your tap), and again on the fully-materialized file (since swapping the video source resets decoder state, so the priming needs to happen again on the actual file used for extraction)
+- Caught and fixed a real bug during testing: the priming's own play() call could cause loadedmetadata/loadeddata to fire before our listeners were even attached, silently preventing extraction from ever starting. Added a direct check that starts extraction immediately if data's already available instead of waiting for events that already happened.
+- Also found and fixed a subtler bug while debugging that one: resetting currentTime to 0 right after priming caused a real, measurable drop in readyState while the seek completed, which broke the very check meant to catch this — removed the unnecessary reset
+- Verified for real, iteratively: caught two genuine bugs through actual testing (not just theory), fixed both, and confirmed the complete two-step flow now works end-to-end with real frame data
+
+## v3.27.0 — Real fix found from precise debug data: wait for an actual presented frame
+- Your last debug log gave exact, precise numbers — every frame came back as mean=0.0, variance=0.0, min=0, max=0, across 3 different moments in the video and every retry. That's not "dark" or "HDR mis-converted" — that's the canvas drawing nothing at all.
+- Root cause: the app was only waiting for the "seeked" event before drawing to canvas — but "seeked" only means the seek operation finished, not that the decoder has actually produced a real frame yet. On this phone, the decoder wasn't keeping up, so we were drawing an empty frame every time.
+- Real fix: now uses requestVideoFrameCallback — a browser API built specifically for "tell me when a frame is genuinely ready to read" — instead of trusting "seeked" alone. Falls back to the previous approach on browsers that don't support it.
+- Added logging for whether requestVideoFrameCallback is available on a given device, so future debug logs confirm which path was used
+- Verified for real: ran the actual updated code, confirmed requestVideoFrameCallback is detected and used, confirmed all 15 frames still extract correctly on a normal video with zero regression
+- Increased the overall extraction timeout slightly (60s → 75s) to accommodate the extra wait time this adds per frame
+
+## v3.26.1 — Explicit sRGB canvas + much deeper diagnostic logging
+- Narrowed down with your latest report: Files picker works, HD/HDR video specifically doesn't — points at HDR color data getting mishandled when drawn to canvas, not the Photos/iCloud handoff issue
+- Canvas now explicitly requests sRGB color space when drawing video frames — HDR color values drawn without this can come out solid black instead of being properly converted to normal screen colors
+- Massively expanded logging: every frame now logs the actual brightness (mean), contrast (variance), and darkest/brightest pixel values found — not just "blank: yes/no" — so a future debug log will show real numbers instead of just true/false
+- New setup log line shows video dimensions, canvas dimensions, and — critically — whether the browser actually honored the sRGB request or fell back to something else
+- Updated the recovery message to mention BOTH known causes: turning off HDR Video in iPhone Camera settings, and the iCloud/Photos-Files workaround
+- Verified for real: ran the actual updated code, confirmed the sRGB request is being honored, confirmed the new detailed per-frame logging shows real numbers, confirmed no regression on normal video (all 15 frames still capture correctly)
+- Honest limitation: I don't have a real HDR test video or the specific iPhone to test the actual fix against — this logging is specifically designed to close that gap next time you send a debug log
+
+## v3.26.0 — Photos-picker black frame fix + fail-fast extraction
+- New root-cause hypothesis addressed: on some iPhones, a video picked from the Photos app (vs. the Files app) can hand off a file reference before the actual video data is fully available locally — especially for clips still in iCloud. The video reports correct duration but every frame decodes as black.
+- Fixed by forcing a full read of the file into memory before ever trying to decode it as video — this makes the browser fully materialize the file (downloading from iCloud if needed) up front, addressing the handoff timing issue directly
+- Extraction no longer grinds through all 15 frames when it's clearly not working: if the first 3 frames are all conclusively blank even after retries, it stops immediately instead of wasting time on the remaining 12
+- New, specific recovery message for this exact failure pattern: tells the person to open the video in Photos → Share → Save to Files → re-select from Files — the known working workaround
+- Verified for real: ran the actual updated code against both a normal video (confirms full materialization + all 15 frames still work, no regression) and a genuinely black video (confirms it now stops after 3 frames instead of 15, and shows the new recovery message)
+- Note on scope: reviewed a detailed troubleshooting document that was shared, which described a different tech stack (React/TypeScript) that doesn't match Gritto's actual codebase (a single vanilla-JS file) — implemented the well-reasoned core diagnostic idea from it in a way that fits our real architecture, rather than copying incompatible code directly
+
 ## v3.25.1 — All badges unlocked for your account too
 - Your account (aaryavgupta028@gmail.com) now sees every achievement badge unlocked, same as themes — good for testing/demoing
 - Everyone else still earns badges normally based on real stats
