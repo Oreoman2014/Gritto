@@ -1373,6 +1373,16 @@
   }
   .onboard-chip:hover{border-color:var(--turf);}
   .onboard-chip.active{background:var(--turf); border-color:var(--turf); color:#fff;}
+  .onboard-chip-grid-multi .onboard-chip.active{background:var(--energy); border-color:var(--energy);}
+  .onboard-text-input{
+    width:100%;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+    padding:13px 14px;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    box-sizing:border-box;
+  }
   .onboard-actions{
     display:flex;
     align-items:center;
@@ -2135,11 +2145,18 @@
       <span class="onboard-dot" data-step="2"></span>
       <span class="onboard-dot" data-step="3"></span>
       <span class="onboard-dot" data-step="4"></span>
+      <span class="onboard-dot" data-step="5"></span>
+      <span class="onboard-dot" data-step="6"></span>
+      <span class="onboard-dot" data-step="7"></span>
+      <span class="onboard-dot" data-step="8"></span>
+      <span class="onboard-dot" data-step="9"></span>
+      <span class="onboard-dot" data-step="10"></span>
+      <span class="onboard-dot" data-step="11"></span>
     </div>
 
     <div class="onboard-step active" id="onboard-step-1">
       <h2>Welcome to Gritto</h2>
-      <p class="onboard-sub">Quick questions so we can tailor things to you — takes 15 seconds.</p>
+      <p class="onboard-sub">Quick questions so we can tailor things to you — takes about a minute.</p>
       <div class="section-label" style="margin-top:18px;">What's your main sport?</div>
       <div class="sport-grid" id="onboard-sport-grid"></div>
     </div>
@@ -2174,6 +2191,81 @@
         <div class="onboard-chip" data-value="Serious">🎯 Serious — direct, no-nonsense, straight to the point</div>
         <div class="onboard-chip" data-value="Funny">😄 Funny — jokes around while still helping you improve</div>
       </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-5">
+      <h2>How old are you?</h2>
+      <p class="onboard-sub">Helps keep everything age-appropriate.</p>
+      <div class="onboard-chip-grid" id="onboard-age-grid">
+        <div class="onboard-chip" data-value="8-10">8–10</div>
+        <div class="onboard-chip" data-value="11-13">11–13</div>
+        <div class="onboard-chip" data-value="14-16">14–16</div>
+        <div class="onboard-chip" data-value="17+">17+</div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-6">
+      <h2>What position do you play?</h2>
+      <p class="onboard-sub">So drills can lean toward what actually matters for your role.</p>
+      <div class="onboard-chip-grid" id="onboard-position-grid"></div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-7">
+      <h2>What equipment do you have?</h2>
+      <p class="onboard-sub">So suggested drills actually work with what's around you.</p>
+      <div class="onboard-chip-grid" id="onboard-equipment-grid">
+        <div class="onboard-chip" data-value="No equipment">No equipment — just me</div>
+        <div class="onboard-chip" data-value="Basic gear">Basic gear (ball, cones, etc.)</div>
+        <div class="onboard-chip" data-value="Full field/court access">Full field/court access</div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-8">
+      <h2>Team or solo?</h2>
+      <p class="onboard-sub">Are you on a team right now, or practicing on your own?</p>
+      <div class="onboard-chip-grid" id="onboard-teamsolo-grid">
+        <div class="onboard-chip" data-value="On a team">On a team</div>
+        <div class="onboard-chip" data-value="Practicing solo">Practicing solo</div>
+        <div class="onboard-chip" data-value="Both">A bit of both</div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-9">
+      <h2>What's your biggest challenge?</h2>
+      <p class="onboard-sub">Right now, what's the hardest part?</p>
+      <div class="onboard-chip-grid" id="onboard-challenge-grid">
+        <div class="onboard-chip" data-value="Staying consistent">Staying consistent</div>
+        <div class="onboard-chip" data-value="A specific skill I can't crack">A specific skill I can't crack</div>
+        <div class="onboard-chip" data-value="Confidence">Confidence</div>
+        <div class="onboard-chip" data-value="Staying motivated">Staying motivated</div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-10">
+      <h2>Any major injuries?</h2>
+      <p class="onboard-sub">So we never suggest anything that could bring one back.</p>
+      <div class="onboard-chip-grid" id="onboard-injury-grid">
+        <div class="onboard-chip" data-value="No">No, I'm good</div>
+        <div class="onboard-chip" data-value="Yes">Yes, I have</div>
+      </div>
+      <div id="onboard-injury-followup" class="hidden" style="margin-top:16px;">
+        <div class="section-label">Which area(s)? (pick all that apply)</div>
+        <div class="onboard-chip-grid onboard-chip-grid-multi" id="onboard-injury-areas-grid">
+          <div class="onboard-chip" data-value="knees">Knees</div>
+          <div class="onboard-chip" data-value="hips">Hips</div>
+          <div class="onboard-chip" data-value="shoulders">Shoulders</div>
+          <div class="onboard-chip" data-value="elbow">Elbow</div>
+          <div class="onboard-chip" data-value="wrist">Wrist</div>
+          <div class="onboard-chip" data-value="feet">Feet/ankle</div>
+          <div class="onboard-chip" data-value="core">Back/core</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="onboard-step" id="onboard-step-11">
+      <h2>Anything coming up?</h2>
+      <p class="onboard-sub">A tryout, a big game, a season starting — totally optional.</p>
+      <input type="text" id="onboard-goal-deadline-input" class="onboard-text-input" placeholder="e.g. Tryouts in 6 weeks (optional)">
     </div>
 
     <div class="onboard-actions">
@@ -3140,7 +3232,7 @@ async function askFollowUp(containerId){
   renderFollowUpThread(threadEl, containerId);
 
   try{
-    const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You just gave a young athlete some drills/feedback for ${followUpContext.sport}, summarized as: "${followUpContext.summary}". They now have a quick follow-up question. Answer it directly and helpfully in 2-4 sentences — no JSON, no markdown, just plain conversational text. Stay focused on their sport and what was just discussed. Keep language age-appropriate and safe (no advice that risks injury).`;
+    const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} You just gave a young athlete some drills/feedback for ${followUpContext.sport}, summarized as: "${followUpContext.summary}". They now have a quick follow-up question. Answer it directly and helpfully in 2-4 sentences — no JSON, no markdown, just plain conversational text. Stay focused on their sport and what was just discussed. Keep language age-appropriate and safe (no advice that risks injury).`;
 
     const response = await fetch(AI_HELPER_URL, {
       method: "POST",
@@ -3582,16 +3674,29 @@ function selectSport(name){
 
 // ---- Onboarding (first-time welcome questions) ----
 let onboardStep = 1;
-let onboardAnswers = { sport: null, goal: null, level: null, coach: null };
+const ONBOARD_TOTAL_STEPS = 11;
+let onboardAnswers = {
+  sport: null, goal: null, level: null, coach: null,
+  age: null, position: null, equipment: null, teamOrSolo: null,
+  challenge: null, hasInjury: null, injuryAreas: [], upcomingGoal: null
+};
+
+// Cached once per session so every drill/video/routine request can
+// include it without an extra database round-trip each time.
+let userInjuryProfile = { hasPriorInjury: false, injuryAreas: [] };
 
 async function checkOnboarding(userId){
   try{
-    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality').eq('user_id', userId).maybeSingle();
+    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality, has_prior_injury, injury_areas').eq('user_id', userId).maybeSingle();
     if(error){ console.error('Could not check onboarding:', error.message); return; }
     if(!data || !data.onboarding_completed){
       showOnboarding();
     }else{
       coachPersonality = data.coach_personality || null;
+      userInjuryProfile = {
+        hasPriorInjury: !!data.has_prior_injury,
+        injuryAreas: data.injury_areas || []
+      };
     }
   }catch(err){
     console.error('Onboarding check failed:', err.message);
@@ -3613,9 +3718,23 @@ function getCoachToneInstruction(){
   }
 }
 
+// Turns any saved injury history into a real safety instruction for the
+// AI — included in every drill, video-feedback, and routine-building
+// prompt. Returns an empty string if no injury was reported, so
+// prompts stay identical to before for anyone who said no.
+function getInjurySafetyInstruction(){
+  if(!userInjuryProfile.hasPriorInjury || !userInjuryProfile.injuryAreas.length) return '';
+  const areas = userInjuryProfile.injuryAreas.join(', ');
+  return ` IMPORTANT SAFETY NOTE: This athlete has a history of injury involving: ${areas}. Do not recommend any drill or exercise that could reasonably aggravate or re-injure these areas. If a drill would normally involve one of these areas, either substitute a safer alternative that avoids stressing it, or clearly modify the drill to reduce load/impact on it, and briefly note the modification. Never ignore this — it takes priority over other drill suggestions.`;
+}
+
 function showOnboarding(){
   onboardStep = 1;
-  onboardAnswers = { sport: null, goal: null, level: null, coach: null };
+  onboardAnswers = {
+    sport: null, goal: null, level: null, coach: null,
+    age: null, position: null, equipment: null, teamOrSolo: null,
+    challenge: null, hasInjury: null, injuryAreas: [], upcomingGoal: null
+  };
   populateOnboardSportGrid();
   updateOnboardStep();
   document.getElementById('onboard-overlay').classList.add('show');
@@ -3632,14 +3751,34 @@ function populateOnboardSportGrid(){
       grid.querySelectorAll('.sport-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       onboardAnswers.sport = s.name;
-      document.getElementById('onboard-next-btn').disabled = false;
+      document.getElementById('onboard-next-btn').disabled = !isCurrentOnboardStepValid();
     };
     grid.appendChild(chip);
   });
 }
 
+function populateOnboardPositionGrid(){
+  const grid = document.getElementById('onboard-position-grid');
+  const roles = sportRoles[onboardAnswers.sport] || ['Player'];
+  grid.innerHTML = roles.map(r => `<div class="onboard-chip" data-value="${r}">${r}</div>`).join('');
+}
+
 document.addEventListener('click', (e) => {
-  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip, #onboard-coach-grid .onboard-chip');
+  const injuryAreaChip = e.target.closest('#onboard-injury-areas-grid .onboard-chip');
+  if(injuryAreaChip){
+    // Multi-select: toggle this one chip only, don't clear the others.
+    injuryAreaChip.classList.toggle('active');
+    const value = injuryAreaChip.dataset.value;
+    if(injuryAreaChip.classList.contains('active')){
+      if(!onboardAnswers.injuryAreas.includes(value)) onboardAnswers.injuryAreas.push(value);
+    }else{
+      onboardAnswers.injuryAreas = onboardAnswers.injuryAreas.filter(a => a !== value);
+    }
+    document.getElementById('onboard-next-btn').disabled = !isCurrentOnboardStepValid();
+    return;
+  }
+
+  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip, #onboard-coach-grid .onboard-chip, #onboard-age-grid .onboard-chip, #onboard-position-grid .onboard-chip, #onboard-equipment-grid .onboard-chip, #onboard-teamsolo-grid .onboard-chip, #onboard-challenge-grid .onboard-chip, #onboard-injury-grid .onboard-chip');
   if(!chip) return;
   const parent = chip.parentElement;
   parent.querySelectorAll('.onboard-chip').forEach(c => c.classList.remove('active'));
@@ -3647,8 +3786,39 @@ document.addEventListener('click', (e) => {
   if(parent.id === 'onboard-goal-grid') onboardAnswers.goal = chip.dataset.value;
   if(parent.id === 'onboard-level-grid') onboardAnswers.level = chip.dataset.value;
   if(parent.id === 'onboard-coach-grid') onboardAnswers.coach = chip.dataset.value;
-  document.getElementById('onboard-next-btn').disabled = false;
+  if(parent.id === 'onboard-age-grid') onboardAnswers.age = chip.dataset.value;
+  if(parent.id === 'onboard-position-grid') onboardAnswers.position = chip.dataset.value;
+  if(parent.id === 'onboard-equipment-grid') onboardAnswers.equipment = chip.dataset.value;
+  if(parent.id === 'onboard-teamsolo-grid') onboardAnswers.teamOrSolo = chip.dataset.value;
+  if(parent.id === 'onboard-challenge-grid') onboardAnswers.challenge = chip.dataset.value;
+  if(parent.id === 'onboard-injury-grid'){
+    onboardAnswers.hasInjury = chip.dataset.value === 'Yes';
+    const followup = document.getElementById('onboard-injury-followup');
+    followup.classList.toggle('hidden', !onboardAnswers.hasInjury);
+    if(!onboardAnswers.hasInjury){
+      onboardAnswers.injuryAreas = [];
+      document.querySelectorAll('#onboard-injury-areas-grid .onboard-chip').forEach(c => c.classList.remove('active'));
+    }
+  }
+  document.getElementById('onboard-next-btn').disabled = !isCurrentOnboardStepValid();
 });
+
+function isCurrentOnboardStepValid(){
+  switch(onboardStep){
+    case 1: return !!onboardAnswers.sport;
+    case 2: return !!onboardAnswers.goal;
+    case 3: return !!onboardAnswers.level;
+    case 4: return !!onboardAnswers.coach;
+    case 5: return !!onboardAnswers.age;
+    case 6: return !!onboardAnswers.position;
+    case 7: return !!onboardAnswers.equipment;
+    case 8: return !!onboardAnswers.teamOrSolo;
+    case 9: return !!onboardAnswers.challenge;
+    case 10: return onboardAnswers.hasInjury === false || (onboardAnswers.hasInjury === true && onboardAnswers.injuryAreas.length > 0);
+    case 11: return true; // optional — never blocks
+    default: return false;
+  }
+}
 
 function updateOnboardStep(){
   document.querySelectorAll('.onboard-step').forEach(el => el.classList.remove('active'));
@@ -3656,13 +3826,18 @@ function updateOnboardStep(){
   document.querySelectorAll('.onboard-dot').forEach(d => {
     d.classList.toggle('active', parseInt(d.dataset.step) <= onboardStep);
   });
-  const answerForStep = [null, onboardAnswers.sport, onboardAnswers.goal, onboardAnswers.level, onboardAnswers.coach][onboardStep];
-  document.getElementById('onboard-next-btn').disabled = !answerForStep;
-  document.getElementById('onboard-next-btn').textContent = onboardStep === 4 ? "Let's go!" : 'Continue';
+
+  if(onboardStep === 6) populateOnboardPositionGrid(); // depends on sport picked in step 1
+
+  document.getElementById('onboard-next-btn').disabled = !isCurrentOnboardStepValid();
+  document.getElementById('onboard-next-btn').textContent = onboardStep === ONBOARD_TOTAL_STEPS ? "Let's go!" : 'Continue';
 }
 
 function onboardNext(){
-  if(onboardStep < 4){
+  if(onboardStep === 11){
+    onboardAnswers.upcomingGoal = document.getElementById('onboard-goal-deadline-input').value.trim() || null;
+  }
+  if(onboardStep < ONBOARD_TOTAL_STEPS){
     onboardStep++;
     updateOnboardStep();
   }else{
@@ -3697,6 +3872,14 @@ async function finishOnboarding(){
       main_goal: onboardAnswers.goal,
       experience_level: onboardAnswers.level,
       coach_personality: onboardAnswers.coach,
+      age_range: onboardAnswers.age,
+      position: onboardAnswers.position,
+      equipment_access: onboardAnswers.equipment,
+      team_or_solo: onboardAnswers.teamOrSolo,
+      biggest_challenge: onboardAnswers.challenge,
+      has_prior_injury: onboardAnswers.hasInjury,
+      injury_areas: onboardAnswers.hasInjury ? onboardAnswers.injuryAreas : [],
+      upcoming_goal: onboardAnswers.upcomingGoal,
       onboarding_completed: true
     });
     if(error) console.error('Could not save onboarding answers:', error.message, JSON.stringify(error));
@@ -3705,6 +3888,10 @@ async function finishOnboarding(){
   }
 
   coachPersonality = onboardAnswers.coach;
+  userInjuryProfile = {
+    hasPriorInjury: !!onboardAnswers.hasInjury,
+    injuryAreas: onboardAnswers.hasInjury ? onboardAnswers.injuryAreas : []
+  };
 
   if(onboardAnswers.sport){
     selectSport(onboardAnswers.sport);
@@ -3811,7 +3998,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.1.1';
+const APP_VERSION = '4.2.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4788,7 +4975,7 @@ async function buildRoutine(){
   btn.disabled = true;
   statusEl.textContent = 'Building your routine…';
 
-  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"items": [{"name":"short activity name","minutes":2,"reps":null,"cue":"one short coaching cue for this activity"}]}
 Include 3 to 5 items, ordered from warm-up-style activities to more focused ones. For EACH item, set exactly one of "minutes" or "reps" to a realistic whole number and set the other to null — use "reps" for countable activities (like "20 dribbles" or "10 throws") and "minutes" for timed activities (like "footwork drill"). The items that use "minutes" should add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment. Apply your tone in the "name" and "cue" fields — keep the JSON structure itself unchanged.`;
 
@@ -5129,7 +5316,7 @@ async function getDrills(){
   btn.disabled = true;
   statusEl.textContent = 'Building your drills…';
 
-  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"summary": "one sentence about what you'll help with, in your tone", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete, in your tone","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
 Include exactly 4 drills, ordered from most foundational to more advanced. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate and safe (no advice that risks injury). Be specific and actionable, not generic.`;
 
@@ -5899,7 +6086,7 @@ async function analyzeVideo(){
         return extractedFrames[Math.min(idx, extractedFrames.length - 1)];
       });
 
-  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "bodyPartsFlagged": ["one or more of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — whichever body parts are actually involved in the \"fix\" items above"], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
 Include EXACTLY 3 items in "categories" — pick the 3 most relevant technical categories for judging a "${selectedRole}" in ${selectedSport} specifically (for example, a baseball hitter might be scored on things like "Stance & Load", "Swing Path", and "Follow-Through"; a basketball shooter might be scored on "Shooting Form", "Release Point", and "Balance" — these are just illustrative, pick whatever's genuinely most relevant to this exact sport and role). Each category's "score" is a whole number from 0-100 based purely on what's visible in the frames.
