@@ -2270,9 +2270,9 @@
     </div>
 
     <div class="onboard-step" id="onboard-step-6">
-      <h2>What position do you play?</h2>
-      <p class="onboard-sub">So drills can lean toward what actually matters for your role.</p>
-      <div class="onboard-chip-grid" id="onboard-position-grid"></div>
+      <h2>What position(s) do you play?</h2>
+      <p class="onboard-sub" id="onboard-position-sub">So drills can lean toward what actually matters for your role.</p>
+      <div class="onboard-chip-grid onboard-chip-grid-multi" id="onboard-position-grid"></div>
     </div>
 
     <div class="onboard-step" id="onboard-step-7">
@@ -3755,7 +3755,7 @@ let onboardStep = 1;
 const ONBOARD_TOTAL_STEPS = 11;
 let onboardAnswers = {
   sport: null, goal: null, level: null, coach: null,
-  age: null, position: null, equipment: null, teamOrSolo: null,
+  age: null, positions: [], equipment: null, teamOrSolo: null,
   challenge: null, hasInjury: null, injuryAreas: [], upcomingGoal: null
 };
 
@@ -3810,7 +3810,7 @@ function showOnboarding(){
   onboardStep = 1;
   onboardAnswers = {
     sport: null, goal: null, level: null, coach: null,
-    age: null, position: null, equipment: null, teamOrSolo: null,
+    age: null, positions: [], equipment: null, teamOrSolo: null,
     challenge: null, hasInjury: null, injuryAreas: [], upcomingGoal: null
   };
   populateOnboardSportGrid();
@@ -3835,10 +3835,41 @@ function populateOnboardSportGrid(){
   });
 }
 
+// Real field/court positions, used for onboarding specifically — these
+// are different from sportRoles above, which are single-moment action
+// roles for video analysis ("who is doing the thing in this clip").
+// "Hitter" or "Fielder" aren't real positions since everyone does that;
+// these are the actual specific spots athletes play.
+const sportPositions = {
+  Basketball: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'],
+  Baseball: ['Pitcher', 'Catcher', 'First Base', 'Second Base', 'Third Base', 'Shortstop', 'Left Field', 'Center Field', 'Right Field'],
+  Soccer: ['Goalkeeper', 'Center Back', 'Full Back', 'Defensive Midfielder', 'Attacking Midfielder', 'Winger', 'Striker'],
+  Golf: [], // individual sport — no real positions
+  Tennis: [], // individual sport — no real positions
+  Swimming: ['Freestyle', 'Backstroke', 'Breaststroke', 'Butterfly', 'Individual Medley'],
+  Running: ['Sprints', 'Middle distance', 'Long distance', 'Hurdles', 'Relay'],
+  Volleyball: ['Setter', 'Outside Hitter', 'Middle Blocker', 'Opposite/Right Side', 'Libero', 'Defensive Specialist'],
+  Football: ['Quarterback', 'Running Back', 'Wide Receiver', 'Tight End', 'Offensive Line', 'Defensive Line', 'Linebacker', 'Cornerback', 'Safety', 'Kicker/Punter'],
+  Other: [],
+};
+
 function populateOnboardPositionGrid(){
   const grid = document.getElementById('onboard-position-grid');
-  const roles = sportRoles[onboardAnswers.sport] || ['Player'];
-  grid.innerHTML = roles.map(r => `<div class="onboard-chip" data-value="${r}">${r}</div>`).join('');
+  const positions = sportPositions[onboardAnswers.sport] || [];
+  const subEl = document.getElementById('onboard-position-sub');
+
+  if(positions.length === 0){
+    // Individual sport with no real positions (Golf, Tennis, Other) —
+    // don't force a choice that doesn't exist. Auto-fill and let them
+    // move straight on.
+    subEl.textContent = `${onboardAnswers.sport} doesn't really have set positions — you're all set, just continue.`;
+    grid.innerHTML = '';
+    onboardAnswers.positions = [];
+    return;
+  }
+
+  subEl.textContent = 'Pick all that apply — it\'s fine to play more than one.';
+  grid.innerHTML = positions.map(p => `<div class="onboard-chip" data-value="${p}">${p}</div>`).join('');
 }
 
 document.addEventListener('click', (e) => {
@@ -3856,7 +3887,21 @@ document.addEventListener('click', (e) => {
     return;
   }
 
-  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip, #onboard-coach-grid .onboard-chip, #onboard-age-grid .onboard-chip, #onboard-position-grid .onboard-chip, #onboard-equipment-grid .onboard-chip, #onboard-teamsolo-grid .onboard-chip, #onboard-challenge-grid .onboard-chip, #onboard-injury-grid .onboard-chip');
+  const positionChip = e.target.closest('#onboard-position-grid .onboard-chip');
+  if(positionChip){
+    // Also multi-select — plenty of athletes play more than one position.
+    positionChip.classList.toggle('active');
+    const value = positionChip.dataset.value;
+    if(positionChip.classList.contains('active')){
+      if(!onboardAnswers.positions.includes(value)) onboardAnswers.positions.push(value);
+    }else{
+      onboardAnswers.positions = onboardAnswers.positions.filter(a => a !== value);
+    }
+    document.getElementById('onboard-next-btn').disabled = !isCurrentOnboardStepValid();
+    return;
+  }
+
+  const chip = e.target.closest('#onboard-goal-grid .onboard-chip, #onboard-level-grid .onboard-chip, #onboard-coach-grid .onboard-chip, #onboard-age-grid .onboard-chip, #onboard-equipment-grid .onboard-chip, #onboard-teamsolo-grid .onboard-chip, #onboard-challenge-grid .onboard-chip, #onboard-injury-grid .onboard-chip');
   if(!chip) return;
   const parent = chip.parentElement;
   parent.querySelectorAll('.onboard-chip').forEach(c => c.classList.remove('active'));
@@ -3865,7 +3910,6 @@ document.addEventListener('click', (e) => {
   if(parent.id === 'onboard-level-grid') onboardAnswers.level = chip.dataset.value;
   if(parent.id === 'onboard-coach-grid') onboardAnswers.coach = chip.dataset.value;
   if(parent.id === 'onboard-age-grid') onboardAnswers.age = chip.dataset.value;
-  if(parent.id === 'onboard-position-grid') onboardAnswers.position = chip.dataset.value;
   if(parent.id === 'onboard-equipment-grid') onboardAnswers.equipment = chip.dataset.value;
   if(parent.id === 'onboard-teamsolo-grid') onboardAnswers.teamOrSolo = chip.dataset.value;
   if(parent.id === 'onboard-challenge-grid') onboardAnswers.challenge = chip.dataset.value;
@@ -3888,7 +3932,7 @@ function isCurrentOnboardStepValid(){
     case 3: return !!onboardAnswers.level;
     case 4: return !!onboardAnswers.coach;
     case 5: return !!onboardAnswers.age;
-    case 6: return !!onboardAnswers.position;
+    case 6: return (sportPositions[onboardAnswers.sport] || []).length === 0 || onboardAnswers.positions.length > 0;
     case 7: return !!onboardAnswers.equipment;
     case 8: return !!onboardAnswers.teamOrSolo;
     case 9: return !!onboardAnswers.challenge;
@@ -3951,7 +3995,7 @@ async function finishOnboarding(){
       experience_level: onboardAnswers.level,
       coach_personality: onboardAnswers.coach,
       age_range: onboardAnswers.age,
-      position: onboardAnswers.position,
+      positions: onboardAnswers.positions,
       equipment_access: onboardAnswers.equipment,
       team_or_solo: onboardAnswers.teamOrSolo,
       biggest_challenge: onboardAnswers.challenge,
@@ -4171,7 +4215,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.3.0';
+const APP_VERSION = '4.3.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
