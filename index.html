@@ -24,6 +24,17 @@
     --line:#E1DDD0;
     --ink:#22262A;
     --ink-soft:#6B6F66;
+    --card-bg:#ffffff;
+    --paper:#F7F9FB;
+  }
+  body.dark-mode{
+    --chalk:#15181A;
+    --charcoal:#0D0F10;
+    --line:#2E3235;
+    --ink:#EDEEE9;
+    --ink-soft:#9AA0A3;
+    --card-bg:#1F2325;
+    --paper:#26292B;
   }
   *{box-sizing:border-box;}
   html, body{
@@ -118,7 +129,7 @@
   }
   .sport-chip{
     border:2px solid var(--line);
-    background:#fff;
+    background:var(--card-bg);
     border-radius:12px;
     padding:14px 8px 10px;
     display:flex;
@@ -142,7 +153,7 @@
   .sport-chip.active svg{color:#fff;}
 
   .input-block{
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:16px;
     padding:20px;
@@ -226,7 +237,7 @@
     align-items:center;
     justify-content:center;
     flex-shrink:0;
-    background:#fff;
+    background:var(--card-bg);
   }
   .score-badge-num{
     font-family:'IBM Plex Mono',monospace;
@@ -283,7 +294,7 @@
   }
 
   .drill-card{
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-left:5px solid var(--turf);
     border-radius:12px;
@@ -348,7 +359,7 @@
   }
   .drill-timer-btns{display:flex; gap:6px;}
   .drill-timer-btns button{
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:8px;
     padding:5px 10px;
@@ -416,7 +427,7 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    background:#FFFFFF;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     padding:14px 10px 10px;
@@ -461,7 +472,7 @@
   .demo-label b{color:var(--ink); text-transform:capitalize;}
 
   .your-motion-block{
-    background:#FFFFFF;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     padding:16px;
@@ -471,7 +482,7 @@
   .your-motion-stage{
     display:flex;
     justify-content:center;
-    background:#FFFFFF;
+    background:var(--card-bg);
     border-radius:10px;
     padding:10px;
   }
@@ -605,7 +616,7 @@
     display:flex;
     gap:8px;
     margin-bottom:28px;
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:12px;
     padding:5px;
@@ -678,7 +689,7 @@
   .routine-node{
     width:34px; height:34px;
     border-radius:50%;
-    background:#fff;
+    background:var(--card-bg);
     border:2.5px solid var(--line);
     display:flex;
     align-items:center;
@@ -711,7 +722,7 @@
 
   .routine-path-card{
     flex:1;
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:12px;
     padding:12px 14px;
@@ -770,7 +781,7 @@
   }
   .routine-chip{
     flex-shrink:0;
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:20px;
     padding:9px 16px;
@@ -800,7 +811,7 @@
   .routine-delete-btn:hover{color:var(--energy);}
 
   .settings-signin-prompt{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px dashed var(--line);
     border-radius:14px;
     padding:20px;
@@ -842,13 +853,13 @@
   }
 
   .settings-card{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     padding:16px;
   }
   .settings-menu{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     overflow:hidden;
@@ -1051,7 +1062,7 @@
   .tutorial-tooltip{
     position:fixed;
     z-index:302;
-    background:#fff;
+    background:var(--card-bg);
     border-radius:16px;
     padding:16px 18px;
     width:min(320px, calc(100vw - 40px));
@@ -1113,7 +1124,7 @@
   }
   .badge-detail-overlay.show{display:flex;}
   .badge-detail-card{
-    background:#fff;
+    background:var(--card-bg);
     border-radius:20px;
     padding:30px 24px 24px;
     width:100%;
@@ -1181,7 +1192,7 @@
   }
   .unlock-overlay.show{display:flex;}
   .unlock-card{
-    background:#fff;
+    background:var(--card-bg);
     border-radius:20px;
     padding:32px 26px 26px;
     width:100%;
@@ -1320,7 +1331,7 @@
   .video-drop{
     border:2px dashed var(--line);
     border-radius:16px;
-    background:#fff;
+    background:var(--card-bg);
     padding:28px 20px;
     text-align:center;
     margin-bottom:20px;
@@ -1343,7 +1354,7 @@
   }
   .role-chip{
     border:2px solid var(--line);
-    background:#fff;
+    background:var(--card-bg);
     border-radius:12px;
     padding:14px 10px;
     text-align:center;
@@ -1362,7 +1373,7 @@
   }
 
   .trim-section{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     padding:14px 16px;
@@ -1460,7 +1471,7 @@
   }
   .onboard-overlay.show{display:flex;}
   .onboard-card{
-    background:#fff;
+    background:var(--card-bg);
     border-radius:18px;
     padding:28px 24px;
     width:100%;
@@ -1543,7 +1554,7 @@
   .onboard-actions .go-btn{width:auto; padding:12px 22px;}
 
   .login-card{
-    background:#fff;
+    background:var(--card-bg);
     border-radius:18px;
     padding:32px 28px;
     width:100%;
@@ -1596,7 +1607,7 @@
     align-items:center;
     justify-content:center;
     gap:10px;
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:10px;
     padding:11px;
@@ -1696,7 +1707,7 @@
     display:flex;
     align-items:center;
     gap:12px;
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:12px;
     padding:12px 14px;
@@ -1714,7 +1725,7 @@
   }
   .trend-sport-chip{
     flex-shrink:0;
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:20px;
     padding:8px 16px;
@@ -1782,7 +1793,7 @@
   }
 
   .trend-chart-card{
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:12px;
     padding:14px 12px 10px;
@@ -1793,7 +1804,7 @@
   .trend-point circle{transition:r 0.1s ease;}
   .trend-point:hover circle, .trend-point.active circle{r:6;}
   .trend-detail-card{
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:12px;
     padding:12px 14px;
@@ -1814,7 +1825,7 @@
     flex-direction:column;
     align-items:center;
     gap:6px;
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     padding:16px 10px;
@@ -1833,7 +1844,7 @@
     gap:10px;
   }
   .home-stat-box{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:12px;
     padding:14px;
@@ -1851,7 +1862,7 @@
     display:flex;
     align-items:center;
     gap:12px;
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:12px;
     padding:11px 14px;
@@ -1890,7 +1901,7 @@
   }
   .ha-detail-step-cue{font-size:12px; color:var(--ink-soft); margin-top:2px;}
   .home-empty{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px dashed var(--line);
     border-radius:12px;
     padding:22px;
@@ -1952,7 +1963,7 @@
   }
   #video-history-detail{margin-top:14px;}
   .vh-detail-card{
-    background:#fff;
+    background:var(--card-bg);
     border:1.5px solid var(--line);
     border-radius:14px;
     padding:16px;
@@ -2020,7 +2031,7 @@
     position:fixed;
     left:16px; right:16px;
     bottom:16px;
-    background:#fff;
+    background:var(--card-bg);
     color:var(--ink);
     padding:18px 20px;
     display:flex;
@@ -2069,7 +2080,7 @@
   }
   .cookie-manage-overlay.show{display:flex;}
   .cookie-manage-card{
-    background:#fff;
+    background:var(--card-bg);
     border-radius:18px;
     padding:26px 24px;
     width:100%;
@@ -2127,7 +2138,7 @@
   .bottom-nav{
     flex-shrink:0;
     display:flex;
-    background:#fff;
+    background:var(--card-bg);
     border-top:1px solid var(--line);
     padding:6px 0 max(6px, env(safe-area-inset-bottom));
     /* No position:fixed or sticky needed at all anymore — only <main>
@@ -2709,7 +2720,15 @@
 
     <div class="settings-subpage hidden" id="settings-subpage-theme">
       <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
-      <div class="section-label" style="margin-top:14px;">App theme</div>
+      <div class="section-label" style="margin-top:14px;">Dark mode</div>
+      <div class="settings-card">
+        <div class="settings-row" style="border-top:none; align-items:center;">
+          <span>Use dark mode</span>
+          <button class="settings-toggle-btn" id="dark-mode-toggle-btn" onclick="toggleDarkMode()">Turn on</button>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:20px;">App theme</div>
       <div class="settings-card">
         <img id="theme-preview-img" class="theme-preview-img" src="" alt="Current theme">
         <div class="theme-grid" id="theme-grid"></div>
@@ -3769,6 +3788,27 @@ function initTheme(){
 }
 initTheme();
 
+// ---- Dark mode ----
+function initDarkMode(){
+  const saved = localStorage.getItem('gritto_dark_mode');
+  if(saved === 'true') document.body.classList.add('dark-mode');
+  updateDarkModeToggleUI();
+}
+initDarkMode();
+
+function toggleDarkMode(){
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('gritto_dark_mode', isDark ? 'true' : 'false');
+  updateDarkModeToggleUI();
+}
+
+function updateDarkModeToggleUI(){
+  const btn = document.getElementById('dark-mode-toggle-btn');
+  if(!btn) return;
+  const isDark = document.body.classList.contains('dark-mode');
+  btn.textContent = isDark ? 'Turn off' : 'Turn on';
+}
+
 function renderThemePicker(){
   const gridEl = document.getElementById('theme-grid');
   const previewEl = document.getElementById('theme-preview-img');
@@ -4495,7 +4535,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.7.3';
+const APP_VERSION = '4.8.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4552,6 +4592,7 @@ function showSettingsSubpage(id){
   document.getElementById('settings-menu').classList.add('hidden');
   document.querySelectorAll('.settings-subpage').forEach(el => el.classList.add('hidden'));
   document.getElementById(`settings-subpage-${id}`).classList.remove('hidden');
+  if(id === 'theme') updateDarkModeToggleUI();
 }
 
 async function renderSettingsPage(){
