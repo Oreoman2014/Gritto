@@ -96,6 +96,20 @@
     grid-column:1 / -1; margin-top:6px; padding:8px 10px;
     background:#FFF4E5; border-radius:8px; font-size:12.5px;
   }
+  .profile-grants-note{
+    margin-top:6px; padding:8px 10px;
+    background:#EEF2FF; border-radius:8px; font-size:12.5px;
+  }
+  .profile-grant-section{margin-top:12px;}
+  .profile-grant-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:6px 10px;
+    background:var(--paper, #F7F9FB); border-radius:8px; padding:10px;
+  }
+  .profile-grant-checkbox{
+    display:flex; align-items:center; gap:5px;
+    font-size:11.5px; cursor:pointer;
+  }
+  .profile-grant-checkbox input{margin:0;}
   .profile-onboard-badge{
     font-size:10.5px; font-weight:700; text-transform:uppercase;
     letter-spacing:0.03em; padding:3px 9px; border-radius:20px;
@@ -275,12 +289,35 @@ function renderProfiles(profiles){
   listEl.innerHTML = profiles.map(p => profileCardHTML(p, false)).join('');
 }
 
+// Kept in sync with the THEMES/BADGES lists in index.html — just id +
+// name, enough to render grant checkboxes here in the admin panel.
+const ADMIN_THEMES = [
+  { id: 'turf', name: 'Turf' }, { id: 'ocean', name: 'Ocean' }, { id: 'sunset', name: 'Sunset' },
+  { id: 'galaxy', name: 'Galaxy' }, { id: 'inferno', name: 'Inferno' }, { id: 'aurora', name: 'Aurora' },
+  { id: 'legendary', name: 'Legendary' }, { id: 'diamond', name: 'Diamond' }, { id: 'phoenix', name: 'Phoenix' },
+  { id: 'storm', name: 'Storm' }, { id: 'emerald', name: 'Emerald' }, { id: 'nebula', name: 'Nebula' },
+  { id: 'solar', name: 'Solar' }, { id: 'celestial', name: 'Celestial' }, { id: 'eternal', name: 'Eternal' },
+];
+const ADMIN_BADGES = [
+  { id: 'first_drill', name: 'First Steps' }, { id: 'drills_10', name: 'Getting Started' },
+  { id: 'drills_50', name: 'Dedicated' }, { id: 'drills_100', name: 'Century Club' },
+  { id: 'first_video', name: 'Lights, Camera' }, { id: 'video_5', name: 'Film Study' },
+  { id: 'video_20', name: 'Tape Junkie' }, { id: 'perfect_score', name: 'Elite Form' },
+  { id: 'active_10', name: 'Showing Up' }, { id: 'active_30', name: 'All In' },
+  { id: 'multi_sport', name: 'Multi-Sport' },
+];
+
 function profileCardHTML(p, editing){
   const uid = p.user_id;
   const positionsStr = (p.positions && p.positions.length) ? p.positions.join(', ') : '';
   const injuryAreasStr = (p.injury_areas && p.injury_areas.length) ? p.injury_areas.join(', ') : '';
+  const grantedThemes = p.granted_themes || [];
+  const grantedBadges = p.granted_badges || [];
 
   if(!editing){
+    const grantsNote = (grantedThemes.length || grantedBadges.length)
+      ? `<div class="profile-grants-note">🎁 Manually granted: ${grantedThemes.length} theme(s), ${grantedBadges.length} badge(s)</div>`
+      : '';
     return `
     <div class="profile-card" id="profile-${uid}">
       <div class="profile-top">
@@ -302,6 +339,7 @@ function profileCardHTML(p, editing){
         ${p.upcoming_goal ? `<div style="grid-column:1 / -1;"><div class="profile-field-label">Upcoming goal</div><div class="profile-field-value">${p.upcoming_goal}</div></div>` : ''}
       </div>
       ${p.has_prior_injury ? `<div class="profile-injury">⚠️ Reported injury history: ${injuryAreasStr || 'area not specified'}</div>` : ''}
+      ${grantsNote}
       <button class="feedback-delete" style="color:var(--ink);" onclick="editProfile('${uid}')">Edit</button>
     </div>
   `;
@@ -314,6 +352,13 @@ function profileCardHTML(p, editing){
       <div class="profile-field-label">${label}</div>
       <input type="text" class="profile-edit-input" data-field="${key}" value="${(value || '').toString().replace(/"/g, '&quot;')}">
     </div>`;
+
+  const grantCheckboxes = (items, groupName, granted) => items.map(item => `
+    <label class="profile-grant-checkbox">
+      <input type="checkbox" class="profile-grant-cb" data-group="${groupName}" value="${item.id}" ${granted.includes(item.id) ? 'checked' : ''}>
+      ${item.name}
+    </label>
+  `).join('');
 
   return `
     <div class="profile-card" id="profile-${uid}">
@@ -342,6 +387,14 @@ function profileCardHTML(p, editing){
           <option value="true" ${p.has_prior_injury ? 'selected' : ''}>Has injury history</option>
         </select>
         <input type="text" class="profile-edit-input" data-field="injury_areas" placeholder="Injury areas — comma separated" value="${injuryAreasStr}" style="margin-top:6px;">
+      </div>
+      <div class="profile-grant-section">
+        <div class="profile-field-label" style="margin-bottom:6px;">Grant themes (even if not earned)</div>
+        <div class="profile-grant-grid">${grantCheckboxes(ADMIN_THEMES, 'themes', grantedThemes)}</div>
+      </div>
+      <div class="profile-grant-section">
+        <div class="profile-field-label" style="margin-bottom:6px;">Grant badges (even if not earned)</div>
+        <div class="profile-grant-grid">${grantCheckboxes(ADMIN_BADGES, 'badges', grantedBadges)}</div>
       </div>
       <div style="margin-top:12px; display:flex; gap:10px;">
         <button class="btn" style="width:auto; padding:9px 16px;" onclick="saveProfile('${uid}')">Save</button>
@@ -378,6 +431,11 @@ async function saveProfile(userId){
       updates[key] = value.trim() || null;
     }
   });
+
+  const grantedThemes = Array.from(card.querySelectorAll('.profile-grant-cb[data-group="themes"]:checked')).map(cb => cb.value);
+  const grantedBadges = Array.from(card.querySelectorAll('.profile-grant-cb[data-group="badges"]:checked')).map(cb => cb.value);
+  updates.granted_themes = grantedThemes;
+  updates.granted_badges = grantedBadges;
 
   try{
     const res = await fetch('/api/admin-profiles', {
