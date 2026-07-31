@@ -987,6 +987,27 @@
     flex-shrink:0;
   }
 
+  .account-switch-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+  }
+  .account-switch-row:first-child{border-top:none;}
+  .account-switch-row.active{background:var(--paper, #F7F9FB); border-radius:8px; padding:10px 8px;}
+  .account-switch-name{font-size:13.5px; font-weight:700; color:var(--ink);}
+  .account-switch-email{font-size:11.5px; color:var(--ink-soft);}
+  .feedback-delete-like{
+    background:none;
+    border:none;
+    color:var(--coral, #E85D4C);
+    font-size:11.5px;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+  }
+
   .theme-preview-img{
     width:100%;
     aspect-ratio:1;
@@ -2745,6 +2766,11 @@
         <span class="settings-menu-label" data-i18n="settings_referral">Invite a Friend</span>
         <span class="settings-menu-chevron">›</span>
       </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('accounts')">
+        <span class="settings-menu-icon">👨‍👩‍👧‍👦</span>
+        <span class="settings-menu-label" data-i18n="settings_accounts">Switch Accounts</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
     </div>
 
     <div class="settings-subpage hidden" id="settings-subpage-appinfo">
@@ -2862,6 +2888,17 @@
       <div class="settings-card">
         <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Share your link below — when a friend signs up through it, you both unlock the Ocean theme, even if neither of you has the streak for it yet.</p>
         <div id="referral-area"></div>
+      </div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-accounts">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Switch accounts</div>
+      <div class="settings-card">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Managing more than one kid's account? Save this device's sign-ins here so you can jump between them without signing in fresh each time.</p>
+        <input type="text" id="account-nickname-input" class="onboard-text-input" placeholder="Name for the account you're signed into now" style="margin-bottom:10px;">
+        <button class="settings-action-btn" onclick="saveCurrentAccountForSwitching(document.getElementById('account-nickname-input').value)">Save this account</button>
+        <div id="account-switcher-list" style="margin-top:14px;"></div>
       </div>
     </div>
   </div>
@@ -3050,6 +3087,99 @@ async function signOutGoogle(){
   await sb.auth.signOut();
   document.getElementById('progress-bar').classList.add('hidden');
   document.getElementById('login-overlay').classList.remove('hidden');
+}
+
+// ---- Multi-account quick switching (for parents managing more than
+// one kid's account) ----
+// Doesn't touch any of the app's actual data tables — every account
+// still works exactly like it always has, fully separate. This just
+// saves each account's session tokens locally so switching between
+// them doesn't require a full sign-out/sign-in cycle every time.
+function getSavedAccounts(){
+  try{
+    return JSON.parse(localStorage.getItem('gritto_saved_accounts') || '[]');
+  }catch(e){
+    return [];
+  }
+}
+
+async function saveCurrentAccountForSwitching(nickname){
+  const trimmed = (nickname || '').trim();
+  if(!trimmed){
+    alert('Give this account a name first (like a kid\'s first name).');
+    return;
+  }
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    alert('Sign in first, then you can save this account.');
+    return;
+  }
+
+  const accounts = getSavedAccounts();
+  const existingIdx = accounts.findIndex(a => a.email === session.user.email);
+  const entry = {
+    nickname: trimmed,
+    email: session.user.email,
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+  };
+  if(existingIdx > -1){
+    accounts[existingIdx] = entry; // refresh the saved tokens if this account was already saved
+  }else{
+    accounts.push(entry);
+  }
+  localStorage.setItem('gritto_saved_accounts', JSON.stringify(accounts));
+  renderAccountSwitcher();
+}
+
+async function switchToAccount(index){
+  const accounts = getSavedAccounts();
+  const account = accounts[index];
+  if(!account) return;
+
+  const { error } = await sb.auth.setSession({
+    access_token: account.access_token,
+    refresh_token: account.refresh_token,
+  });
+  if(error){
+    alert(`Could not switch to ${account.nickname} — that saved sign-in may have expired. Try signing into that account fresh instead.`);
+    console.error('Account switch failed:', error.message);
+    return;
+  }
+  // Full reload is the simplest, safest way to make sure every part of
+  // the app reflects the newly active account, rather than trying to
+  // manually refresh dozens of separate pieces of on-screen data.
+  window.location.reload();
+}
+
+function removeSavedAccount(index){
+  const accounts = getSavedAccounts();
+  accounts.splice(index, 1);
+  localStorage.setItem('gritto_saved_accounts', JSON.stringify(accounts));
+  renderAccountSwitcher();
+}
+
+async function renderAccountSwitcher(){
+  const listEl = document.getElementById('account-switcher-list');
+  if(!listEl) return;
+  const accounts = getSavedAccounts();
+  const { data: { session } } = await sb.auth.getSession();
+  const currentEmail = session ? session.user.email : null;
+
+  listEl.innerHTML = accounts.length === 0
+    ? '<p style="font-size:12.5px; color:var(--ink-soft); margin:0;">No saved accounts yet.</p>'
+    : accounts.map((a, i) => `
+        <div class="account-switch-row ${a.email === currentEmail ? 'active' : ''}">
+          <div>
+            <div class="account-switch-name">${a.nickname}${a.email === currentEmail ? ' (current)' : ''}</div>
+            <div class="account-switch-email">${a.email}</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            ${a.email === currentEmail ? '' : `<button class="settings-toggle-btn" onclick="switchToAccount(${i})">Switch</button>`}
+            <button class="feedback-delete-like" onclick="removeSavedAccount(${i})">Remove</button>
+          </div>
+        </div>
+      `).join('');
 }
 
 async function checkGoogleSession(){
@@ -3943,6 +4073,7 @@ const UI_STRINGS = {
   settings_feedback: 'Report a Bug / Feedback', settings_share: 'Share My Progress', settings_legal: 'Legal',
   settings_language: 'Language',
   settings_referral: 'Invite a Friend',
+  settings_accounts: 'Switch Accounts',
 };
 
 let currentLanguage = null; // null = English (default, no translation needed)
@@ -4746,7 +4877,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.13.0';
+const APP_VERSION = '4.14.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4813,6 +4944,7 @@ function showSettingsSubpage(id){
       if(session) renderReferralArea(session.user);
     });
   }
+  if(id === 'accounts') renderAccountSwitcher();
 }
 
 async function renderSettingsPage(){
