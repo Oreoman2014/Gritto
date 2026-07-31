@@ -3755,10 +3755,13 @@ function getBestEverStreak(){
   return Math.max(drillsBest, routineBest);
 }
 
+let grantedThemes = [];
+let grantedBadges = [];
+
 function getUnlockedThemes(){
   if(currentUserEmail === THEME_ADMIN_EMAIL) return THEMES;
   const best = getBestEverStreak();
-  return THEMES.filter(t => best >= t.unlockStreak);
+  return THEMES.filter(t => best >= t.unlockStreak || grantedThemes.includes(t.id));
 }
 
 function applyTheme(themeId){
@@ -3888,7 +3891,7 @@ async function loadBadgeStats(){
 
 function getUnlockedBadges(){
   if(currentUserEmail === THEME_ADMIN_EMAIL) return BADGES;
-  return BADGES.filter(b => b.check(badgeStats));
+  return BADGES.filter(b => b.check(badgeStats) || grantedBadges.includes(b.id));
 }
 
 function renderBadgeGrid(){
@@ -4069,7 +4072,7 @@ let preferredName = null;
 
 async function checkOnboarding(userId){
   try{
-    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality, has_prior_injury, injury_areas, preferred_name').eq('user_id', userId).maybeSingle();
+    const { data, error } = await sb.from('user_profile').select('onboarding_completed, coach_personality, has_prior_injury, injury_areas, preferred_name, granted_themes, granted_badges').eq('user_id', userId).maybeSingle();
     if(error){ console.error('Could not check onboarding:', error.message); return; }
     if(!data || !data.onboarding_completed){
       showOnboarding();
@@ -4080,6 +4083,8 @@ async function checkOnboarding(userId){
         injuryAreas: data.injury_areas || []
       };
       preferredName = data.preferred_name || null;
+      grantedThemes = data.granted_themes || [];
+      grantedBadges = data.granted_badges || [];
       // checkOnboarding can run after the greeting's already been set
       // once with the Google-derived name — refresh it now that we
       // actually know the preferred one.
@@ -4535,7 +4540,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.8.1';
+const APP_VERSION = '4.9.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
