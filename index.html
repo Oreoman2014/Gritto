@@ -1617,6 +1617,7 @@
     color:var(--ink);
     cursor:pointer;
   }
+  .google-btn + .google-btn{margin-top:10px;}
   .google-btn:hover{border-color:#c7c2b3;}
   .google-btn svg{width:18px;height:18px;}
 
@@ -2266,6 +2267,30 @@
   .debug-line.lvl-warn{color:#FFC98A;}
   .debug-line.lvl-log{color:#B9E4D5;}
   .debug-empty{color:#6B7488; font-size:12px;}
+  .print-drills-wrap{margin-top:14px;}
+
+  @media print{
+    /* Hide everything that isn't actually useful on paper */
+    nav.bottom-nav, header, .print-drills-wrap, .followup-section,
+    .drill-demo, #login-overlay, #onboard-overlay, #tutorial-overlay,
+    #unlock-overlay, #badge-detail-overlay, .cookie-banner, #cookie-manage-overlay,
+    #trim-section, .frame-viewer, .frame-strip{
+      display:none !important;
+    }
+    body, main{ overflow:visible !important; height:auto !important; }
+    .drill-card{
+      break-inside:avoid;
+      page-break-after:always;
+      border:none !important;
+      box-shadow:none !important;
+      padding:20px 0 !important;
+    }
+    .drill-card:last-of-type{ page-break-after:auto; }
+    .drill-title{ font-size:22px !important; }
+    .drill-desc{ font-size:15px !important; line-height:1.6 !important; color:#000 !important; }
+    .drill-cue{ background:none !important; border:1px solid #000 !important; color:#000 !important; }
+    *{ color:#000 !important; }
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"></script>
@@ -2285,6 +2310,18 @@
     <button class="google-btn" onclick="signInWithGoogle()">
       <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.43.34-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 12 1 11 11 0 0 0 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
       Sign in with Google
+    </button>
+    <button class="google-btn" onclick="signInWithFacebook()">
+      <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.89v2.25h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+      Sign in with Facebook
+    </button>
+    <button class="google-btn" onclick="signInWithMicrosoft()">
+      <svg viewBox="0 0 23 23"><path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#00A4EF" d="M1 12h10v10H1z"/><path fill="#7FBA00" d="M12 1h10v10H12z"/><path fill="#FFB900" d="M12 12h10v10H12z"/></svg>
+      Sign in with Microsoft
+    </button>
+    <button class="google-btn" onclick="signInWithYahoo()">
+      <svg viewBox="0 0 24 24"><path fill="#6001D2" d="M13.2 14.5 8.6 24H4.3l2.7-5.4L0 6h4.7l4.1 8.4L12.9 6h4.5l-4.2 8.5zM19.3 24c-1.4 0-2.6-1.1-2.6-2.6 0-1.4 1.1-2.6 2.6-2.6 1.4 0 2.6 1.1 2.6 2.6 0 1.4-1.2 2.6-2.6 2.6zM16.6 6h4.2l-3 6.2h-4.2z"/></svg>
+      Sign in with Yahoo
     </button>
   </div>
 </div>
@@ -2624,10 +2661,22 @@
   <div id="page-settings" class="hidden">
     <div class="settings-profile" id="settings-profile">
       <div class="settings-signin-prompt" id="settings-signin-prompt">
-        <p>Sign in with Google to see your profile and manage your data.</p>
+        <p>Sign in to see your profile and manage your data.</p>
         <button class="google-btn" onclick="signInWithGoogle()">
           <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.09A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.43.34-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 12 1 11 11 0 0 0 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
           Sign in with Google
+        </button>
+        <button class="google-btn" onclick="signInWithFacebook()">
+          <svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.95.93-1.95 1.89v2.25h3.32l-.53 3.49h-2.79V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+          Sign in with Facebook
+        </button>
+        <button class="google-btn" onclick="signInWithMicrosoft()">
+          <svg viewBox="0 0 23 23"><path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#00A4EF" d="M1 12h10v10H1z"/><path fill="#7FBA00" d="M12 1h10v10H12z"/><path fill="#FFB900" d="M12 12h10v10H12z"/></svg>
+          Sign in with Microsoft
+        </button>
+        <button class="google-btn" onclick="signInWithYahoo()">
+          <svg viewBox="0 0 24 24"><path fill="#6001D2" d="M13.2 14.5 8.6 24H4.3l2.7-5.4L0 6h4.7l4.1 8.4L12.9 6h4.5l-4.2 8.5zM19.3 24c-1.4 0-2.6-1.1-2.6-2.6 0-1.4 1.1-2.6 2.6-2.6 1.4 0 2.6 1.1 2.6 2.6 0 1.4-1.2 2.6-2.6 2.6zM16.6 6h4.2l-3 6.2h-4.2z"/></svg>
+          Sign in with Yahoo
         </button>
       </div>
       <div class="settings-profile-card hidden" id="settings-profile-card">
@@ -2689,6 +2738,11 @@
       <div class="settings-menu-item" onclick="showSettingsSubpage('language')">
         <span class="settings-menu-icon">🌐</span>
         <span class="settings-menu-label" data-i18n="settings_language">Language</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('referral')">
+        <span class="settings-menu-icon">🎁</span>
+        <span class="settings-menu-label" data-i18n="settings_referral">Invite a Friend</span>
         <span class="settings-menu-chevron">›</span>
       </div>
     </div>
@@ -2799,6 +2853,15 @@
         <input type="text" id="language-input" class="onboard-text-input" placeholder="e.g. Spanish, Hindi, Japanese…" style="margin-bottom:10px;">
         <button class="go-btn" onclick="setAppLanguage(document.getElementById('language-input').value)">Set language</button>
         <div class="status" id="language-status"></div>
+      </div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-referral">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Invite a friend</div>
+      <div class="settings-card">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Share your link below — when a friend signs up through it, you both unlock the Ocean theme, even if neither of you has the streak for it yet.</p>
+        <div id="referral-area"></div>
       </div>
     </div>
   </div>
@@ -2953,6 +3016,36 @@ async function signInWithGoogle(){
   if(error) console.error('Google sign-in failed:', error.message);
 }
 
+async function signInWithFacebook(){
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'facebook',
+    options: { redirectTo: window.location.href }
+  });
+  if(error) console.error('Facebook sign-in failed:', error.message);
+}
+
+async function signInWithMicrosoft(){
+  // Supabase's built-in provider for this is "azure" — it's what
+  // covers Microsoft/Hotmail/Outlook/Live accounts.
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'azure',
+    options: { redirectTo: window.location.href }
+  });
+  if(error) console.error('Microsoft sign-in failed:', error.message);
+}
+
+async function signInWithYahoo(){
+  // Yahoo isn't one of Supabase's built-in providers — this expects a
+  // custom OAuth/OIDC provider set up in the Supabase dashboard under
+  // the identifier "yahoo" (Authentication → Providers → Custom
+  // Providers). Won't work until that's configured on the backend.
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'custom:yahoo',
+    options: { redirectTo: window.location.href }
+  });
+  if(error) console.error('Yahoo sign-in failed:', error.message);
+}
+
 async function signOutGoogle(){
   await sb.auth.signOut();
   document.getElementById('progress-bar').classList.add('hidden');
@@ -2967,7 +3060,7 @@ async function checkGoogleSession(){
     if(!allowed){
       await sb.auth.signOut();
       const errorEl = document.getElementById('login-error');
-      if(errorEl) errorEl.textContent = "That Google account isn't approved for the beta yet.";
+      if(errorEl) errorEl.textContent = "That account isn't approved for the beta yet.";
       return null;
     }
     document.getElementById('login-overlay').classList.add('hidden');
@@ -2978,6 +3071,7 @@ async function checkGoogleSession(){
     await loadHomeData();
     checkForUpdate();
     await checkOnboarding(session.user.id);
+    checkForReferral();
   }
   return session;
 }
@@ -3470,6 +3564,13 @@ function buildSilhouetteFigureSVG(sport){
 let followUpContext = null; // { sport, summary } of whatever was just shown
 let followUpThread = [];    // [{ question, answer }]
 
+function buildPrintButton(){
+  const wrap = document.createElement('div');
+  wrap.className = 'print-drills-wrap';
+  wrap.innerHTML = `<button class="settings-action-btn" onclick="window.print()">🖨️ Print these drills</button>`;
+  return wrap;
+}
+
 function buildFollowUpSection(containerId, sport, summary){
   followUpContext = { sport, summary };
   followUpThread = [];
@@ -3841,6 +3942,7 @@ const UI_STRINGS = {
   settings_theme: 'App Theme', settings_help: 'How Gritto Works', settings_data: 'Manage My Data',
   settings_feedback: 'Report a Bug / Feedback', settings_share: 'Share My Progress', settings_legal: 'Legal',
   settings_language: 'Language',
+  settings_referral: 'Invite a Friend',
 };
 
 let currentLanguage = null; // null = English (default, no translation needed)
@@ -4644,7 +4746,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.10.0';
+const APP_VERSION = '4.13.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4705,6 +4807,11 @@ function showSettingsSubpage(id){
   if(id === 'language'){
     const input = document.getElementById('language-input');
     if(input) input.value = currentLanguage || '';
+  }
+  if(id === 'referral'){
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if(session) renderReferralArea(session.user);
+    });
   }
 }
 
@@ -4792,6 +4899,80 @@ async function generateShareLink(){
   }catch(err){
     console.error('Could not generate share link (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
+  }
+}
+
+// ---- Referral system ----
+async function renderReferralArea(user){
+  const areaEl = document.getElementById('referral-area');
+  if(!areaEl) return;
+  try{
+    const { data, error } = await sb.from('user_profile').select('referral_code').eq('user_id', user.id).maybeSingle();
+    if(error){ console.error('Could not check referral code:', error.message); return; }
+
+    let code = data && data.referral_code;
+    if(!code){
+      code = crypto.randomUUID().slice(0, 8);
+      const { error: saveErr } = await sb.from('user_profile').upsert({ user_id: user.id, referral_code: code });
+      if(saveErr){ console.error('Could not save referral code:', saveErr.message); return; }
+    }
+
+    const url = `${window.location.origin}${window.location.pathname}?ref=${code}`;
+    areaEl.innerHTML = `
+      <div class="share-link-box">
+        <input type="text" readonly value="${url}" id="referral-link-input">
+        <button onclick="copyReferralLink()">Copy</button>
+      </div>
+    `;
+  }catch(err){
+    console.error('Referral area failed:', err.message);
+  }
+}
+
+function copyReferralLink(){
+  const input = document.getElementById('referral-link-input');
+  input.select();
+  navigator.clipboard.writeText(input.value).then(() => {
+    alert('Link copied!');
+  }).catch(() => {
+    alert('Could not copy — try selecting and copying the text manually.');
+  });
+}
+
+// Checked once per app load — if someone arrived via a friend's
+// referral link (?ref=CODE in the URL) and is signed in, this
+// processes the reward server-side (since granting the referrer a
+// bonus theme isn't something a normal client request can safely do
+// for someone else's account).
+async function checkForReferral(){
+  const params = new URLSearchParams(window.location.search);
+  const refCode = params.get('ref');
+  if(!refCode) return;
+
+  // Clean the URL immediately so refreshing the page doesn't
+  // accidentally try to reprocess the same referral again.
+  const cleanUrl = window.location.origin + window.location.pathname;
+  window.history.replaceState({}, '', cleanUrl);
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return; // not signed in yet — the referral link is lost in that case, which is an acceptable tradeoff for keeping this simple
+
+  try{
+    const response = await fetch('/api/process-referral', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ referral_code: refCode, access_token: session.access_token })
+    });
+    const data = await response.json();
+    if(!data.ok){
+      console.log('Referral not processed:', data.error); // not an alarming error — could just be a repeat visit or self-referral attempt
+      return;
+    }
+    const theme = THEMES.find(t => t.id === data.rewardTheme);
+    unlockQueue.push({ type: 'theme', name: theme ? theme.name : data.rewardTheme, emoji: '🎁', desc: `Unlocked as a thank-you for joining through a friend's invite!` });
+    showNextUnlock();
+  }catch(err){
+    console.error('Referral processing failed:', err.message);
   }
 }
 
@@ -6029,6 +6210,7 @@ Include exactly 4 drills, ordered from most foundational to more advanced. The "
       resultsEl.appendChild(card);
     });
 
+    resultsEl.appendChild(buildPrintButton());
     resultsEl.appendChild(buildFollowUpSection('results', selectedSport, parsed.summary));
 
     recordDrillCompletion(selectedSport, 'text', parsed.summary);
@@ -6835,6 +7017,7 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
       resultsEl.appendChild(card);
     });
 
+    resultsEl.appendChild(buildPrintButton());
     resultsEl.appendChild(buildFollowUpSection('video-results', selectedSport, parsed.summary));
 
     recordDrillCompletion(selectedSport, 'video', parsed.summary, parsed.score);
