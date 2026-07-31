@@ -1,5 +1,130 @@
 # Gritto — Version Log
 
+## v5.0.0 🎉 — Milestone version bump
+- No functional changes — marking this as v5, following the same batch of work as v4.15.0: 10 new achievement-based themes (25 total now), plus the Precision/Consistency image fix
+
+## v4.15.0 — 10 new achievement-based themes (not streak-based)
+- Iron Will (200 total drills), Director's Cut (50 video checks), Archive (100 video checks), Precision (90+ average across at least 10 checks), Consistency (30 active days, not consecutive), Ambassador (10 friends referred), All-Rounder (60+ score in 5 different sports), Veteran (6 months since first day using the app), Polyglot (used a non-English language at least once), and Grandmaster (unlocks only once literally every other theme — all 24 — is unlocked)
+- Extended the badge-stats system to also track: average score, referral count, best score per sport, and account age
+- The theme system now supports custom unlock conditions beyond simple streak thresholds, reusing the same pattern already used for badges
+- Verified with real, rigorous tests: confirmed exact threshold boundaries (199 vs 200 drills, 9 vs 10 referrals, etc.), confirmed Precision correctly requires BOTH conditions together (enough checks AND high enough average — neither alone is sufficient), and ran 3 full scenarios for Grandmaster specifically: a maxed streak with zero achievements (correctly stays locked), everything genuinely maxed (correctly unlocks, and totals exactly 25 themes), and everything maxed except one single achievement short by the smallest margin (correctly stays locked)
+- All 10 backgrounds are real user-generated artwork (Precision and Consistency needed no changes; Iron Will, Director's Cut, and Archive had their arrows recolored to fit their scenes — verified pixel-by-pixel that only the arrow itself changed, not the surrounding artwork; the remaining 5 were split out of a single collage image and verified for clean crops)
+
+## v4.14.0 — Switch Accounts (for parents managing multiple kids)
+- New "Switch Accounts" section in Settings — save each signed-in account with a nickname (like a kid's name), then jump between them with one tap instead of a full sign-out/sign-in cycle each time
+- Deliberately built as the safer, lower-risk version: each kid's account is still fully separate underneath (own streaks, own data, own everything) — this only adds a shortcut for switching between already-existing logins, no changes to any of the app's core data tables
+- Verified with real tests: confirmed saving an account works, confirmed saving the same account twice correctly updates it instead of creating a duplicate, confirmed switching calls Supabase's real session-restore method with the exact right tokens and reloads the app, and confirmed removing a saved account works
+
+## v4.13.0 — Referral system: invite a friend, both get a bonus theme
+- New "Invite a Friend" section in Settings with your personal shareable link
+- When a friend signs up through your link, you both instantly unlock the Ocean theme — even without the streak for it
+- Built as a secure server-side process, not a simple client-side trick: verifies the real identity of whoever's signing up (can't be faked to credit someone else's account), blocks self-referrals, and blocks using more than one referral per account
+- Verified extensively with real tests: confirmed self-referral gets blocked, confirmed an already-referred account gets blocked from claiming twice, and confirmed a valid referral correctly grants the bonus theme to both people — critically, without erasing any themes the referrer had already been granted separately (existing grants are added to, never overwritten)
+
+## v4.12.0 — Printable drill cards
+- New "🖨️ Print these drills" button on both text and video drill results
+- Uses the browser's real print/save-as-PDF capability rather than generating a file server-side, so it works for anyone's own drills on the spot, not something pre-made
+- Print output is genuinely clean: hides the nav bar, buttons, follow-up chat, and other on-screen-only UI, formats each drill onto its own page with larger, clearer text meant for reading on paper
+- Verified with a real test using actual browser print-mode emulation (not just written CSS assumed to work): confirmed the nav and print button correctly disappear in print mode while the actual drill content stays visible
+
+## v4.11.0 — Sign in with Facebook, Microsoft, and Yahoo
+- Added 3 new sign-in buttons alongside Google, on both the main login screen and the Settings sign-in prompt
+- Facebook and Microsoft (covers Hotmail/Outlook/Live accounts) are officially built into Supabase Auth — these should work as soon as you complete the provider setup below
+- Yahoo isn't a built-in Supabase provider, so it's wired up as a "custom" OAuth provider — needs the extra setup step noted below to actually work
+- Fixed one leftover error message that said "Google account" even when a different provider was used
+- Verified with a real test: confirmed each button calls Supabase with the exact correct provider identifier (google, facebook, azure for Microsoft, custom:yahoo)
+
+### Important — setup required before these work
+The buttons are ready, but each provider needs real configuration in your Supabase dashboard before sign-in will actually succeed (same process that already had to happen for Google):
+1. **Facebook**: create a Facebook Developer app, get a Client ID/Secret, enable "Facebook" under Supabase → Authentication → Providers
+2. **Microsoft**: register an app in Microsoft Entra/Azure, get a Client ID/Secret, enable "Azure" under Supabase → Authentication → Providers
+3. **Yahoo**: register a Yahoo Developer app, then add it as a Custom Provider in Supabase → Authentication → Providers → Custom Providers, using the identifier "yahoo"
+
+Until each provider is configured, tapping its button will just show a sign-in error — this is expected, not a bug.
+
+## v4.10.0 — Language support for genuinely any language
+- New "Language" section in Settings — type any language (not picked from a limited list) and the app adapts
+- Your drills, video feedback, and routine suggestions come back written directly in that language, since those are already AI-generated
+- The app's main navigation and Settings menu translate too — sent to the AI once per language, then cached on your device so it's instant every time after the first
+- Switching back to English resets everything immediately with no AI call needed
+- Verified with real tests: confirmed translated text actually applies to the real navigation/menu elements, confirmed picking the same language twice only calls the AI once (cache working correctly), and confirmed English reset works cleanly
+
+## v4.8.0 — Dark mode
+- New toggle in Settings → App Theme: "Use dark mode"
+- Converts the page background, all card surfaces, text, and borders to a proper dark palette — not just a filter, real color swaps throughout
+- Found and converted all 36 places in the app that hardcoded a white card background instead of using a shared variable, so dark mode genuinely applies everywhere instead of leaving scattered white boxes behind
+- Left a couple of intentional warning/error boxes (light peach with red text) unconverted on purpose — those are meant to stand out as alerts regardless of light or dark mode
+- Persists across sessions — survives closing and reopening the app
+- Verified with real tests: confirmed actual computed background colors change correctly (not just a CSS class being added), confirmed a real card element's background genuinely changes color, and confirmed the setting survives a full page reload
+
+## v4.7.0 — 8 new theme tiers: Diamond through Eternal
+- Added 8 new milestone themes: Diamond (125 days), Phoenix (150), Storm (175), Emerald (200), Nebula (250), Solar (300), Celestial (350), and Eternal (365) — a full year
+- All artwork built programmatically (gradients, particle/sparkle systems, ray bursts, faceted shapes, holographic diagonal blending) with the two-tone logo composited on top, same approach as Turf
+- Each theme also has an opaque icon variant for the home-screen/favicon swap feature, matching how the original 7 themes work
+- Verified every single image has the logo correctly composited (checked for both gold and blue) before shipping, not just visually assumed
+- Verified the unlock logic with real streak values: confirmed Diamond stays locked at day 124 and unlocks exactly at day 125, and all 15 themes total correctly unlock by day 365
+
+## v4.6.0 — Timer + rep counter, on Drills and Daily Routine
+- Every drill card (both from text descriptions and video analysis) now has a simple stopwatch and tap-to-count rep counter built in
+- Same widget on every Daily Routine checklist item too
+- Multiple timers run fully independently — starting one drill's timer doesn't affect any other's
+- No AI involved this time, as decided earlier — just a straightforward manual timer and counter
+- Important fix found and verified during testing: Daily Routine re-renders itself every time you check off an item, which would normally reset any running timer's display back to 0:00 visually (even though it kept running underneath). Fixed so a running timer correctly survives being rebuilt — confirmed with a real test that showed the exact bug happening, then confirmed it fixed
+- Verified with real tests: two independent timers running simultaneously with no cross-contamination, real elapsed time tracking, and the re-render survival fix all confirmed working
+
+## v4.5.0 — Settings redesigned as a menu with sub-pages
+- Settings now opens to a clean list of 9 categories (App Info, Reminders, Achievements, App Theme, How Gritto Works, Manage My Data, Report a Bug/Feedback, Share My Progress, Legal) instead of one long scrolling page
+- Tap any item to go straight to just that section, with a Back button to return to the menu
+- Always resets to the menu view fresh each time you open Settings — never leaves you on a stale sub-page from your last visit
+- All existing functionality (badges, themes, feedback, sharing, data management) works exactly the same — this only reorganizes how you get to each one
+- Verified with a real test: confirmed the menu shows by default, confirmed all 9 sections are individually reachable, and confirmed the Back button correctly returns to the menu every time
+
+## v4.4.0 — Preferred name as the first onboarding question
+- Onboarding is now 12 steps — the very first question is "What should we call you?" instead of jumping straight to sport, since Google account names aren't always what someone actually goes by
+- One flexible field, not two — works as either a real name or a nickname, whatever they'd rather be called
+- The Home greeting now uses this saved name instead of the Google account name, everywhere it's shown
+- Verified with a real end-to-end test: confirmed Continue stays disabled until something's typed, confirmed all 12 steps navigate correctly in the new order, and confirmed the name saves properly
+
+## v4.3.1 — Real, specific positions (multi-select) for every sport
+- Fixed: the position question was reusing a list meant for video analysis, which had generic non-positions like "Hitter" and "Fielder" — everyone does that, they're not real positions
+- Now uses real, specific positions for every sport: Baseball has actual field positions (Shortstop, Left Field, Catcher, etc.), Basketball has Point Guard/Center/etc., Football has actual positions, and so on
+- Position selection is now multi-select — pick every position you actually play, not just one
+- Sports without real positions (Golf, Tennis, Other) skip the forced choice entirely with a clear note, instead of showing options that don't apply
+- Verified with real tests: confirmed Baseball shows actual positions (not the old generic ones), confirmed picking multiple positions works and saves correctly, and confirmed Golf correctly auto-continues without forcing an irrelevant choice
+
+## v4.3.0 — Interactive tutorial walkthrough
+- New 7-step guided tour that spotlights real elements on real pages — your streaks on Home, the sport picker and mode tabs on Drills, the routine builder, and badges/themes in Settings — actually navigating between pages as it goes, not just static screenshots
+- Runs automatically once, right after finishing onboarding
+- Re-runnable anytime via a new "Replay the tutorial" button in Settings, under "How Gritto works" (which also still has the existing written explanation as a simpler reference)
+- Caught and fixed a real bug during testing: if switching pages ever failed for any reason mid-tour, the whole step would silently break and never update its own text/spotlight — made this resilient so a page-switch hiccup can't derail the rest of the tutorial
+- Verified with a real, complete end-to-end test: all 7 steps in order, confirmed each one correctly navigates to the right page and highlights the right element, confirmed the closing step and "Let's go!" button work, and confirmed cleanup leaves no stray spotlight behind
+
+## v4.2.0 — Expanded onboarding with injury safety screening
+- Onboarding now has 11 steps instead of 4: sport, goal, experience, coach personality, age range, position (dynamically pulled from the same list used in video analysis), equipment access, team or solo, biggest challenge, injury history, and an optional upcoming goal/deadline
+- Injury screening is conditional: answer "No" and it moves straight on — answer "Yes" and a follow-up appears asking which area(s), with no wasted questions either way
+- The injury data actually does something: every AI request (drills, video feedback, routine building, and follow-up questions) now includes a real safety instruction to avoid or modify anything that could aggravate a reported injury area — not just collected and ignored
+- Caught and fixed a real bug during testing: the "Continue" button was being unconditionally enabled on any chip click, which meant someone could say "Yes" to an injury, pick zero areas, and still continue — found this with an actual browser test, not just by reading the code, and fixed it so the button now correctly stays disabled until at least one area is picked
+- Verified the complete 11-step flow end-to-end with a real test, including the position list correctly changing based on the selected sport, and the injury validation working correctly in both directions (checking and unchecking areas)
+
+## v4.1.1 — Fixed a real bug: video trim sliders were completely broken
+- Found while verifying the video-trim and body-part-trend features (both already existed from earlier in this session): the trim sliders would throw "updateTrimSelection is not defined" every single time they were touched, silently doing nothing — a scoping issue where the inline HTML slider handlers couldn't reach the function they needed, since it was defined inside a different closure
+- Fixed by properly exposing the trim functions where the inline handlers can actually find them
+- Verified with a real end-to-end test using an actual 10-second test video: confirmed no errors, confirmed the slider labels correctly update when dragged (0:03, 0:06), and confirmed extraction correctly captures all 15 frames from just that trimmed range
+- Body-part trend feature checked out clean — verified the save logic, load/aggregation logic (confirmed correct ranking with test data), HTML, and SQL migration are all correctly in place, no changes needed
+
+## v4.1.0 — Ask a follow-up question
+- New "Have a question about this?" section shows up right after getting drills (text mode) or a video breakdown — type a quick question and get a direct answer from the AI, no need to start over
+- Keeps context from what was just discussed (your sport and the summary of what you were working on), so answers actually stay relevant
+- Works the same way in both Drills (text description) and Upload a Video flows
+- Verified with a real test: confirmed the question and answer both render correctly in the conversation thread, and the input clears after asking
+
+## v4.0.1 — Fixed: clearing activity log now actually resets streaks
+- Real bug found: the confirm dialog for "Clear my activity log" already claimed it would reset your Drills streak and stats — but the code never actually did that, leaving stale numbers behind with no data to back them up
+- Now genuinely resets: Drills streak, longest streak, and total drills completed all go to 0, and every Daily Routine's streak, longest streak, and time practiced also reset to 0
+- Updated instantly in the UI, not just the database — no reload needed to see the reset take effect
+- "Clear my video history" intentionally stays scoped to just the rich video details (thumbnails, AI breakdowns) — it doesn't touch streaks, since those come from the separate activity log, not video history
+- Verified with a real test: confirmed real progress numbers (46 drills, 5-day streak, 2-day routine streak) correctly zero out after the reset logic runs
+
 ## v4.0.0 — Milestone version bump
 - No functional changes — just marking this as a real milestone after everything built: AI drills, video form checks with scoring, daily routines, achievement badges, unlockable themes, push notifications, sharing, and a whole lot of hard-won iOS video bug fixes along the way
 
