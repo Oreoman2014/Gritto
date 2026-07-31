@@ -3989,6 +3989,26 @@ const THEMES = [
   { id: 'solar',     name: 'Solar',     unlockStreak: 300, turf: '#CA8A04', energy: '#FDE047', img: 'solar.png' },
   { id: 'celestial', name: 'Celestial', unlockStreak: 350, turf: '#C9A876', energy: '#F5F0E8', img: 'celestial.png' },
   { id: 'eternal',   name: 'Eternal',   unlockStreak: 365, turf: '#E84393', energy: '#00D9C0', img: 'eternal.png' },
+  { id: 'ironwill',     name: 'Iron Will',      unlockStreak: 0, turf: '#7C5F38', energy: '#FFD23F', img: 'ironwill.png',
+    check: s => s.totalDrills >= 200 },
+  { id: 'directorscut', name: "Director's Cut", unlockStreak: 0, turf: '#593B11', energy: '#F5E6C8', img: 'directorscut.png',
+    check: s => s.videoCount >= 50 },
+  { id: 'archive',      name: 'Archive',        unlockStreak: 0, turf: '#7C122D', energy: '#D4941E', img: 'archive.png',
+    check: s => s.videoCount >= 100 },
+  { id: 'precision',    name: 'Precision',      unlockStreak: 0, turf: '#557BAA', energy: '#E8F4FC', img: 'precision.png',
+    check: s => s.videoCount >= 10 && s.avgScore >= 90 },
+  { id: 'consistency',  name: 'Consistency',    unlockStreak: 0, turf: '#3D8906', energy: '#DCFCE7', img: 'consistency.png',
+    check: s => s.activeDays >= 30 },
+  { id: 'ambassador',   name: 'Ambassador',     unlockStreak: 0, turf: '#893D88', energy: '#FDE68A', img: 'ambassador.png',
+    check: s => s.referralCount >= 10 },
+  { id: 'allrounder',   name: 'All-Rounder',    unlockStreak: 0, turf: '#3A7566', energy: '#FB7185', img: 'allrounder.png',
+    check: s => s.sportsWithSixtyPlus >= 5 },
+  { id: 'veteran',      name: 'Veteran',        unlockStreak: 0, turf: '#112547', energy: '#CBD5E1', img: 'veteran.png',
+    check: s => s.accountAgeDays >= 182 },
+  { id: 'polyglot',     name: 'Polyglot',       unlockStreak: 0, turf: '#0E5A60', energy: '#FB923C', img: 'polyglot.png',
+    check: s => localStorage.getItem('gritto_ever_used_language') === 'true' },
+  { id: 'grandmaster',  name: 'Grandmaster',    unlockStreak: 0, turf: '#141416', energy: '#D4D4D8', img: 'grandmaster.png',
+    check: null }, // special-cased in getUnlockedThemes — unlocks only once every OTHER theme is unlocked
 ];
 
 // Full theme access for testing/demo purposes on this one account —
@@ -4008,7 +4028,23 @@ let grantedBadges = [];
 function getUnlockedThemes(){
   if(currentUserEmail === THEME_ADMIN_EMAIL) return THEMES;
   const best = getBestEverStreak();
-  return THEMES.filter(t => best >= t.unlockStreak || grantedThemes.includes(t.id));
+
+  // Grandmaster is special: it unlocks only once every OTHER theme is
+  // unlocked. Computed separately first (checking against everything
+  // else) to avoid it needing to reference itself.
+  const otherThemes = THEMES.filter(t => t.id !== 'grandmaster');
+  const allOthersUnlocked = otherThemes.every(t => {
+    if(grantedThemes.includes(t.id)) return true;
+    if(t.check) return t.check(badgeStats);
+    return best >= t.unlockStreak;
+  });
+
+  return THEMES.filter(t => {
+    if(grantedThemes.includes(t.id)) return true;
+    if(t.id === 'grandmaster') return allOthersUnlocked;
+    if(t.check) return t.check(badgeStats);
+    return best >= t.unlockStreak;
+  });
 }
 
 function applyTheme(themeId){
@@ -4102,6 +4138,7 @@ async function setAppLanguage(languageName){
       currentTranslations = JSON.parse(cached);
       currentLanguage = trimmed;
       localStorage.setItem('gritto_language', trimmed);
+      localStorage.setItem('gritto_ever_used_language', 'true');
       applyTranslations();
       if(statusEl) statusEl.textContent = `Language set to ${trimmed}.`;
       return;
@@ -4127,6 +4164,7 @@ async function setAppLanguage(languageName){
     currentTranslations = translated;
     currentLanguage = trimmed;
     localStorage.setItem('gritto_language', trimmed);
+    localStorage.setItem('gritto_ever_used_language', 'true');
     applyTranslations();
     if(statusEl) statusEl.textContent = `Language set to ${trimmed}.`;
   }catch(err){
@@ -4205,20 +4243,34 @@ async function loadBadgeStats(){
   if(!session) return badgeStats;
 
   try{
-    const [historyRes, videoRes] = await Promise.all([
+    const [historyRes, videoRes, sportScoreRes, referralRes] = await Promise.all([
       sb.from('drill_history').select('sport, created_at').eq('user_id', session.user.id),
-      sb.from('video_analysis_history').select('score').eq('user_id', session.user.id).not('score', 'is', null)
+      sb.from('video_analysis_history').select('score').eq('user_id', session.user.id).not('score', 'is', null),
+      sb.from('video_analysis_history').select('sport, score').eq('user_id', session.user.id).not('score', 'is', null),
+      sb.from('referrals').select('id', { count: 'exact', head: true }).eq('referrer_id', session.user.id),
     ]);
 
     const historyRows = historyRes.data || [];
     const videoRows = videoRes.data || [];
+    const sportScoreRows = sportScoreRes.data || [];
+
+    // For All-Rounder: how many DISTINCT sports have at least one 60+ score
+    const bestPerSport = {};
+    sportScoreRows.forEach(r => {
+      bestPerSport[r.sport] = Math.max(bestPerSport[r.sport] || 0, r.score);
+    });
+    const sportsWithSixtyPlus = Object.values(bestPerSport).filter(s => s >= 60).length;
 
     badgeStats = {
       totalDrills: drillProgress.total_drills_completed || 0,
       videoCount: (await sb.from('video_analysis_history').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id)).count || 0,
       maxScore: videoRows.length ? Math.max(...videoRows.map(v => v.score)) : 0,
+      avgScore: videoRows.length ? videoRows.reduce((sum, v) => sum + v.score, 0) / videoRows.length : 0,
       activeDays: new Set(historyRows.map(r => r.created_at.slice(0, 10))).size,
       distinctSports: new Set(historyRows.map(r => r.sport)).size,
+      referralCount: referralRes.count || 0,
+      sportsWithSixtyPlus,
+      accountAgeDays: session.user.created_at ? Math.floor((Date.now() - new Date(session.user.created_at).getTime()) / 86400000) : 0,
     };
   }catch(err){
     console.error('Could not load badge stats:', err.message);
@@ -4877,7 +4929,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.14.0';
+const APP_VERSION = '4.15.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
