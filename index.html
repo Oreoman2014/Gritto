@@ -2643,47 +2643,52 @@
     <div class="settings-menu" id="settings-menu">
       <div class="settings-menu-item" onclick="showSettingsSubpage('appinfo')">
         <span class="settings-menu-icon">ℹ️</span>
-        <span class="settings-menu-label">App Info</span>
+        <span class="settings-menu-label" data-i18n="settings_appinfo">App Info</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('reminders')">
         <span class="settings-menu-icon">🔔</span>
-        <span class="settings-menu-label">Reminders</span>
+        <span class="settings-menu-label" data-i18n="settings_reminders">Reminders</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('achievements')">
         <span class="settings-menu-icon">🏅</span>
-        <span class="settings-menu-label">Achievements</span>
+        <span class="settings-menu-label" data-i18n="settings_achievements">Achievements</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('theme')">
         <span class="settings-menu-icon">🎨</span>
-        <span class="settings-menu-label">App Theme</span>
+        <span class="settings-menu-label" data-i18n="settings_theme">App Theme</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('help')">
         <span class="settings-menu-icon">❓</span>
-        <span class="settings-menu-label">How Gritto Works</span>
+        <span class="settings-menu-label" data-i18n="settings_help">How Gritto Works</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('data')">
         <span class="settings-menu-icon">🗑️</span>
-        <span class="settings-menu-label">Manage My Data</span>
+        <span class="settings-menu-label" data-i18n="settings_data">Manage My Data</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('feedback')">
         <span class="settings-menu-icon">💬</span>
-        <span class="settings-menu-label">Report a Bug / Feedback</span>
+        <span class="settings-menu-label" data-i18n="settings_feedback">Report a Bug / Feedback</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('share')">
         <span class="settings-menu-icon">🔗</span>
-        <span class="settings-menu-label">Share My Progress</span>
+        <span class="settings-menu-label" data-i18n="settings_share">Share My Progress</span>
         <span class="settings-menu-chevron">›</span>
       </div>
       <div class="settings-menu-item" onclick="showSettingsSubpage('legal')">
         <span class="settings-menu-icon">📄</span>
-        <span class="settings-menu-label">Legal</span>
+        <span class="settings-menu-label" data-i18n="settings_legal">Legal</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('language')">
+        <span class="settings-menu-icon">🌐</span>
+        <span class="settings-menu-label" data-i18n="settings_language">Language</span>
         <span class="settings-menu-chevron">›</span>
       </div>
     </div>
@@ -2785,6 +2790,17 @@
         <button class="settings-action-btn" onclick="openCookieManage()">Manage Cookies &amp; Local Storage</button>
       </div>
     </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-language">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Language</div>
+      <div class="settings-card">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Type any language — your drills, video feedback, and routines will come back written in it, and the app's menus will translate too (may take a moment the first time).</p>
+        <input type="text" id="language-input" class="onboard-text-input" placeholder="e.g. Spanish, Hindi, Japanese…" style="margin-bottom:10px;">
+        <button class="go-btn" onclick="setAppLanguage(document.getElementById('language-input').value)">Set language</button>
+        <div class="status" id="language-status"></div>
+      </div>
+    </div>
   </div>
 
   <footer>Prototype — advice is general coaching info, not a substitute for an in-person coach.</footer>
@@ -2874,15 +2890,15 @@
 <nav class="bottom-nav">
   <button class="bottom-nav-btn active" data-page="home" onclick="switchPage('home')">
     <svg viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-    <span>Home</span>
+    <span data-i18n="nav_home">Home</span>
   </button>
   <button class="bottom-nav-btn" data-page="drills" onclick="switchPage('drills')">
     <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-    <span>Drills</span>
+    <span data-i18n="nav_drills">Drills</span>
   </button>
   <button class="bottom-nav-btn" data-page="routine" onclick="switchPage('routine')">
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
-    <span>Daily Routine</span>
+    <span data-i18n="nav_routine">Daily Routine</span>
   </button>
   <button class="bottom-nav-btn" data-page="settings" onclick="switchPage('settings')">
     <svg viewBox="0 0 24 24" fill="none">
@@ -2899,7 +2915,7 @@
       <circle cx="12" cy="12" r="5.6" stroke="currentColor" stroke-width="1.8"/>
       <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="1.8"/>
     </svg>
-    <span>Settings</span>
+    <span data-i18n="nav_settings">Settings</span>
   </button>
 </nav>
 
@@ -3486,7 +3502,7 @@ async function askFollowUp(containerId){
   renderFollowUpThread(threadEl, containerId);
 
   try{
-    const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} You just gave a young athlete some drills/feedback for ${followUpContext.sport}, summarized as: "${followUpContext.summary}". They now have a quick follow-up question. Answer it directly and helpfully in 2-4 sentences — no JSON, no markdown, just plain conversational text. Stay focused on their sport and what was just discussed. Keep language age-appropriate and safe (no advice that risks injury).`;
+    const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} You just gave a young athlete some drills/feedback for ${followUpContext.sport}, summarized as: "${followUpContext.summary}". They now have a quick follow-up question. Answer it directly and helpfully in 2-4 sentences — no JSON, no markdown, just plain conversational text. Stay focused on their sport and what was just discussed. Keep language age-appropriate and safe (no advice that risks injury).`;
 
     const response = await fetch(AI_HELPER_URL, {
       method: "POST",
@@ -3811,6 +3827,94 @@ function updateDarkModeToggleUI(){
   const isDark = document.body.classList.contains('dark-mode');
   btn.textContent = isDark ? 'Turn off' : 'Turn on';
 }
+
+// ---- Language / translation ----
+// Rather than hand-writing a dictionary for every language (which
+// could never really cover "all languages"), this asks the AI to
+// translate the app's core UI text once per language someone picks,
+// then caches the result on-device so it's instant after that. Drill/
+// video/routine feedback separately gets asked to respond directly in
+// the chosen language, since that's dynamically generated anyway.
+const UI_STRINGS = {
+  nav_home: 'Home', nav_drills: 'Drills', nav_routine: 'Daily Routine', nav_settings: 'Settings',
+  settings_appinfo: 'App Info', settings_reminders: 'Reminders', settings_achievements: 'Achievements',
+  settings_theme: 'App Theme', settings_help: 'How Gritto Works', settings_data: 'Manage My Data',
+  settings_feedback: 'Report a Bug / Feedback', settings_share: 'Share My Progress', settings_legal: 'Legal',
+  settings_language: 'Language',
+};
+
+let currentLanguage = null; // null = English (default, no translation needed)
+let currentTranslations = {};
+
+function getAppLanguageInstruction(){
+  return currentLanguage ? ` Respond entirely in ${currentLanguage}, not English.` : '';
+}
+
+async function setAppLanguage(languageName){
+  const statusEl = document.getElementById('language-status');
+  const trimmed = languageName.trim();
+  if(!trimmed || trimmed.toLowerCase() === 'english'){
+    currentLanguage = null;
+    currentTranslations = {};
+    applyTranslations();
+    localStorage.removeItem('gritto_language');
+    if(statusEl) statusEl.textContent = 'Language set to English.';
+    return;
+  }
+
+  const cacheKey = `gritto_translations_${trimmed.toLowerCase()}`;
+  const cached = localStorage.getItem(cacheKey);
+  if(cached){
+    try{
+      currentTranslations = JSON.parse(cached);
+      currentLanguage = trimmed;
+      localStorage.setItem('gritto_language', trimmed);
+      applyTranslations();
+      if(statusEl) statusEl.textContent = `Language set to ${trimmed}.`;
+      return;
+    }catch(e){ /* fall through and re-translate if the cached JSON is somehow bad */ }
+  }
+
+  if(statusEl) statusEl.textContent = `Translating to ${trimmed}…`;
+  try{
+    const systemPrompt = `You translate short mobile app UI labels. Translate each value in this JSON object from English to ${trimmed}. Keep translations short, matching typical mobile app button/label length — no long phrases. Respond ONLY with valid JSON using the EXACT same keys, translated values, no markdown fences, no preamble.`;
+    const response = await fetch(AI_HELPER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: "user", content: JSON.stringify(UI_STRINGS) }]
+      })
+    });
+    const data = await response.json();
+    const text = extractAIText(data).trim();
+    const translated = JSON.parse(text);
+    localStorage.setItem(cacheKey, JSON.stringify(translated));
+    currentTranslations = translated;
+    currentLanguage = trimmed;
+    localStorage.setItem('gritto_language', trimmed);
+    applyTranslations();
+    if(statusEl) statusEl.textContent = `Language set to ${trimmed}.`;
+  }catch(err){
+    console.error('Translation failed:', err.message);
+    if(statusEl) statusEl.textContent = "Couldn't translate right now — try again in a moment.";
+  }
+}
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    const original = UI_STRINGS[key];
+    el.textContent = (currentTranslations && currentTranslations[key]) || original;
+  });
+}
+
+function initLanguage(){
+  const saved = localStorage.getItem('gritto_language');
+  if(saved) setAppLanguage(saved); // re-applies from cache instantly if already translated before
+}
+initLanguage();
 
 function renderThemePicker(){
   const gridEl = document.getElementById('theme-grid');
@@ -4540,7 +4644,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '4.9.0';
+const APP_VERSION = '4.10.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -4598,6 +4702,10 @@ function showSettingsSubpage(id){
   document.querySelectorAll('.settings-subpage').forEach(el => el.classList.add('hidden'));
   document.getElementById(`settings-subpage-${id}`).classList.remove('hidden');
   if(id === 'theme') updateDarkModeToggleUI();
+  if(id === 'language'){
+    const input = document.getElementById('language-input');
+    if(input) input.value = currentLanguage || '';
+  }
 }
 
 async function renderSettingsPage(){
@@ -5530,7 +5638,7 @@ async function buildRoutine(){
   btn.disabled = true;
   statusEl.textContent = 'Building your routine…';
 
-  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} A young athlete wants a short DAILY routine (something they can repeat every day) built around one goal. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"items": [{"name":"short activity name","minutes":2,"reps":null,"cue":"one short coaching cue for this activity"}]}
 Include 3 to 5 items, ordered from warm-up-style activities to more focused ones. For EACH item, set exactly one of "minutes" or "reps" to a realistic whole number and set the other to null — use "reps" for countable activities (like "20 dribbles" or "10 throws") and "minutes" for timed activities (like "footwork drill"). The items that use "minutes" should add up to somewhere between 5 and 10 minutes total. Keep activities safe, age-appropriate, and doable with little or no equipment. Apply your tone in the "name" and "cue" fields — keep the JSON structure itself unchanged.`;
 
@@ -5873,7 +5981,7 @@ async function getDrills(){
   btn.disabled = true;
   statusEl.textContent = 'Building your drills…';
 
-  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"summary": "one sentence about what you'll help with, in your tone", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete, in your tone","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
 Include exactly 4 drills, ordered from most foundational to more advanced. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate and safe (no advice that risks injury). Be specific and actionable, not generic.`;
 
@@ -6646,7 +6754,7 @@ async function analyzeVideo(){
         return extractedFrames[Math.min(idx, extractedFrames.length - 1)];
       });
 
-  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
+  const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
 {"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "bodyPartsFlagged": ["one or more of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — whichever body parts are actually involved in the \"fix\" items above"], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
 Include EXACTLY 3 items in "categories" — pick the 3 most relevant technical categories for judging a "${selectedRole}" in ${selectedSport} specifically (for example, a baseball hitter might be scored on things like "Stance & Load", "Swing Path", and "Follow-Through"; a basketball shooter might be scored on "Shooting Form", "Release Point", and "Balance" — these are just illustrative, pick whatever's genuinely most relevant to this exact sport and role). Each category's "score" is a whole number from 0-100 based purely on what's visible in the frames.
