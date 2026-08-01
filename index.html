@@ -3855,6 +3855,13 @@ let selectedRole = null;
 // Unlocked permanently based on the best-ever streak reached (drills OR
 // routine, whichever is higher) — once unlocked, always unlocked, even
 // if the streak later breaks.
+
+// SET THIS the day Gritto actually launches to the public — this is
+// the ONLY thing that needs to change. Format: 'YYYY-MM-DD'. Leave as
+// null until then; the anniversary condition below simply won't ever
+// trigger while it's null, so nobody gets it early by mistake.
+const GRITTO_PUBLIC_LAUNCH_DATE = null; // e.g. '2026-09-01'
+
 const THEMES = [
   { id: 'turf',      name: 'Turf',      unlockStreak: 0,   turf: '#0003CC', energy: '#FBBF24', img: 'turf.png', desc: 'The default theme — everyone starts here.' },
   { id: 'ocean',     name: 'Ocean',     unlockStreak: 3,   turf: '#1C7293', energy: '#4ECDC4', img: 'ocean.png', desc: 'Hit a 3-day best-ever streak (drills or routine).' },
@@ -3892,8 +3899,8 @@ const THEMES = [
   { id: 'grandmaster',  name: 'Grandmaster',    unlockStreak: 0, turf: '#141416', energy: '#D4D4D8', img: 'grandmaster.png', desc: 'Unlock every other theme first — all 24 of them.',
     check: null }, // special-cased in getUnlockedThemes — unlocks only once every OTHER theme is unlocked
   { id: 'original',     name: 'Original',       unlockStreak: 0, turf: '#2F8F4E', energy: '#FF6A1A', img: 'original.png',
-    desc: 'Be one of the first 100 people to ever use Gritto, or have your account for a full year.',
-    check: s => (s.signupNumber && s.signupNumber <= 100) || s.accountAgeDays >= 365 },
+    desc: "Be one of the first 100 people to use Gritto, or have an account on Gritto's one year anniversary.",
+    check: s => (s.signupNumber && s.signupNumber <= 100) || (GRITTO_PUBLIC_LAUNCH_DATE && Date.now() >= new Date(GRITTO_PUBLIC_LAUNCH_DATE).getTime() + 365*86400000) },
 ];
 
 // Full theme access for testing/demo purposes on this one account —
@@ -4868,7 +4875,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.4.3';
+const APP_VERSION = '5.4.4';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
