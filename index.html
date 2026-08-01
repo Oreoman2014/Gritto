@@ -3891,6 +3891,9 @@ const THEMES = [
     check: s => localStorage.getItem('gritto_ever_used_language') === 'true' },
   { id: 'grandmaster',  name: 'Grandmaster',    unlockStreak: 0, turf: '#141416', energy: '#D4D4D8', img: 'grandmaster.png', desc: 'Unlock every other theme first — all 24 of them.',
     check: null }, // special-cased in getUnlockedThemes — unlocks only once every OTHER theme is unlocked
+  { id: 'original',     name: 'Original',       unlockStreak: 0, turf: '#2F8F4E', energy: '#FF6A1A', img: 'original.png',
+    desc: 'Be one of the first 100 people to ever use Gritto, or have your account for a full year.',
+    check: s => (s.signupNumber && s.signupNumber <= 100) || s.accountAgeDays >= 365 },
 ];
 
 // Full theme access for testing/demo purposes on this one account —
@@ -4129,11 +4132,12 @@ async function loadBadgeStats(){
   if(!session) return badgeStats;
 
   try{
-    const [historyRes, videoRes, sportScoreRes, referralRes] = await Promise.all([
+    const [historyRes, videoRes, sportScoreRes, referralRes, profileRes] = await Promise.all([
       sb.from('drill_history').select('sport, created_at').eq('user_id', session.user.id),
       sb.from('video_analysis_history').select('score').eq('user_id', session.user.id).not('score', 'is', null),
       sb.from('video_analysis_history').select('sport, score').eq('user_id', session.user.id).not('score', 'is', null),
       sb.from('referrals').select('id', { count: 'exact', head: true }).eq('referrer_id', session.user.id),
+      sb.from('user_profile').select('signup_number').eq('user_id', session.user.id).maybeSingle(),
     ]);
 
     const historyRows = historyRes.data || [];
@@ -4157,6 +4161,7 @@ async function loadBadgeStats(){
       referralCount: referralRes.count || 0,
       sportsWithSixtyPlus,
       accountAgeDays: session.user.created_at ? Math.floor((Date.now() - new Date(session.user.created_at).getTime()) / 86400000) : 0,
+      signupNumber: (profileRes.data && profileRes.data.signup_number) || null,
     };
   }catch(err){
     console.error('Could not load badge stats:', err.message);
@@ -4863,7 +4868,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.3.1';
+const APP_VERSION = '5.4.3';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
