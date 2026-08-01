@@ -3115,6 +3115,22 @@ function getSavedAccounts(){
   }
 }
 
+// Supabase automatically rotates session tokens in the background as a
+// security measure — a token saved once and never updated will
+// eventually go stale even if nothing "went wrong." This keeps
+// whichever saved account is currently active up to date every time
+// Supabase refreshes it, so switching back to it later still works.
+sb.auth.onAuthStateChange((event, session) => {
+  if(event !== 'TOKEN_REFRESHED' || !session) return;
+  const accounts = getSavedAccounts();
+  const idx = accounts.findIndex(a => a.email === session.user.email);
+  if(idx > -1){
+    accounts[idx].access_token = session.access_token;
+    accounts[idx].refresh_token = session.refresh_token;
+    localStorage.setItem('gritto_saved_accounts', JSON.stringify(accounts));
+  }
+});
+
 async function saveCurrentAccountForSwitching(nickname){
   const trimmed = (nickname || '').trim();
   if(!trimmed){
@@ -4985,7 +5001,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.2.0';
+const APP_VERSION = '5.2.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
