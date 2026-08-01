@@ -1,5 +1,51 @@
 # Gritto — Version Log
 
+## v5.4.0 — "Original" theme + admin panel fix
+- New theme: black background with the original blue/yellow logo — unlocks two ways: being one of the first 100 people to ever sign up, OR having your account for a full year, whichever comes first
+- First-100 tracking uses a real database sequence, so signup order is assigned atomically and race-condition-free even if two people sign up at the exact same instant
+- Real bug fixed: the admin panel's "grant theme" checklist hadn't been updated since we added the 10 newest themes back in v4.15.0 — it only showed the original 15. Added all 11 missing themes (the 10 achievement-based ones plus this new Original theme) so you can actually grant any of them from the admin panel
+- Verified with real tests: confirmed every boundary case for the dual unlock condition (signup #99 vs #101, account age 364 vs 366 days, and the inclusive boundary at exactly #100), and confirmed the theme correctly shows "Tap to see" instead of the old misleading label
+
+## v5.3.1 — Removed Switch Accounts entirely
+- The feature proved unreliable even after two real attempted fixes, so it's been fully removed rather than continuing to chase an elusive bug
+- Removed the Settings menu item, its subpage, all related functions, the localStorage tracking, and all related CSS — a clean, complete removal, not just hidden
+- Each account still works exactly as it always has — sign in and sign out normally per account, just without the quick-switch shortcut
+- Verified with a real regression check: confirmed zero remaining references to any part of the removed feature, and confirmed every other feature (theme details, referrals, language, additional sign-in options) is fully unaffected
+
+## v5.3.0 — Fix two real Switch Accounts bugs
+- **Bug 1 fixed: celebration spam on every account switch.** The "which themes/badges have you already seen" tracking was shared across your whole device, not per-account — so switching between two accounts kept overwriting each other's tracking, making the app think everything was newly unlocked every single time you switched back. Now scoped separately per account.
+- **Bug 2 fixed: switching leaving a broken session that then blocked fresh Google sign-in too.** Real suspected cause: a timing race where the page could reload before the switched-to session had fully saved, potentially leaving a corrupted partial session behind. Fixed by explicitly clearing any existing session first, then verifying the new session actually took hold before reloading — if it doesn't verify, the app now shows a clear error and stays put instead of reloading into a broken state.
+- Verified both with real tests: confirmed switching back and forth between two accounts no longer produces false "new unlock" celebrations, confirmed the switch flow correctly clears the old session first and verifies the new one before reloading, and confirmed a failed verification correctly blocks the reload instead of silently proceeding
+
+## v5.2.1 — Fix: Switch Accounts breaking after a while ("Auth session missing!")
+- Real bug found: Supabase automatically rotates session tokens in the background as a security measure. Saved accounts only captured a one-time snapshot of tokens, so if you kept using the app after saving an account, the live session moved on to newer tokens while the saved copy silently went stale — causing switching to fail with a 403 and "Auth session missing!"
+- Fixed by listening for Supabase's automatic token refresh and updating the matching saved account's tokens every time it happens, so the saved copy for whichever account is actively in use never goes stale
+- This fixes the common case (switching between accounts you use somewhat regularly). A genuinely long-dormant saved account (not touched in weeks) can still legitimately need a fresh sign-in — that fallback message stays as-is, since it's still accurate for that edge case
+- Verified with real tests: confirmed a saved account's tokens correctly update when its session refreshes in the background, and confirmed a refresh event for an unrelated account correctly doesn't touch other saved accounts' data
+
+## v5.2.0 — Settings menu icons: emoji → real line SVGs
+- Replaced all 12 Settings menu emoji icons (App Info, Reminders, Achievements, App Theme, How Gritto Works, Manage My Data, Report a Bug/Feedback, Share My Progress, Legal, Language, Invite a Friend, Switch Accounts) with clean line-style SVG icons
+- Matches the same stroke-based style already used in the bottom navigation, instead of emoji that render inconsistently across different devices/platforms
+- Verified with a real test: confirmed all 12 menu items now have an actual SVG element (not text/emoji), correctly matched to the right label, with zero leftover emoji anywhere in the menu
+
+## v5.1.2 — "Fix your form." header now only shows on Home
+- The big header with the logo and "Fix your form." tagline was showing on every page (Drills, Daily Routine, Settings too), not just Home
+- Now hidden on every page except Home, matching the same show/hide pattern already used for the streak progress bar
+- Verified with a real test: confirmed it's visible on initial load (Home), correctly hides on Drills/Daily Routine/Settings, and correctly reappears when switching back to Home
+
+## v5.1.1 — Fix: Grandmaster still showed "0-day streak"
+- My previous fix checked for a `check` function to decide whether to show "Tap to see" — but Grandmaster's unlock logic is special-cased separately (it depends on all other themes, not its own simple condition), so it never had a `check` function to detect, and fell through to the old broken label
+- Fixed by explicitly including Grandmaster in the "this is achievement-based" check, not just themes with their own check function
+- Verified with a real test: confirmed Grandmaster now shows "Tap to see," confirmed all 9 other achievement-based themes are unaffected, and confirmed genuine streak-based themes still correctly show their real day counts
+
+## v5.1.0 — Tap any theme to see how to unlock it (and fix a real misleading label)
+- Tapping any theme swatch — locked or unlocked — now opens a detail popup showing what it takes to unlock it, or what you unlocked it for
+- If unlocked: an "Equip" button right there to switch to it immediately, which correctly shows "Currently equipped" (and disables itself) if it's already your active theme
+- If not unlocked: shows "Not unlocked yet" instead of an equip option
+- Real bug fixed: locked achievement-based themes (the 10 newest ones) were showing "0-day streak" underneath them — which is actively misleading, since it reads like you already qualify. Now shows "Tap to see" instead. Genuine streak-based themes still correctly show their real day requirement.
+- Added a real description to every single theme (all 25) explaining exactly how to earn it
+- Verified with real tests: confirmed the label fix for both an achievement-based theme (now says "Tap to see") and a genuine streak-based one (still correctly shows its day count), confirmed the detail popup shows correct info for both a locked and an unlocked theme, and confirmed the full equip flow — including that re-opening an already-equipped theme correctly shows "Currently equipped" with the button disabled
+
 ## v5.0.0 🎉 — Milestone version bump
 - No functional changes — marking this as v5, following the same batch of work as v4.15.0: 10 new achievement-based themes (25 total now), plus the Precision/Consistency image fix
 
