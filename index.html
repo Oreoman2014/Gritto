@@ -4219,7 +4219,8 @@ function renderThemePicker(){
     // For achievement-based themes (no streak threshold), showing
     // "0-day streak" was actively misleading — it read like you'd
     // already qualify. Tap-to-see-details makes more sense for those.
-    const lockedLabel = t.check ? 'Tap to see' : `${t.unlockStreak}-day streak`;
+    const isAchievementBased = !!t.check || t.id === 'grandmaster';
+    const lockedLabel = isAchievementBased ? 'Tap to see' : `${t.unlockStreak}-day streak`;
     return `
       <div class="theme-swatch ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" onclick="showThemeDetail('${t.id}')">
         <img src="${t.img}" alt="${t.name}">
@@ -4983,7 +4984,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.1.0';
+const APP_VERSION = '5.1.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
