@@ -3165,15 +3165,39 @@ async function switchToAccount(index){
   const account = accounts[index];
   if(!account) return;
 
-  const { error } = await sb.auth.setSession({
-    access_token: account.access_token,
-    refresh_token: account.refresh_token,
-  });
-  if(error){
-    alert(`Could not switch to ${account.nickname} — that saved sign-in may have expired. Try signing into that account fresh instead.`);
-    console.error('Account switch failed:', error.message);
+  try{
+    // Fully clear whatever session is currently active first. Setting a
+    // new session directly on top of an existing one risks leaving a
+    // corrupted/partial session behind, which can then interfere with
+    // sign-in attempts afterward — this guarantees a clean slate.
+    await sb.auth.signOut();
+
+    const { error } = await sb.auth.setSession({
+      access_token: account.access_token,
+      refresh_token: account.refresh_token,
+    });
+    if(error){
+      alert(`Could not switch to ${account.nickname} — that saved sign-in may have expired. Try signing into that account fresh instead.`);
+      console.error('Account switch failed:', error.message);
+      return;
+    }
+
+    // Verify the new session actually took before reloading — setSession()
+    // resolving doesn't fully guarantee the write has settled in every
+    // browser, and reloading too early can catch it mid-flight, leaving
+    // no valid session behind after the reload.
+    const { data: { session: verifySession } } = await sb.auth.getSession();
+    if(!verifySession){
+      alert(`Something went wrong switching to ${account.nickname} — try again.`);
+      console.error('Account switch: session did not verify after setSession()');
+      return;
+    }
+  }catch(err){
+    alert(`Something went wrong switching to ${account.nickname} — try again.`);
+    console.error('Account switch failed (thrown):', err.message);
     return;
   }
+
   // Full reload is the simplest, safest way to make sure every part of
   // the app reflects the newly active account, rather than trying to
   // manually refresh dozens of separate pieces of on-screen data.
@@ -4400,8 +4424,17 @@ function equipFromDetail(){
 let unlockQueue = [];
 
 function checkForNewUnlocks(){
-  const knownThemes = new Set(JSON.parse(localStorage.getItem('gritto_known_themes') || '[]'));
-  const knownBadges = new Set(JSON.parse(localStorage.getItem('gritto_known_badges') || '[]'));
+  // Keyed by account, not just the device — localStorage is shared
+  // across every account signed into on this browser (including
+  // Switch Accounts), so a single shared key would cause one account's
+  // smaller unlock set to overwrite another's, triggering false "new
+  // unlock" celebrations every time you switch back.
+  if(!currentUserEmail) return;
+  const themesKey = `gritto_known_themes_${currentUserEmail}`;
+  const badgesKey = `gritto_known_badges_${currentUserEmail}`;
+
+  const knownThemes = new Set(JSON.parse(localStorage.getItem(themesKey) || '[]'));
+  const knownBadges = new Set(JSON.parse(localStorage.getItem(badgesKey) || '[]'));
 
   const unlockedThemes = getUnlockedThemes();
   const unlockedBadges = getUnlockedBadges();
@@ -4412,9 +4445,9 @@ function checkForNewUnlocks(){
   // Always record what's unlocked now, whether or not this is the
   // very first visit — first-ever load shouldn't trigger a flood of
   // celebrations for things earned before this feature existed.
-  const isFirstEverCheck = localStorage.getItem('gritto_known_themes') === null;
-  localStorage.setItem('gritto_known_themes', JSON.stringify(unlockedThemes.map(t => t.id)));
-  localStorage.setItem('gritto_known_badges', JSON.stringify(unlockedBadges.map(b => b.id)));
+  const isFirstEverCheck = localStorage.getItem(themesKey) === null;
+  localStorage.setItem(themesKey, JSON.stringify(unlockedThemes.map(t => t.id)));
+  localStorage.setItem(badgesKey, JSON.stringify(unlockedBadges.map(b => b.id)));
 
   if(isFirstEverCheck) return; // don't celebrate everything on the very first check
 
@@ -5001,7 +5034,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.2.1';
+const APP_VERSION = '5.3.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
