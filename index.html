@@ -2954,6 +2954,17 @@
   </div>
 </div>
 
+<div class="badge-detail-overlay" id="theme-detail-overlay" onclick="if(event.target === this) closeThemeDetail()">
+  <div class="badge-detail-card">
+    <button class="badge-detail-close" onclick="closeThemeDetail()">&times;</button>
+    <img id="theme-detail-img" class="theme-preview-img" style="max-width:140px; margin:0 auto 10px;" src="" alt="">
+    <div class="badge-detail-status" id="theme-detail-status">Locked</div>
+    <h3 id="theme-detail-name">Theme name</h3>
+    <p id="theme-detail-desc"></p>
+    <button class="go-btn" id="theme-detail-equip-btn" onclick="equipFromDetail()">Equip</button>
+  </div>
+</div>
+
 <div class="cookie-manage-overlay" id="cookie-manage-overlay">
   <div class="cookie-manage-card">
     <h3>Cookies &amp; Local Storage</h3>
@@ -3974,40 +3985,40 @@ let selectedRole = null;
 // routine, whichever is higher) — once unlocked, always unlocked, even
 // if the streak later breaks.
 const THEMES = [
-  { id: 'turf',      name: 'Turf',      unlockStreak: 0,   turf: '#0003CC', energy: '#FBBF24', img: 'turf.png' },
-  { id: 'ocean',     name: 'Ocean',     unlockStreak: 3,   turf: '#1C7293', energy: '#4ECDC4', img: 'ocean.png' },
-  { id: 'sunset',    name: 'Sunset',    unlockStreak: 7,   turf: '#EC4899', energy: '#FDBA74', img: 'sunset.png' },
-  { id: 'galaxy',    name: 'Galaxy',    unlockStreak: 14,  turf: '#5D3FD3', energy: '#7CE0FF', img: 'galaxy.png' },
-  { id: 'inferno',   name: 'Inferno',   unlockStreak: 30,  turf: '#B91C1C', energy: '#F97316', img: 'inferno.png' },
-  { id: 'aurora',    name: 'Aurora',    unlockStreak: 50,  turf: '#2ECC71', energy: '#9B59B6', img: 'aurora.png' },
-  { id: 'legendary', name: 'Legendary', unlockStreak: 100, turf: '#D4AF37', energy: '#B8860B', img: 'legendary.png' },
-  { id: 'diamond',   name: 'Diamond',   unlockStreak: 125, turf: '#3B9FD9', energy: '#E8F4FC', img: 'diamond.png' },
-  { id: 'phoenix',   name: 'Phoenix',   unlockStreak: 150, turf: '#720072', energy: '#FB923C', img: 'phoenix.png' },
-  { id: 'storm',     name: 'Storm',     unlockStreak: 175, turf: '#2C3E6B', energy: '#B983FF', img: 'storm.png' },
-  { id: 'emerald',   name: 'Emerald',   unlockStreak: 200, turf: '#046A38', energy: '#D4AF37', img: 'emerald.png' },
-  { id: 'nebula',    name: 'Nebula',    unlockStreak: 250, turf: '#9D4EDD', energy: '#4CC9F0', img: 'nebula.png' },
-  { id: 'solar',     name: 'Solar',     unlockStreak: 300, turf: '#CA8A04', energy: '#FDE047', img: 'solar.png' },
-  { id: 'celestial', name: 'Celestial', unlockStreak: 350, turf: '#C9A876', energy: '#F5F0E8', img: 'celestial.png' },
-  { id: 'eternal',   name: 'Eternal',   unlockStreak: 365, turf: '#E84393', energy: '#00D9C0', img: 'eternal.png' },
-  { id: 'ironwill',     name: 'Iron Will',      unlockStreak: 0, turf: '#7C5F38', energy: '#FFD23F', img: 'ironwill.png',
+  { id: 'turf',      name: 'Turf',      unlockStreak: 0,   turf: '#0003CC', energy: '#FBBF24', img: 'turf.png', desc: 'The default theme — everyone starts here.' },
+  { id: 'ocean',     name: 'Ocean',     unlockStreak: 3,   turf: '#1C7293', energy: '#4ECDC4', img: 'ocean.png', desc: 'Hit a 3-day best-ever streak (drills or routine).' },
+  { id: 'sunset',    name: 'Sunset',    unlockStreak: 7,   turf: '#EC4899', energy: '#FDBA74', img: 'sunset.png', desc: 'Hit a 7-day best-ever streak.' },
+  { id: 'galaxy',    name: 'Galaxy',    unlockStreak: 14,  turf: '#5D3FD3', energy: '#7CE0FF', img: 'galaxy.png', desc: 'Hit a 14-day best-ever streak.' },
+  { id: 'inferno',   name: 'Inferno',   unlockStreak: 30,  turf: '#B91C1C', energy: '#F97316', img: 'inferno.png', desc: 'Hit a 30-day best-ever streak.' },
+  { id: 'aurora',    name: 'Aurora',    unlockStreak: 50,  turf: '#2ECC71', energy: '#9B59B6', img: 'aurora.png', desc: 'Hit a 50-day best-ever streak.' },
+  { id: 'legendary', name: 'Legendary', unlockStreak: 100, turf: '#D4AF37', energy: '#B8860B', img: 'legendary.png', desc: 'Hit a 100-day best-ever streak.' },
+  { id: 'diamond',   name: 'Diamond',   unlockStreak: 125, turf: '#3B9FD9', energy: '#E8F4FC', img: 'diamond.png', desc: 'Hit a 125-day best-ever streak.' },
+  { id: 'phoenix',   name: 'Phoenix',   unlockStreak: 150, turf: '#720072', energy: '#FB923C', img: 'phoenix.png', desc: 'Hit a 150-day best-ever streak.' },
+  { id: 'storm',     name: 'Storm',     unlockStreak: 175, turf: '#2C3E6B', energy: '#B983FF', img: 'storm.png', desc: 'Hit a 175-day best-ever streak.' },
+  { id: 'emerald',   name: 'Emerald',   unlockStreak: 200, turf: '#046A38', energy: '#D4AF37', img: 'emerald.png', desc: 'Hit a 200-day best-ever streak.' },
+  { id: 'nebula',    name: 'Nebula',    unlockStreak: 250, turf: '#9D4EDD', energy: '#4CC9F0', img: 'nebula.png', desc: 'Hit a 250-day best-ever streak.' },
+  { id: 'solar',     name: 'Solar',     unlockStreak: 300, turf: '#CA8A04', energy: '#FDE047', img: 'solar.png', desc: 'Hit a 300-day best-ever streak.' },
+  { id: 'celestial', name: 'Celestial', unlockStreak: 350, turf: '#C9A876', energy: '#F5F0E8', img: 'celestial.png', desc: 'Hit a 350-day best-ever streak.' },
+  { id: 'eternal',   name: 'Eternal',   unlockStreak: 365, turf: '#E84393', energy: '#00D9C0', img: 'eternal.png', desc: 'Hit a 365-day best-ever streak — a full year.' },
+  { id: 'ironwill',     name: 'Iron Will',      unlockStreak: 0, turf: '#7C5F38', energy: '#FFD23F', img: 'ironwill.png', desc: 'Complete 200 total drills.',
     check: s => s.totalDrills >= 200 },
-  { id: 'directorscut', name: "Director's Cut", unlockStreak: 0, turf: '#593B11', energy: '#F5E6C8', img: 'directorscut.png',
+  { id: 'directorscut', name: "Director's Cut", unlockStreak: 0, turf: '#593B11', energy: '#F5E6C8', img: 'directorscut.png', desc: 'Complete 50 video form checks.',
     check: s => s.videoCount >= 50 },
-  { id: 'archive',      name: 'Archive',        unlockStreak: 0, turf: '#7C122D', energy: '#D4941E', img: 'archive.png',
+  { id: 'archive',      name: 'Archive',        unlockStreak: 0, turf: '#7C122D', energy: '#D4941E', img: 'archive.png', desc: 'Complete 100 video form checks.',
     check: s => s.videoCount >= 100 },
-  { id: 'precision',    name: 'Precision',      unlockStreak: 0, turf: '#557BAA', energy: '#E8F4FC', img: 'precision.png',
+  { id: 'precision',    name: 'Precision',      unlockStreak: 0, turf: '#557BAA', energy: '#E8F4FC', img: 'precision.png', desc: 'Score a 90+ average across at least 10 video checks.',
     check: s => s.videoCount >= 10 && s.avgScore >= 90 },
-  { id: 'consistency',  name: 'Consistency',    unlockStreak: 0, turf: '#3D8906', energy: '#DCFCE7', img: 'consistency.png',
+  { id: 'consistency',  name: 'Consistency',    unlockStreak: 0, turf: '#3D8906', energy: '#DCFCE7', img: 'consistency.png', desc: "Be active on 30 different days (they don't need to be in a row).",
     check: s => s.activeDays >= 30 },
-  { id: 'ambassador',   name: 'Ambassador',     unlockStreak: 0, turf: '#893D88', energy: '#FDE68A', img: 'ambassador.png',
+  { id: 'ambassador',   name: 'Ambassador',     unlockStreak: 0, turf: '#893D88', energy: '#FDE68A', img: 'ambassador.png', desc: 'Get 10 friends to sign up through your referral link.',
     check: s => s.referralCount >= 10 },
-  { id: 'allrounder',   name: 'All-Rounder',    unlockStreak: 0, turf: '#3A7566', energy: '#FB7185', img: 'allrounder.png',
+  { id: 'allrounder',   name: 'All-Rounder',    unlockStreak: 0, turf: '#3A7566', energy: '#FB7185', img: 'allrounder.png', desc: 'Score 60+ in a video check for 5 different sports.',
     check: s => s.sportsWithSixtyPlus >= 5 },
-  { id: 'veteran',      name: 'Veteran',        unlockStreak: 0, turf: '#112547', energy: '#CBD5E1', img: 'veteran.png',
+  { id: 'veteran',      name: 'Veteran',        unlockStreak: 0, turf: '#112547', energy: '#CBD5E1', img: 'veteran.png', desc: 'Have your account for 6 months (182 days) since your first day.',
     check: s => s.accountAgeDays >= 182 },
-  { id: 'polyglot',     name: 'Polyglot',       unlockStreak: 0, turf: '#0E5A60', energy: '#FB923C', img: 'polyglot.png',
+  { id: 'polyglot',     name: 'Polyglot',       unlockStreak: 0, turf: '#0E5A60', energy: '#FB923C', img: 'polyglot.png', desc: 'Set the app to any language other than English at least once.',
     check: s => localStorage.getItem('gritto_ever_used_language') === 'true' },
-  { id: 'grandmaster',  name: 'Grandmaster',    unlockStreak: 0, turf: '#141416', energy: '#D4D4D8', img: 'grandmaster.png',
+  { id: 'grandmaster',  name: 'Grandmaster',    unlockStreak: 0, turf: '#141416', energy: '#D4D4D8', img: 'grandmaster.png', desc: 'Unlock every other theme first — all 24 of them.',
     check: null }, // special-cased in getUnlockedThemes — unlocks only once every OTHER theme is unlocked
 ];
 
@@ -4205,10 +4216,14 @@ function renderThemePicker(){
   gridEl.innerHTML = THEMES.map(t => {
     const unlocked = unlockedIds.has(t.id);
     const isActive = t.id === activeId;
+    // For achievement-based themes (no streak threshold), showing
+    // "0-day streak" was actively misleading — it read like you'd
+    // already qualify. Tap-to-see-details makes more sense for those.
+    const lockedLabel = t.check ? 'Tap to see' : `${t.unlockStreak}-day streak`;
     return `
-      <div class="theme-swatch ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" onclick="${unlocked ? `selectTheme('${t.id}')` : ''}">
+      <div class="theme-swatch ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" onclick="showThemeDetail('${t.id}')">
         <img src="${t.img}" alt="${t.name}">
-        ${unlocked ? '' : `<div class="theme-swatch-lock">${t.unlockStreak}-day streak</div>`}
+        ${unlocked ? '' : `<div class="theme-swatch-lock">${lockedLabel}</div>`}
       </div>
     `;
   }).join('');
@@ -4319,6 +4334,45 @@ function showBadgeDetail(badgeId){
 
 function closeBadgeDetail(){
   document.getElementById('badge-detail-overlay').classList.remove('show');
+}
+
+let currentDetailThemeId = null;
+
+function showThemeDetail(themeId){
+  const theme = THEMES.find(t => t.id === themeId);
+  if(!theme) return;
+  currentDetailThemeId = themeId;
+  const unlocked = getUnlockedThemes().some(t => t.id === themeId);
+  const currentTheme = localStorage.getItem('gritto_theme') || 'turf';
+
+  document.getElementById('theme-detail-img').src = theme.img;
+  document.getElementById('theme-detail-name').textContent = theme.name;
+  document.getElementById('theme-detail-desc').textContent = theme.desc || '';
+  document.getElementById('theme-detail-status').textContent = unlocked ? 'Unlocked' : 'Not unlocked yet';
+  document.getElementById('theme-detail-status').className = unlocked ? 'badge-detail-status unlocked' : 'badge-detail-status';
+
+  const equipBtn = document.getElementById('theme-detail-equip-btn');
+  if(unlocked){
+    equipBtn.classList.remove('hidden');
+    const alreadyEquipped = themeId === currentTheme;
+    equipBtn.textContent = alreadyEquipped ? 'Currently equipped' : 'Equip';
+    equipBtn.disabled = alreadyEquipped;
+  }else{
+    equipBtn.classList.add('hidden');
+  }
+
+  document.getElementById('theme-detail-overlay').classList.add('show');
+}
+
+function closeThemeDetail(){
+  document.getElementById('theme-detail-overlay').classList.remove('show');
+  currentDetailThemeId = null;
+}
+
+function equipFromDetail(){
+  if(!currentDetailThemeId) return;
+  selectTheme(currentDetailThemeId);
+  closeThemeDetail();
 }
 
 // ---- Unlock celebration ----
@@ -4929,7 +4983,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.0.0';
+const APP_VERSION = '5.1.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
