@@ -2526,6 +2526,17 @@
       </div>
     </div>
 
+    <div class="home-quickstart">
+      <button class="home-quickstart-btn" onclick="switchPage('drills')">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Get drills
+      </button>
+      <button class="home-quickstart-btn" onclick="switchPage('routine')">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
+        Today's routine
+      </button>
+    </div>
+
     <div id="home-score-section">
       <div class="section-label" style="margin-top:14px;">Your average score by sport</div>
       <div id="home-score-table"></div>
@@ -2537,17 +2548,6 @@
 
       <div class="section-label" style="margin-top:16px;">Common focus areas</div>
       <div id="home-bodyparts-list"></div>
-    </div>
-
-    <div class="home-quickstart">
-      <button class="home-quickstart-btn" onclick="switchPage('drills')">
-        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        Get drills
-      </button>
-      <button class="home-quickstart-btn" onclick="switchPage('routine')">
-        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
-        Today's routine
-      </button>
     </div>
 
     <div class="section-label" style="margin-top:8px;">Your stats</div>
@@ -4876,7 +4876,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.5.0';
+const APP_VERSION = '5.5.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
