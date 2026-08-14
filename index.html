@@ -1817,6 +1817,11 @@
   }
   .trend-detail-card b{color:var(--ink);}
 
+  .home-section-divider{
+    border:none;
+    border-top:1px solid var(--line);
+    margin:28px 0 20px;
+  }
   .home-quickstart{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -2549,6 +2554,8 @@
       <div class="section-label" style="margin-top:16px;">Common focus areas</div>
       <div id="home-bodyparts-list"></div>
     </div>
+
+    <hr class="home-section-divider">
 
     <div class="section-label" style="margin-top:8px;">Your stats</div>
     <div class="home-stats-grid">
@@ -4876,7 +4883,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.5.1';
+const APP_VERSION = '5.5.2';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
