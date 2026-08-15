@@ -1822,6 +1822,25 @@
     border-top:1px solid var(--line);
     margin:28px 0 20px;
   }
+  .home-analytics-tabs{
+    display:flex;
+    gap:6px;
+    border-bottom:1px solid var(--line);
+    margin-top:20px;
+  }
+  .home-analytics-tab{
+    background:none;
+    border:none;
+    border-bottom:2px solid transparent;
+    padding:9px 4px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .home-analytics-tab.active{color:var(--ink); border-bottom-color:var(--turf);}
+
   .home-quickstart{
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -2589,7 +2608,13 @@
       </button>
     </div>
 
-    <div id="home-score-section">
+    <div class="home-analytics-tabs" id="home-analytics-tabs">
+      <button class="home-analytics-tab active" data-tab="trend" onclick="switchHomeTab('trend')">Trend</button>
+      <button class="home-analytics-tab" data-tab="focus" onclick="switchHomeTab('focus')">Focus areas</button>
+      <button class="home-analytics-tab" data-tab="history" onclick="switchHomeTab('history')">History</button>
+    </div>
+
+    <div id="home-tab-trend">
       <div class="section-label" style="margin-top:14px;">Your average score by sport</div>
       <div id="home-score-table"></div>
 
@@ -2597,9 +2622,15 @@
       <div id="home-trend-sport-chips" class="trend-sport-chips"></div>
       <div id="home-trend-chart"></div>
       <div id="home-trend-detail"></div>
+    </div>
 
-      <div class="section-label" style="margin-top:16px;">Common focus areas</div>
+    <div id="home-tab-focus" class="hidden">
       <div id="home-bodyparts-list"></div>
+    </div>
+
+    <div id="home-tab-history" class="hidden">
+      <div class="video-history-strip" id="video-history-strip"></div>
+      <div id="video-history-detail"></div>
     </div>
 
     <hr class="home-section-divider">
@@ -2619,10 +2650,6 @@
         <div class="home-stat-lbl" id="home-stat-bigday-lbl">Biggest practice day</div>
       </div>
     </div>
-
-    <div class="section-label" style="margin-top:20px;">Your video history</div>
-    <div class="video-history-strip" id="video-history-strip"></div>
-    <div id="video-history-detail"></div>
 
     <div class="section-label" style="margin-top:20px;">Recent activity</div>
     <div id="home-activity-list"></div>
@@ -4966,7 +4993,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.6.0';
+const APP_VERSION = '5.7.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5384,6 +5411,7 @@ function selectActivityItem(i){
       document.querySelectorAll('.home-activity-item').forEach(el => el.classList.remove('active'));
       const el = document.getElementById(`ha-item-${i}`);
       if(el) el.classList.add('active');
+      switchHomeTab('history');
       document.getElementById('video-history-strip').scrollIntoView({ behavior: 'smooth', block: 'center' });
       selectVideoHistoryItem(bestIdx);
       return;
@@ -6452,6 +6480,13 @@ function switchMode(mode){
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
   document.getElementById('mode-text').classList.toggle('hidden', mode !== 'text');
   document.getElementById('mode-video').classList.toggle('hidden', mode !== 'video');
+}
+
+function switchHomeTab(tab){
+  document.querySelectorAll('.home-analytics-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('home-tab-trend').classList.toggle('hidden', tab !== 'trend');
+  document.getElementById('home-tab-focus').classList.toggle('hidden', tab !== 'focus');
+  document.getElementById('home-tab-history').classList.toggle('hidden', tab !== 'history');
 }
 
 function switchPage(page){
