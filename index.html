@@ -2174,6 +2174,53 @@
   .bottom-nav-btn svg{width:23px; height:23px;}
   .bottom-nav-btn.active{color:var(--turf);}
 
+  .sidebar-nav{display:none;}
+
+  /* Desktop/tablet: swap the bottom tab bar for a persistent left
+     sidebar, matching how most desktop-width apps are actually laid
+     out. Driven purely by viewport width (not device/OS sniffing) so
+     it responds correctly to window resizing too, not just device type. */
+  @media (min-width: 768px){
+    .bottom-nav{display:none;}
+    .sidebar-nav{
+      display:flex;
+      flex-direction:column;
+      position:fixed;
+      left:0; top:0;
+      width:230px;
+      height:100vh;
+      background:var(--card-bg);
+      border-right:1px solid var(--line);
+      padding:22px 14px;
+      gap:3px;
+      z-index:100;
+      overflow-y:auto;
+    }
+    .sidebar-nav-brand{
+      display:flex; align-items:center; gap:10px;
+      font-family:'Anton',sans-serif; font-size:19px;
+      letter-spacing:0.02em;
+      padding:6px 10px 22px;
+      color:var(--ink);
+    }
+    .sidebar-nav-btn{
+      display:flex; align-items:center; gap:13px;
+      padding:11px 12px;
+      background:none; border:none; border-radius:10px;
+      color:var(--ink-soft);
+      font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
+      cursor:pointer;
+      text-align:left;
+      transition:background 0.12s ease;
+    }
+    .sidebar-nav-btn svg{width:20px; height:20px; flex-shrink:0;}
+    .sidebar-nav-btn:hover{background:var(--paper, #F7F9FB);}
+    .sidebar-nav-btn.active{background:var(--turf); color:#fff;}
+
+    main{margin-left:230px;}
+    .main-content{max-width:900px;}
+  }
+
   .debug-toggle{
     position:fixed;
     bottom:82px;
@@ -2984,6 +3031,42 @@
     <span data-i18n="nav_routine">Daily Routine</span>
   </button>
   <button class="bottom-nav-btn" data-page="settings" onclick="switchPage('settings')">
+    <svg viewBox="0 0 24 24" fill="none">
+      <g fill="currentColor">
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(45 12 12)"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(90 12 12)"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(135 12 12)"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(180 12 12)"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(225 12 12)"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(270 12 12)"/>
+        <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7" transform="rotate(315 12 12)"/>
+      </g>
+      <circle cx="12" cy="12" r="5.6" stroke="currentColor" stroke-width="1.8"/>
+      <circle cx="12" cy="12" r="2" stroke="currentColor" stroke-width="1.8"/>
+    </svg>
+    <span data-i18n="nav_settings">Settings</span>
+  </button>
+</nav>
+
+<nav class="sidebar-nav" id="sidebar-nav">
+  <div class="sidebar-nav-brand">
+    <img src="turf.png" alt="" style="width:28px; height:28px; border-radius:7px;">
+    <span>Gritto</span>
+  </div>
+  <button class="sidebar-nav-btn active" data-page="home" onclick="switchPage('home')">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7M6 9.5V20h12V9.5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    <span data-i18n="nav_home">Home</span>
+  </button>
+  <button class="sidebar-nav-btn" data-page="drills" onclick="switchPage('drills')">
+    <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    <span data-i18n="nav_drills">Drills</span>
+  </button>
+  <button class="sidebar-nav-btn" data-page="routine" onclick="switchPage('routine')">
+    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.2V12M12 12l-5 4M12 12l5 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/><circle cx="17" cy="18" r="2.2" stroke="currentColor" stroke-width="1.7"/></svg>
+    <span data-i18n="nav_routine">Daily Routine</span>
+  </button>
+  <button class="sidebar-nav-btn" data-page="settings" onclick="switchPage('settings')">
     <svg viewBox="0 0 24 24" fill="none">
       <g fill="currentColor">
         <rect x="10.8" y="0.9" width="2.4" height="3.1" rx="0.7"/>
@@ -4883,7 +4966,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.5.2';
+const APP_VERSION = '5.6.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6373,6 +6456,7 @@ function switchMode(mode){
 
 function switchPage(page){
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.querySelectorAll('.sidebar-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   document.getElementById('page-home').classList.toggle('hidden', page !== 'home');
   document.getElementById('page-drills').classList.toggle('hidden', page !== 'drills');
   document.getElementById('page-routine').classList.toggle('hidden', page !== 'routine');
