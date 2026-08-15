@@ -319,6 +319,21 @@
     margin-bottom:4px;
   }
   .drill-num-row .drill-num{margin-bottom:0;}
+  .drill-difficulty-badge{
+    display:inline-block;
+    margin-left:8px;
+    padding:2px 8px;
+    border-radius:20px;
+    font-family:'Inter',sans-serif;
+    font-size:10px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    vertical-align:middle;
+  }
+  .drill-difficulty-badge.difficulty-beginner{background:#DCFCE7; color:#166534;}
+  .drill-difficulty-badge.difficulty-intermediate{background:#FEF3C7; color:#92400E;}
+  .drill-difficulty-badge.difficulty-advanced{background:#FEE2E2; color:#991B1B;}
   .drill-save-star{
     background:none;
     border:none;
@@ -3907,12 +3922,15 @@ function buildDrillCard(d, index, total, sport, timerId){
   card.style.animationDelay = (index * 0.06) + 's';
 
   const drillKey = drillKeyFor(sport, d.title);
-  currentDrillsMap[drillKey] = { title: d.title, description: d.description, cue: d.cue, motion: d.motion, focus: d.focus, sport };
+  currentDrillsMap[drillKey] = { title: d.title, description: d.description, cue: d.cue, motion: d.motion, focus: d.focus, difficulty: d.difficulty || null, sport };
   const isSaved = savedDrillKeys.has(`${sport}::${d.title}`);
+
+  const difficultyClass = d.difficulty ? `difficulty-${d.difficulty.toLowerCase()}` : '';
+  const difficultyBadge = d.difficulty ? `<span class="drill-difficulty-badge ${difficultyClass}">${d.difficulty}</span>` : '';
 
   card.innerHTML = `
     <div class="drill-num-row">
-      <div class="drill-num">Drill ${index+1} of ${total}</div>
+      <div class="drill-num">Drill ${index+1} of ${total}${difficultyBadge}</div>
       <button class="drill-save-star ${isSaved ? 'saved' : ''}" id="star-${drillKey}" onclick="toggleSaveDrill('${drillKey}')" aria-label="${isSaved ? 'Remove from saved drills' : 'Save this drill'}">${isSaved ? '★' : '☆'}</button>
     </div>
     <div class="drill-title">${d.title}</div>
@@ -3950,7 +3968,8 @@ async function toggleSaveDrill(drillKey){
         description: drill.description || null,
         cue: drill.cue || null,
         motion: drill.motion || null,
-        focus: drill.focus || null
+        focus: drill.focus || null,
+        difficulty: drill.difficulty || null
       });
       if(error){ console.error('Could not save drill:', error.message); return; }
       starEl.textContent = '★';
@@ -5189,7 +5208,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.0.1';
+const APP_VERSION = '6.1.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6665,8 +6684,8 @@ async function getDrills(){
   statusEl.textContent = 'Building your drills…';
 
   const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} A young athlete will tell you their sport and what mechanic they're struggling with. Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one sentence about what you'll help with, in your tone", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete, in your tone","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
-Include exactly 4 drills, ordered from most foundational to more advanced. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate and safe (no advice that risks injury). Be specific and actionable, not generic.`;
+{"summary": "one sentence about what you'll help with, in your tone", "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it, written directly to the athlete, in your tone","cue":"a short 3-6 word coaching cue to remember during play","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill","difficulty":"one of: Beginner, Intermediate, Advanced — how demanding this specific drill is"}]}
+Include exactly 4 drills, ordered from most foundational to more advanced, and the "difficulty" field should generally reflect that same progression. The "motion", "focus", and "difficulty" fields MUST be exactly one of the listed options each — no other values. Keep language age-appropriate and safe (no advice that risks injury). Be specific and actionable, not generic.`;
 
   const userMsg = `Sport: ${selectedSport}\\nWhat I'm working on: ${skillText}`;
 
@@ -6807,7 +6826,7 @@ async function loadSavedDrillsList(){
   listEl.innerHTML = '';
   data.forEach((d, i) => {
     listEl.appendChild(buildDrillCard(
-      { title: d.title, description: d.description, cue: d.cue, motion: d.motion, focus: d.focus },
+      { title: d.title, description: d.description, cue: d.cue, motion: d.motion, focus: d.focus, difficulty: d.difficulty },
       i, data.length, d.sport, `saved-${d.id}`
     ));
   });
@@ -7533,10 +7552,10 @@ async function analyzeVideo(){
 
   const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} You will be shown several frames pulled evenly from a video clip of a ${selectedSport} play, in time order. The play may include multiple people — teammates, opponents, or other players — but the athlete you are coaching was playing the role of "${selectedRole}". Only observe and comment on the person in that role. Ignore the mechanics, positioning, and actions of everyone else in the frames — do not give feedback on other players, even if they are more visible or easier to analyze. If you cannot clearly identify which person is the "${selectedRole}" across the frames, say so honestly in the summary instead of guessing or defaulting to commenting on someone else.
 Respond ONLY with valid JSON, no markdown fences, no preamble, in this exact shape:
-{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "bodyPartsFlagged": ["one or more of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — whichever body parts are actually involved in the \"fix\" items above"], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill"}]}
+{"summary": "one sentence about what you observed, specifically about the ${selectedRole}, in your tone", "categories": [{"name":"short 2-3 word category name","score":72,"note":"one short phrase explaining this category's score"}], "scoreLabel": "a short 2-4 word phrase describing the overall score, like 'Solid fundamentals' or 'Needs work on timing'", "good": ["short phrase describing something they're doing well", "..."], "fix": ["short phrase describing one specific thing to improve", "..."], "bodyPartsFlagged": ["one or more of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — whichever body parts are actually involved in the \"fix\" items above"], "drills": [{"title":"short drill name","description":"2-3 sentence description of how to do it","cue":"a short 3-6 word coaching cue","motion":"one of: squat, swing, throw, jump, lunge, rotate, run — whichever best matches the general body motion of this drill","focus":"one of: knees, hips, shoulders, elbow, wrist, feet, core, eyes — the single body part the athlete should pay the most attention to during this drill","difficulty":"one of: Beginner, Intermediate, Advanced — how demanding this specific drill is"}]}
 Include EXACTLY 3 items in "categories" — pick the 3 most relevant technical categories for judging a "${selectedRole}" in ${selectedSport} specifically (for example, a baseball hitter might be scored on things like "Stance & Load", "Swing Path", and "Follow-Through"; a basketball shooter might be scored on "Shooting Form", "Release Point", and "Balance" — these are just illustrative, pick whatever's genuinely most relevant to this exact sport and role). Each category's "score" is a whole number from 0-100 based purely on what's visible in the frames.
 Scores must span the FULL 0-100 range honestly, based only on what you actually see — do NOT default toward the middle of the range or hesitate to score low. Score below 50, even down near 0, whenever the form shows real, significant flaws or the movement is barely recognizable as the intended technique. Reserve 90+ for genuinely strong, clean mechanics. A wide, honest range across different athletes and categories is far more useful than clustering everyone's scores together — an athlete with a badly broken technique in one category should see a low number, not a softened one. If frames are too unclear to fairly judge a specific category, still give your best-effort score based on what IS visible, and mention that limitation in that category's "note".
-Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. "bodyPartsFlagged" MUST only contain values from the same 8-option list used for "focus" below — no other values, no duplicates. The "motion" and "focus" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
+Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted at the fix items. "bodyPartsFlagged" MUST only contain values from the same 8-option list used for "focus" below — no other values, no duplicates. The "motion", "focus", and "difficulty" fields MUST be exactly one of the listed options each — no other values. Base observations only on what's visible across the frames — if the frames are unclear or don't show enough of the motion, say so honestly in the summary instead of guessing. Keep language age-appropriate and safe (no advice that risks injury).`;
 
   const content = [
     ...sampledFrames.map(f => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: f } })),
