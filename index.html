@@ -312,6 +312,23 @@
     color:var(--ink-soft);
     margin-bottom:4px;
   }
+  .drill-num-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:4px;
+  }
+  .drill-num-row .drill-num{margin-bottom:0;}
+  .drill-save-star{
+    background:none;
+    border:none;
+    font-size:22px;
+    line-height:1;
+    color:#D4AF37;
+    cursor:pointer;
+    padding:0 2px;
+  }
+  .drill-save-star.saved{color:#F2B347;}
   .drill-title{
     font-weight:700;
     font-size:15px;
@@ -1936,6 +1953,20 @@
     color:var(--ink-soft);
     font-size:13px;
   }
+  .recent-drill-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--card-bg);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:8px;
+    cursor:pointer;
+  }
+  .recent-drill-sport{font-weight:700; font-size:13.5px; color:var(--ink); text-transform:capitalize;}
+  .recent-drill-summary{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .recent-drill-date{font-size:11.5px; color:var(--ink-soft); flex-shrink:0; margin-left:10px;}
   .home-signin-note{
     font-size:12.5px;
     color:var(--ink-soft);
@@ -2658,67 +2689,83 @@
   </div>
 
   <div id="page-drills" class="hidden">
-    <div class="section-label">1 · Pick a sport</div>
-    <div class="sport-grid" id="sport-grid"></div>
-
-    <div class="mode-tabs">
-      <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">Describe it</button>
-      <button class="mode-tab" data-mode="video" onclick="switchMode('video')">Upload a video</button>
+    <div class="home-analytics-tabs" id="drills-tabs">
+      <button class="home-analytics-tab active" data-tab="new" onclick="switchDrillsTab('new')">New drills</button>
+      <button class="home-analytics-tab" data-tab="recent" onclick="switchDrillsTab('recent')">Recent</button>
     </div>
 
-    <div class="mode-section" id="mode-text">
-      <div class="input-block">
-        <label for="skill-input">2 · What are you working on?</label>
-        <textarea id="skill-input" placeholder="e.g. my basketball free throw keeps missing short, or my baseball swing feels off timing-wise"></textarea>
-        <div class="hint-text">Be specific if you can — what it feels like, what's going wrong, or what you want to improve.</div>
+    <div id="drills-tab-new">
+      <div class="section-label" style="margin-top:14px;">1 · Pick a sport</div>
+      <div class="sport-grid" id="sport-grid"></div>
+
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="text" onclick="switchMode('text')">Describe it</button>
+        <button class="mode-tab" data-mode="video" onclick="switchMode('video')">Upload a video</button>
       </div>
-      <button class="go-btn" id="go-btn" onclick="getDrills()">Get my drills</button>
-      <div class="status" id="status"></div>
-      <div class="results" id="results"></div>
+
+      <div class="mode-section" id="mode-text">
+        <div class="input-block">
+          <label for="skill-input">2 · What are you working on?</label>
+          <textarea id="skill-input" placeholder="e.g. my basketball free throw keeps missing short, or my baseball swing feels off timing-wise"></textarea>
+          <div class="hint-text">Be specific if you can — what it feels like, what's going wrong, or what you want to improve.</div>
+        </div>
+        <button class="go-btn" id="go-btn" onclick="getDrills()">Get my drills</button>
+        <div class="status" id="status"></div>
+        <div class="results" id="results"></div>
+      </div>
+
+      <div class="mode-section hidden" id="mode-video">
+        <div class="section-label">2 · Upload a clip</div>
+        <div class="video-drop" id="video-drop" onclick="document.getElementById('video-input').click()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/></svg>
+          <div class="vd-title" id="vd-title">Tap to choose a video</div>
+          <div class="vd-sub">A short clip (5–15 seconds) of your swing, shot, or motion works best</div>
+        </div>
+        <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
+
+        <button class="go-btn hidden" id="read-video-btn" onclick="startVideoExtraction()" style="margin-top:12px;">Read my video</button>
+
+        <div class="trim-section hidden" id="trim-section">
+          <div class="section-label">Focus on a specific part? (optional)</div>
+          <div class="trim-time-labels">
+            <span id="trim-start-label">0:00</span>
+            <span id="trim-end-label">0:00</span>
+          </div>
+          <input type="range" id="trim-start-slider" min="0" max="0" step="0.1" value="0" oninput="updateTrimSelection()">
+          <input type="range" id="trim-end-slider" min="0" max="0" step="0.1" value="0" oninput="updateTrimSelection()">
+          <button class="go-btn" style="margin-top:10px;" onclick="confirmTrimAndExtract()">Read this part of the video</button>
+        </div>
+
+        <div class="frame-strip" id="frame-strip"></div>
+
+        <div class="frame-viewer hidden" id="frame-viewer">
+          <img id="frame-viewer-img" alt="Frame preview">
+          <div class="frame-viewer-controls">
+            <button onclick="stepFrame(-1)" aria-label="Previous frame">&larr;</button>
+            <span id="frame-viewer-counter">Watching your video</span>
+            <button onclick="stepFrame(1)" aria-label="Next frame">&rarr;</button>
+          </div>
+          <input type="range" id="frame-viewer-slider" min="0" value="0" oninput="showFrameViewer(parseInt(this.value))">
+        </div>
+
+        <div class="role-section hidden" id="role-section">
+          <div class="section-label">3 · Who are you in this play?</div>
+          <div class="role-grid" id="role-grid"></div>
+        </div>
+
+        <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
+        <div class="status" id="video-status"></div>
+        <div class="results" id="video-results"></div>
+      </div>
     </div>
 
-    <div class="mode-section hidden" id="mode-video">
-      <div class="section-label">2 · Upload a clip</div>
-      <div class="video-drop" id="video-drop" onclick="document.getElementById('video-input').click()">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M23 7l-7 5 7 5V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><rect x="1" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/></svg>
-        <div class="vd-title" id="vd-title">Tap to choose a video</div>
-        <div class="vd-sub">A short clip (5–15 seconds) of your swing, shot, or motion works best</div>
-      </div>
-      <input type="file" id="video-input" accept="video/*" style="display:none" onchange="handleVideoSelect(event)">
+    <div id="drills-tab-recent" class="hidden">
+      <div class="section-label" style="margin-top:14px;">Past drill sessions</div>
+      <div id="recent-drills-list"></div>
+      <div id="recent-drills-detail"></div>
 
-      <button class="go-btn hidden" id="read-video-btn" onclick="startVideoExtraction()" style="margin-top:12px;">Read my video</button>
-
-      <div class="trim-section hidden" id="trim-section">
-        <div class="section-label">Focus on a specific part? (optional)</div>
-        <div class="trim-time-labels">
-          <span id="trim-start-label">0:00</span>
-          <span id="trim-end-label">0:00</span>
-        </div>
-        <input type="range" id="trim-start-slider" min="0" max="0" step="0.1" value="0" oninput="updateTrimSelection()">
-        <input type="range" id="trim-end-slider" min="0" max="0" step="0.1" value="0" oninput="updateTrimSelection()">
-        <button class="go-btn" style="margin-top:10px;" onclick="confirmTrimAndExtract()">Read this part of the video</button>
-      </div>
-
-      <div class="frame-strip" id="frame-strip"></div>
-
-      <div class="frame-viewer hidden" id="frame-viewer">
-        <img id="frame-viewer-img" alt="Frame preview">
-        <div class="frame-viewer-controls">
-          <button onclick="stepFrame(-1)" aria-label="Previous frame">&larr;</button>
-          <span id="frame-viewer-counter">Watching your video</span>
-          <button onclick="stepFrame(1)" aria-label="Next frame">&rarr;</button>
-        </div>
-        <input type="range" id="frame-viewer-slider" min="0" value="0" oninput="showFrameViewer(parseInt(this.value))">
-      </div>
-
-      <div class="role-section hidden" id="role-section">
-        <div class="section-label">3 · Who are you in this play?</div>
-        <div class="role-grid" id="role-grid"></div>
-      </div>
-
-      <button class="go-btn" id="video-go-btn" onclick="analyzeVideo()" disabled>Analyze my form</button>
-      <div class="status" id="video-status"></div>
-      <div class="results" id="video-results"></div>
+      <div class="section-label" style="margin-top:24px;">⭐ Saved drills</div>
+      <div id="saved-drills-list"></div>
     </div>
   </div>
 
@@ -3292,7 +3339,7 @@ function renderProgressStats(){
 
 // Called after every successful drill result (text or video) to log
 // the session and update the person's streak.
-async function recordDrillCompletion(sport, source, summary, score){
+async function recordDrillCompletion(sport, source, summary, score, drills){
   const { data: { session } } = await sb.auth.getSession();
   if(!session) return; // not signed in with Google — nothing to save
 
@@ -3333,7 +3380,8 @@ async function recordDrillCompletion(sport, source, summary, score){
     sport,
     source,
     summary: summary || null,
-    score: typeof score === 'number' ? score : null
+    score: typeof score === 'number' ? score : null,
+    drills: drills || null
   });
   if(historyError) console.error('Could not save drill history:', historyError.message, JSON.stringify(historyError));
 
@@ -3771,6 +3819,92 @@ function renderFollowUpThread(threadEl, containerId){
 // routine checklist items. Multiple can run independently at once —
 // state is tracked per widget ID, not globally.
 const drillTimers = new Map(); // id -> { elapsedMs, isRunning, startedAt, reps, intervalId }
+
+// ---- Reusable drill card + save-star system ----
+// currentDrillsMap holds the full data for whatever drills are on
+// screen right now, keyed by a stable sport+title key, so the star
+// button's onclick doesn't need to embed drill JSON directly into HTML
+// (fragile with quotes/apostrophes in AI-generated text).
+let currentDrillsMap = {};
+let savedDrillKeys = new Set(); // "sport::title" strings, loaded once per Drills page visit
+
+function drillKeyFor(sport, title){
+  return `${sport}::${title}`.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 120);
+}
+
+async function loadSavedDrillKeys(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+  const { data, error } = await sb.from('saved_drills').select('sport, title').eq('user_id', session.user.id);
+  if(error){ console.error('Could not load saved drills:', error.message); return; }
+  savedDrillKeys = new Set((data || []).map(d => `${d.sport}::${d.title}`));
+}
+
+function buildDrillCard(d, index, total, sport, timerId){
+  const card = document.createElement('div');
+  card.className = 'drill-card';
+  card.style.animationDelay = (index * 0.06) + 's';
+
+  const drillKey = drillKeyFor(sport, d.title);
+  currentDrillsMap[drillKey] = { title: d.title, description: d.description, cue: d.cue, motion: d.motion, focus: d.focus, sport };
+  const isSaved = savedDrillKeys.has(`${sport}::${d.title}`);
+
+  card.innerHTML = `
+    <div class="drill-num-row">
+      <div class="drill-num">Drill ${index+1} of ${total}</div>
+      <button class="drill-save-star ${isSaved ? 'saved' : ''}" id="star-${drillKey}" onclick="toggleSaveDrill('${drillKey}')" aria-label="${isSaved ? 'Remove from saved drills' : 'Save this drill'}">${isSaved ? '★' : '☆'}</button>
+    </div>
+    <div class="drill-title">${d.title}</div>
+    ${buildDrillDemo(d.motion, d.focus, sport)}
+    <div class="drill-desc">${d.description}</div>
+    ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
+    ${buildTimerWidget(timerId)}
+  `;
+  return card;
+}
+
+async function toggleSaveDrill(drillKey){
+  const starEl = document.getElementById(`star-${drillKey}`);
+  const drill = currentDrillsMap[drillKey];
+  if(!drill || !starEl) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ alert('Sign in to save drills.'); return; }
+
+  const isSaved = starEl.classList.contains('saved');
+  try{
+    if(isSaved){
+      const { error } = await sb.from('saved_drills').delete()
+        .eq('user_id', session.user.id).eq('sport', drill.sport).eq('title', drill.title);
+      if(error){ console.error('Could not unsave drill:', error.message); return; }
+      starEl.textContent = '☆';
+      starEl.classList.remove('saved');
+      starEl.setAttribute('aria-label', 'Save this drill');
+      savedDrillKeys.delete(`${drill.sport}::${drill.title}`);
+    }else{
+      const { error } = await sb.from('saved_drills').insert({
+        user_id: session.user.id,
+        sport: drill.sport,
+        title: drill.title,
+        description: drill.description || null,
+        cue: drill.cue || null,
+        motion: drill.motion || null,
+        focus: drill.focus || null
+      });
+      if(error){ console.error('Could not save drill:', error.message); return; }
+      starEl.textContent = '★';
+      starEl.classList.add('saved');
+      starEl.setAttribute('aria-label', 'Remove from saved drills');
+      savedDrillKeys.add(`${drill.sport}::${drill.title}`);
+    }
+    // Refresh the Saved section if it's currently showing, so it stays in sync
+    if(!document.getElementById('drills-tab-recent').classList.contains('hidden')){
+      loadSavedDrillsList();
+    }
+  }catch(err){
+    console.error('Toggle save drill failed:', err.message);
+  }
+}
 
 function buildTimerWidget(id){
   const state = drillTimers.get(id);
@@ -4993,7 +5127,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.7.0';
+const APP_VERSION = '5.8.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6443,25 +6577,14 @@ Include exactly 4 drills, ordered from most foundational to more advanced. The "
 
     const textDrillBatchId = Date.now();
     parsed.drills.forEach((d, i) => {
-      const card = document.createElement('div');
-      card.className = 'drill-card';
-      card.style.animationDelay = (i * 0.06) + 's';
       const timerId = `text-${textDrillBatchId}-${i}`;
-      card.innerHTML = `
-        <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
-        <div class="drill-title">${d.title}</div>
-        ${buildDrillDemo(d.motion, d.focus, selectedSport)}
-        <div class="drill-desc">${d.description}</div>
-        ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
-        ${buildTimerWidget(timerId)}
-      `;
-      resultsEl.appendChild(card);
+      resultsEl.appendChild(buildDrillCard(d, i, parsed.drills.length, selectedSport, timerId));
     });
 
     resultsEl.appendChild(buildPrintButton());
     resultsEl.appendChild(buildFollowUpSection('results', selectedSport, parsed.summary));
 
-    recordDrillCompletion(selectedSport, 'text', parsed.summary);
+    recordDrillCompletion(selectedSport, 'text', parsed.summary, null, parsed.drills);
   }catch(err){
     statusEl.textContent = '';
     const errBox = document.createElement('div');
@@ -6489,6 +6612,87 @@ function switchHomeTab(tab){
   document.getElementById('home-tab-history').classList.toggle('hidden', tab !== 'history');
 }
 
+function switchDrillsTab(tab){
+  document.querySelectorAll('#drills-tabs .home-analytics-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('drills-tab-new').classList.toggle('hidden', tab !== 'new');
+  document.getElementById('drills-tab-recent').classList.toggle('hidden', tab !== 'recent');
+  if(tab === 'recent'){
+    loadRecentDrillSessions();
+    loadSavedDrillsList();
+  }
+}
+
+async function loadRecentDrillSessions(){
+  const listEl = document.getElementById('recent-drills-list');
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ listEl.innerHTML = '<div class="home-empty">Sign in to see your drill history.</div>'; return; }
+
+  const { data, error } = await sb.from('drill_history')
+    .select('id, sport, summary, created_at, drills')
+    .eq('user_id', session.user.id)
+    .not('drills', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20);
+  if(error){ console.error('Could not load recent drills:', error.message); return; }
+
+  if(!data || data.length === 0){
+    listEl.innerHTML = '<div class="home-empty">No past drill sessions with saved details yet — get some drills to start building history here.</div>';
+    return;
+  }
+
+  listEl.innerHTML = data.map((s, i) => `
+    <div class="recent-drill-row" onclick="toggleRecentDrillDetail(${i})">
+      <div>
+        <div class="recent-drill-sport">${s.sport}</div>
+        <div class="recent-drill-summary">${(s.summary || '').slice(0, 60)}${(s.summary || '').length > 60 ? '…' : ''}</div>
+      </div>
+      <div class="recent-drill-date">${new Date(s.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+    </div>
+  `).join('');
+
+  window._recentDrillSessions = data; // cached for expand-on-tap, avoids refetching
+}
+
+function toggleRecentDrillDetail(index){
+  const detailEl = document.getElementById('recent-drills-detail');
+  const s = window._recentDrillSessions[index];
+  if(!s || !Array.isArray(s.drills)){ detailEl.innerHTML = ''; return; }
+
+  detailEl.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.marginTop = '12px';
+  s.drills.forEach((d, i) => {
+    wrap.appendChild(buildDrillCard(d, i, s.drills.length, s.sport, `recent-${s.id}-${i}`));
+  });
+  detailEl.appendChild(wrap);
+  detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function loadSavedDrillsList(){
+  const listEl = document.getElementById('saved-drills-list');
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return;
+
+  const { data, error } = await sb.from('saved_drills')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false });
+  if(error){ console.error('Could not load saved drills:', error.message); return; }
+
+  if(!data || data.length === 0){
+    listEl.innerHTML = '<div class="home-empty">Tap the star on any drill to save it here.</div>';
+    return;
+  }
+
+  listEl.innerHTML = '';
+  data.forEach((d, i) => {
+    listEl.appendChild(buildDrillCard(
+      { title: d.title, description: d.description, cue: d.cue, motion: d.motion, focus: d.focus },
+      i, data.length, d.sport, `saved-${d.id}`
+    ));
+  });
+}
+
 function switchPage(page){
   document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   document.querySelectorAll('.sidebar-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
@@ -6501,6 +6705,9 @@ function switchPage(page){
   if(page === 'routine' && !routineLoadAttempted){
     routineLoadAttempted = true;
     loadUserRoutines();
+  }
+  if(page === 'drills'){
+    loadSavedDrillKeys();
   }
   if(page === 'home'){
     loadHomeData(); // cheap enough to refresh every visit, keeps stats current
@@ -7259,25 +7466,14 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
 
     const videoDrillBatchId = Date.now();
     (parsed.drills || []).forEach((d, i) => {
-      const card = document.createElement('div');
-      card.className = 'drill-card';
-      card.style.animationDelay = (i * 0.06) + 's';
       const timerId = `video-${videoDrillBatchId}-${i}`;
-      card.innerHTML = `
-        <div class="drill-num">Drill ${i+1} of ${parsed.drills.length}</div>
-        <div class="drill-title">${d.title}</div>
-        ${buildDrillDemo(d.motion, d.focus, selectedSport)}
-        <div class="drill-desc">${d.description}</div>
-        ${d.cue ? `<div class="drill-cue">Cue: ${d.cue}</div>` : ''}
-        ${buildTimerWidget(timerId)}
-      `;
-      resultsEl.appendChild(card);
+      resultsEl.appendChild(buildDrillCard(d, i, parsed.drills.length, selectedSport, timerId));
     });
 
     resultsEl.appendChild(buildPrintButton());
     resultsEl.appendChild(buildFollowUpSection('video-results', selectedSport, parsed.summary));
 
-    recordDrillCompletion(selectedSport, 'video', parsed.summary, parsed.score);
+    recordDrillCompletion(selectedSport, 'video', parsed.summary, parsed.score, parsed.drills);
     saveVideoHistory(selectedSport, selectedRole, parsed);
   }catch(err){
     statusEl.textContent = '';
