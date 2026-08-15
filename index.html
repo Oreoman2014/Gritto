@@ -811,9 +811,6 @@
     white-space:nowrap;
   }
   .routine-chip.active{background:var(--turf); border-color:var(--turf); color:#fff;}
-  .routine-chip.new{color:var(--turf-dark, var(--teal)); border-style:dashed;}
-  .routine-chip.new.active{background:var(--turf); color:#fff; border-style:solid;}
-  #routine-build-form.hidden{display:none;}
 
   .routine-delete-btn{
     background:none;
@@ -2770,10 +2767,19 @@
   </div>
 
   <div id="page-routine" class="hidden">
-    <div class="routine-selector" id="routine-selector"></div>
+    <div class="home-analytics-tabs" id="routine-tabs">
+      <button class="home-analytics-tab active" data-tab="today" onclick="switchRoutineTab('today')">Today</button>
+      <button class="home-analytics-tab" data-tab="build" onclick="switchRoutineTab('build')">Build new</button>
+      <button class="home-analytics-tab" data-tab="history" onclick="switchRoutineTab('history')">History</button>
+    </div>
 
-    <div id="routine-build-form">
-      <div class="section-label">1 · Pick a sport</div>
+    <div id="routine-tab-today">
+      <div class="routine-selector" id="routine-selector"></div>
+      <div id="routine-display"></div>
+    </div>
+
+    <div id="routine-tab-build" class="hidden">
+      <div class="section-label" style="margin-top:14px;">1 · Pick a sport</div>
       <div class="sport-grid" id="sport-grid-routine"></div>
 
       <div class="input-block">
@@ -2785,7 +2791,11 @@
       <div class="status" id="routine-status"></div>
     </div>
 
-    <div id="routine-display"></div>
+    <div id="routine-tab-history" class="hidden">
+      <div class="section-label" style="margin-top:14px;">Past routine days</div>
+      <div id="routine-history-list"></div>
+      <div id="routine-history-detail"></div>
+    </div>
   </div>
 
   <div id="page-settings" class="hidden">
@@ -4946,7 +4956,7 @@ const TUTORIAL_STEPS = [
   { page: 'home', target: '.home-streak-row', title: 'Your streaks', text: 'This is Home — your two streaks (Drills and Daily Routine), recent activity, and video history all live here.' },
   { page: 'drills', target: '#sport-grid', title: 'Pick a sport', text: 'Start any drill request by picking your sport here.' },
   { page: 'drills', target: '.mode-tabs', title: 'Describe or upload', text: 'Then either describe what you\'re working on in words, or upload a short video for real AI form analysis with a score.' },
-  { page: 'routine', target: '#routine-build-form', title: 'Build a daily routine', text: 'Build a short 5–10 minute routine around one goal, then check it off each day to build a streak.' },
+  { page: 'routine', target: '#routine-tab-build', title: 'Build a daily routine', text: 'Build a short 5–10 minute routine around one goal, then check it off each day to build a streak.' },
   { page: 'settings', target: '#badge-grid', title: 'Earn badges', text: 'Achievement badges unlock as you practice — tap any badge anytime to see exactly what it takes.' },
   { page: 'settings', target: '#theme-grid', title: 'Unlock themes', text: 'New app themes unlock permanently based on your best-ever streak — try Ocean, Sunset, Galaxy, and more.' },
   { page: null, target: null, title: "You're all set!", text: 'That\'s everything — jump in and start with your first drill whenever you\'re ready.' },
@@ -4967,6 +4977,7 @@ async function showTutorialStep(){
   if(step.page){
     try{
       switchPage(step.page);
+      if(step.target === '#routine-tab-build') switchRoutineTab('build');
     }catch(err){
       console.error('Tutorial: switchPage failed, continuing anyway:', err.message);
     }
@@ -5127,7 +5138,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '5.8.0';
+const APP_VERSION = '5.9.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6074,28 +6085,23 @@ async function loadUserRoutines(){
       if(currentRoutine.last_completed_date === todayStr()){
         await loadTodayRoutineMinutes();
       }
+      switchRoutineTab('today');
     }else{
       routineViewMode = 'build';
+      switchRoutineTab('build');
     }
 
-    renderRoutinePage();
     renderProgressStats();
   }catch(err){
     console.error('Routines load failed:', err.message);
   }
 }
 
-// Draws the chip row (one per saved routine, plus "+ New") and swaps
-// between the creation form and the selected routine's view.
+// Draws the chip row (one per saved routine) and keeps the Today tab's
+// content in sync with whichever routine is currently selected.
 function renderRoutinePage(){
   renderRoutineSelector();
-  const buildForm = document.getElementById('routine-build-form');
-  const display = document.getElementById('routine-display');
-  if(routineViewMode === 'build'){
-    buildForm.classList.remove('hidden');
-    display.innerHTML = '';
-  }else{
-    buildForm.classList.add('hidden');
+  if(routineViewMode === 'view'){
     renderRoutine();
   }
 }
@@ -6105,12 +6111,81 @@ function renderRoutineSelector(){
   if(!wrap) return;
   if(userRoutines.length === 0){ wrap.innerHTML = ''; return; }
 
-  const chips = userRoutines.map(r => {
+  wrap.innerHTML = userRoutines.map(r => {
     const isActive = routineViewMode === 'view' && currentRoutine && currentRoutine.id === r.id;
     return `<button class="routine-chip ${isActive ? 'active' : ''}" onclick="selectRoutineById('${r.id}')">${r.sport}</button>`;
   }).join('');
-  const newChip = `<button class="routine-chip new ${routineViewMode === 'build' ? 'active' : ''}" onclick="startNewRoutine()">+ New</button>`;
-  wrap.innerHTML = chips + newChip;
+}
+
+function switchRoutineTab(tab){
+  document.querySelectorAll('#routine-tabs .home-analytics-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('routine-tab-today').classList.toggle('hidden', tab !== 'today');
+  document.getElementById('routine-tab-build').classList.toggle('hidden', tab !== 'build');
+  document.getElementById('routine-tab-history').classList.toggle('hidden', tab !== 'history');
+
+  if(tab === 'build'){
+    routineViewMode = 'build';
+    document.getElementById('routine-goal-input').value = '';
+    document.getElementById('routine-status').textContent = '';
+  }else if(tab === 'today'){
+    routineViewMode = 'view';
+    renderRoutinePage();
+  }else if(tab === 'history'){
+    loadRoutineHistory();
+  }
+}
+
+async function loadRoutineHistory(){
+  const listEl = document.getElementById('routine-history-list');
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ listEl.innerHTML = '<div class="home-empty">Sign in to see your routine history.</div>'; return; }
+
+  const { data, error } = await sb.from('drill_history')
+    .select('id, sport, summary, minutes, items, created_at')
+    .eq('user_id', session.user.id)
+    .eq('source', 'routine')
+    .not('items', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if(error){ console.error('Could not load routine history:', error.message); return; }
+
+  if(!data || data.length === 0){
+    listEl.innerHTML = '<div class="home-empty">No completed routine days yet — finish a daily routine to start building history here.</div>';
+    return;
+  }
+
+  listEl.innerHTML = data.map((r, i) => `
+    <div class="recent-drill-row" onclick="toggleRoutineHistoryDetail(${i})">
+      <div>
+        <div class="recent-drill-sport">${r.sport}</div>
+        <div class="recent-drill-summary">${(r.summary || '').slice(0, 60)}${(r.summary || '').length > 60 ? '…' : ''}${r.minutes ? ` · ${r.minutes} min` : ''}</div>
+      </div>
+      <div class="recent-drill-date">${new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+    </div>
+  `).join('');
+
+  window._routineHistoryDays = data;
+}
+
+function toggleRoutineHistoryDetail(index){
+  const detailEl = document.getElementById('routine-history-detail');
+  const r = window._routineHistoryDays[index];
+  if(!r || !Array.isArray(r.items)){ detailEl.innerHTML = ''; return; }
+
+  detailEl.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.marginTop = '12px';
+  r.items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'routine-history-item';
+    row.innerHTML = `
+      <div style="font-weight:700; font-size:13.5px;">${item.title || item.name || 'Drill'}</div>
+      ${item.description ? `<div style="font-size:12.5px; color:var(--ink-soft); margin-top:2px;">${item.description}</div>` : ''}
+    `;
+    wrap.appendChild(row);
+  });
+  detailEl.appendChild(wrap);
+  detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 async function selectRoutineById(id){
@@ -6132,13 +6207,6 @@ async function selectRoutineById(id){
 
   renderRoutinePage();
   renderProgressStats();
-}
-
-function startNewRoutine(){
-  routineViewMode = 'build';
-  document.getElementById('routine-goal-input').value = '';
-  document.getElementById('routine-status').textContent = '';
-  renderRoutinePage();
 }
 
 async function deleteCurrentRoutine(){
@@ -6175,12 +6243,13 @@ async function deleteCurrentRoutine(){
     if(currentRoutine.last_completed_date === todayStr()){
       await loadTodayRoutineMinutes();
     }
+    switchRoutineTab('today');
   }else{
     currentRoutine = null;
     routineViewMode = 'build';
+    switchRoutineTab('build');
   }
 
-  renderRoutinePage();
   renderProgressStats();
 }
 
@@ -6258,14 +6327,14 @@ Include 3 to 5 items, ordered from warm-up-style activities to more focused ones
     todayRoutineHistoryId = null;
     todayRoutineMinutesLogged = 0;
     statusEl.textContent = '';
-    renderRoutinePage();
+    switchRoutineTab('today');
     renderProgressStats();
   }catch(err){
     statusEl.textContent = '';
     const errBox = document.createElement('div');
     errBox.className = 'error-box';
     errBox.textContent = "Something went wrong building your routine. Try again in a moment.";
-    document.getElementById('routine-build-form').appendChild(errBox);
+    document.getElementById('routine-tab-build').appendChild(errBox);
     console.error(err);
   }finally{
     btn.disabled = false;
