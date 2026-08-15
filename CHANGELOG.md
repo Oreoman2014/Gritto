@@ -1,5 +1,75 @@
 # Gritto — Version Log
 
+## v6.0.1 — Daily Routine: more space between tabs and sport picker
+- The sport-picker grid on the "Build new" tab was sitting right up against the tab bar with very little breathing room
+- Increased the spacing so there's clear separation now
+- Verified with a real measurement: gap went from a cramped ~14px to a comfortable 51px
+
+## v6.0.0 🎉 — Desktop sidebar: categorized settings, no more Settings button
+- On desktop/tablet, the sidebar's "Settings" button is gone — all 11 settings items now live directly in the sidebar, organized into 5 categories: General, Personalize, Help, Privacy, Community
+- Phone is completely unaffected — the bottom nav still has its Settings button exactly as before, leading to the same familiar Settings page
+- Clicking any sidebar settings item jumps straight to that specific page (e.g. tapping "App Theme" goes directly there, not to a menu you have to click through)
+- Increased spacing between every sidebar button, and gave settings sub-items a slightly smaller, indented style so they read as distinct from the main Home/Drills/Daily Routine navigation
+- Sidebar already scrolls if content runs taller than the screen (confirmed still working after adding 11 more items)
+- Verified with real tests: confirmed no generic "Settings" button remains in the sidebar, confirmed all 14 buttons (3 nav + 11 settings) and all 5 categories render correctly, confirmed scrolling is enabled, and confirmed clicking a settings item correctly opens that exact page (not the menu) and marks the right sidebar button active — tested with a proper isolated test after an initial sandbox-only false alarm
+
+## v5.9.0 — Daily Routine: Today / Build new / History tabs
+- Daily Routine page now has the same 3-tab treatment as Drills: "Today" (your active routine's checklist, unchanged), "Build new" (the sport/goal builder, now its own tab instead of a toggle), and "History"
+- History shows past completed routine days — tap one to expand and see exactly which items you did that day. Uses data already being logged, no new database table needed.
+- Removed the old "+ New" chip from the routine selector since the "Build new" tab now covers that
+- Found and fixed 2 real bugs while doing this: the onboarding tutorial's "Build a daily routine" step pointed at an element ID that no longer existed after the restructure, and would have silently failed to show its spotlight; also cleaned up dead code (an unused function, unused CSS) left over from the old toggle system
+- Verified with real tests: confirmed the right tab shows on initial load depending on whether the person already has a routine, confirmed switching between all 3 tabs works correctly, and confirmed History correctly renders past routine days including the expandable item list
+
+## v5.8.0 — Drills page: New drills / Recent tabs + save individual drills
+- Drills page now has 2 tabs: "New drills" (the existing describe/upload flow, unchanged) and "Recent"
+- Recent shows a browsable list of past drill sessions — tap one to expand and see the full drills you got that time
+- Every drill card, whether freshly generated or viewed in Recent, now has a yellow star to save that specific drill
+- Saved drills show in their own section at the bottom of the Recent tab, independent of which session they came from
+- Extended drill_history to store the full drill content (not just sport/summary), and added a new saved_drills table
+- Refactored drill card rendering into one shared function used everywhere drills are shown, so the save star and layout stay consistent across new results, recent history, and saved drills
+- Verified with real tests: confirmed saving a drill correctly updates the star, writes to the database, and unsaving correctly reverses both; confirmed Recent sessions render with the right sport/summary/date info; confirmed the saved drills list renders correctly; confirmed the empty/sign-in states show correctly when there's no session
+
+## v5.7.0 — Home page: tabbed analytics (Option B from the layout preview)
+- Score trend, focus areas, and video history are now grouped under 3 sub-tabs instead of stacked one after another — much less scrolling to get through the analytics section
+- "Your stats" and "Recent activity" stay as their own separate sections below the tabs, unchanged
+- Fixed a related spot: tapping a "Recent activity" item that links to a video check now correctly switches to the History tab first before scrolling to it, since that section is no longer visible by default
+- Verified with a real test: confirmed only the Trend tab shows initially, confirmed switching tabs correctly shows/hides the right content and updates which tab is marked active, and confirmed switching between tabs multiple times works cleanly
+
+## v5.6.0 — Real responsive design: sidebar nav on desktop/tablet
+- New persistent left sidebar navigation for wider screens (Home, Drills, Daily Routine, Settings), replacing the bottom tab bar — modeled after Dais's desktop layout
+- Phone-width screens are completely unaffected — bottom nav stays exactly as it's always been
+- Driven purely by actual browser width (768px breakpoint), not device/OS detection — responds correctly to live window resizing too, not just a fixed device check
+- Content area widens accordingly on desktop (720px → 900px max width) to make better use of the extra space
+- Verified with real tests at multiple viewport sizes: confirmed the correct nav shows/hides at phone vs. desktop widths, confirmed clicking a sidebar button correctly switches pages and updates the active state, and confirmed live window resizing across the breakpoint correctly flips between layouts in real time
+
+## v5.5.2 — Separate "Common focus areas" and "Your stats" on Home
+- Added a real divider line and proper spacing between these two sections, which previously only had 8px between them — barely any visual separation at all
+- Verified with a real measurement: confirmed the actual gap increased from 8px to 37px, with a visible horizontal divider now in between
+
+## v5.5.1 — Moved "Get drills" / "Today's routine" buttons up on Home
+- Moved from below all the score/trend/focus-area analytics to right under the greeting and streak numbers instead
+- Makes the two main actions immediately visible without needing to scroll past analytics content first
+- Verified with a real test: confirmed the actual page order is now greeting → streaks → quickstart buttons → score/analytics section
+
+## v5.5.0 — Fix: buttons looking disabled/gray on half of all themes
+- Found the real scope: 13 out of 26 themes (exactly half) have an "energy" color too light to be readable as a solid button background with white text — Grandmaster was just the most obvious case you happened to hit, not the only one
+- Checked every single theme's colors and confirmed all 26 "turf" colors are dark/saturated enough to always work reliably, while energy colors were only ever designed as accents, not solid button backgrounds
+- Fixed the main action button style app-wide to use turf instead of energy, plus 3 more buttons with the exact same problem I found while investigating: the routine "mark complete" button, the practice-time prompt button, and the update-available toast button
+- Verified with a real test: confirmed buttons now show a dark, clearly-readable background instead of light gray when Grandmaster's theme is active
+
+## v5.4.5 — Fix: Equip button color changing based on the active theme
+- The "Equip" button in the theme detail popup was using the currently active theme's own color — meaning if you had a gray/dark theme active (like Grandmaster), the button looked washed out and could be mistaken for a disabled/locked state
+- Now uses a fixed, consistent bright blue regardless of which theme is currently active
+- Every other button in the app that's supposed to adapt to the active theme is untouched — this fix only applies to the Equip button specifically
+- Verified with a real test: confirmed the Equip button stays the same fixed blue whether the active theme is gray or a totally different color, and confirmed an unrelated button elsewhere still correctly adapts to the theme as it should
+
+## v5.4.4 — Original theme: fixed launch-anniversary date (not per-account)
+- Changed the second unlock path from "your own account is 1 year old" to "anyone with an account on Gritto's actual 1-year public launch anniversary" — one shared calendar date for everyone, not a different date per person
+- Added a single, clearly-marked spot to set the real launch date once it happens: `GRITTO_PUBLIC_LAUNCH_DATE` near the top of the theme code. Set to `null` until then, so nobody can unlock it early by mistake.
+- Updated the description text (with corrected spelling) to match
+- Verified with real tests: confirmed it stays fully locked while the launch date is unset, confirmed a brand-new account (signed up yesterday, nowhere near the first 100) still correctly unlocks it once the real anniversary has passed, and confirmed it correctly stays locked if the anniversary hasn't happened yet
+- Also fixed in this batch: reverted the artwork back to the real gold+blue logo (only the in-app UI colors are orange/green), and recolored those in-app colors to match Gritto's true original turf-green/energy-orange palette
+
 ## v5.4.0 — "Original" theme + admin panel fix
 - New theme: black background with the original blue/yellow logo — unlocks two ways: being one of the first 100 people to ever sign up, OR having your account for a full year, whichever comes first
 - First-100 tracking uses a real database sequence, so signup order is assigned atomically and race-condition-free even if two people sign up at the exact same instant
