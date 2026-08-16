@@ -3327,6 +3327,10 @@
     <svg viewBox="0 0 24 24" fill="none"><path d="M4 8l3.5 3L12 6l4.5 5L20 8l-1.5 10h-13L4 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
     <span data-i18n="settings_premium">Gritto Premium</span>
   </button>
+  <button class="sidebar-nav-btn sidebar-nav-sub" onclick="openSidebarSettings('topup', this)">
+    <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18" cy="17" r="5" fill="var(--card-bg)" stroke="currentColor" stroke-width="1.5"/><path d="M18 15v4M16 17h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span data-i18n="settings_topup">Buy More Video Checks</span>
+  </button>
 </nav>
 
 <button class="debug-toggle" id="debug-toggle" onclick="toggleDebugPanel()">
@@ -5342,7 +5346,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.7.0';
+const APP_VERSION = '6.7.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
