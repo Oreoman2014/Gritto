@@ -888,6 +888,40 @@
     border-radius:14px;
     padding:16px;
   }
+  .premium-hero{
+    background:linear-gradient(135deg, #1A1A2E 0%, #3D2B1F 100%);
+    border-radius:16px;
+    padding:28px 20px;
+    text-align:center;
+    margin:14px 0 16px;
+  }
+  .premium-hero-crown{font-size:38px; margin-bottom:6px;}
+  .premium-hero h2{
+    color:#fff;
+    font-family:'Anton',sans-serif;
+    font-size:24px;
+    letter-spacing:0.02em;
+    margin:0 0 12px;
+  }
+  .premium-hero-price{
+    color:#F2B347;
+    font-family:'Anton',sans-serif;
+    font-size:34px;
+  }
+  .premium-hero-price span{font-size:15px; color:#D9D0C4; font-family:'Inter',sans-serif;}
+  .premium-hero-price-note{font-size:11px; color:#9A9284; margin-top:4px;}
+  .premium-feature-list{margin-bottom:14px;}
+  .premium-feature-row{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+  }
+  .premium-feature-row:first-child{border-top:none; padding-top:0;}
+  .premium-feature-icon{font-size:20px; flex-shrink:0; line-height:1.3;}
+  .premium-feature-title{font-weight:700; font-size:13.5px; color:var(--ink);}
+  .premium-feature-desc{font-size:12px; color:var(--ink-soft); margin-top:2px;}
   .settings-menu{
     background:var(--card-bg);
     border:1.5px solid var(--line);
@@ -2921,6 +2955,11 @@
         <span class="settings-menu-label" data-i18n="settings_referral">Invite a Friend</span>
         <span class="settings-menu-chevron">›</span>
       </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('premium')">
+        <svg class="settings-menu-icon" viewBox="0 0 24 24" fill="none"><path d="M4 8l3.5 3L12 6l4.5 5L20 8l-1.5 10h-13L4 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <span class="settings-menu-label" data-i18n="settings_premium">Gritto Premium</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
     </div>
 
     <div class="settings-subpage hidden" id="settings-subpage-appinfo">
@@ -3052,6 +3091,60 @@
       <div class="settings-card">
         <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Share your link below — when a friend signs up through it, you both unlock the Ocean theme, even if neither of you has the streak for it yet.</p>
         <div id="referral-area"></div>
+      </div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-premium">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="premium-hero">
+        <div class="premium-hero-crown">👑</div>
+        <h2>Gritto Premium</h2>
+        <div class="premium-hero-price">$4.99<span>/month</span></div>
+        <div class="premium-hero-price-note">Price not final — just a placeholder for now</div>
+      </div>
+
+      <div class="settings-card premium-feature-list">
+        <div class="premium-feature-row">
+          <div class="premium-feature-icon">🎨</div>
+          <div>
+            <div class="premium-feature-title">Exclusive themes</div>
+            <div class="premium-feature-desc">A set of app looks only Premium members get.</div>
+          </div>
+        </div>
+        <div class="premium-feature-row">
+          <div class="premium-feature-icon">🎥</div>
+          <div>
+            <div class="premium-feature-title">Unlimited video checks</div>
+            <div class="premium-feature-desc">No cap on how many form checks you can run.</div>
+          </div>
+        </div>
+        <div class="premium-feature-row">
+          <div class="premium-feature-icon">📈</div>
+          <div>
+            <div class="premium-feature-title">Deeper analytics &amp; trends</div>
+            <div class="premium-feature-desc">More detailed breakdowns of your progress over time.</div>
+          </div>
+        </div>
+        <div class="premium-feature-row">
+          <div class="premium-feature-icon">⚡</div>
+          <div>
+            <div class="premium-feature-title">Priority AI processing</div>
+            <div class="premium-feature-desc">Your drills and video checks get processed first.</div>
+          </div>
+        </div>
+        <div class="premium-feature-row">
+          <div class="premium-feature-icon">📄</div>
+          <div>
+            <div class="premium-feature-title">PDF progress reports</div>
+            <div class="premium-feature-desc">Download a clean summary of your progress to share or keep.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card" style="text-align:center;">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">Premium isn't available to purchase yet — this is a preview of what's coming. Want to know the moment it launches?</p>
+        <button class="go-btn" id="premium-notify-btn" onclick="notifyPremiumInterest()">Notify me when it's ready</button>
+        <div class="status" id="premium-notify-status"></div>
       </div>
     </div>
   </div>
@@ -3253,6 +3346,12 @@
   <button class="sidebar-nav-btn sidebar-nav-sub" onclick="openSidebarSettings('referral', this)">
     <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="9" width="16" height="11" rx="1" stroke="currentColor" stroke-width="1.7"/><path d="M4 9h16v3H4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 9v11" stroke="currentColor" stroke-width="1.5"/><path d="M12 9c-1.5-4-6-4-6-1.5S9 9 12 9Zm0 0c1.5-4 6-4 6-1.5S15 9 12 9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
     <span data-i18n="settings_referral">Invite a Friend</span>
+  </button>
+
+  <div class="sidebar-nav-category">Premium</div>
+  <button class="sidebar-nav-btn sidebar-nav-sub" onclick="openSidebarSettings('premium', this)">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 8l3.5 3L12 6l4.5 5L20 8l-1.5 10h-13L4 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    <span data-i18n="settings_premium">Gritto Premium</span>
   </button>
 </nav>
 
@@ -4354,6 +4453,7 @@ const UI_STRINGS = {
   settings_feedback: 'Report a Bug / Feedback', settings_share: 'Share My Progress', settings_legal: 'Legal',
   settings_language: 'Language',
   settings_referral: 'Invite a Friend',
+  settings_premium: 'Gritto Premium',
 };
 
 let currentLanguage = null; // null = English (default, no translation needed)
@@ -5229,7 +5329,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.2.0';
+const APP_VERSION = '6.3.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5297,6 +5397,22 @@ function showSettingsSubpage(id){
     });
   }
   if(id === 'data') cancelDeleteAccountConfirm();
+  if(id === 'premium'){
+    const btn = document.getElementById('premium-notify-btn');
+    const statusEl = document.getElementById('premium-notify-status');
+    btn.disabled = false;
+    btn.textContent = "Notify me when it's ready";
+    statusEl.textContent = '';
+    sb.auth.getSession().then(async ({ data: { session } }) => {
+      if(!session) return;
+      const { data } = await sb.from('user_profile').select('premium_interested').eq('user_id', session.user.id).maybeSingle();
+      if(data && data.premium_interested){
+        btn.disabled = true;
+        btn.textContent = "You're on the list! 🎉";
+        statusEl.textContent = "We'll let you know the moment Premium is ready.";
+      }
+    });
+  }
 }
 
 async function renderSettingsPage(){
@@ -5387,6 +5503,41 @@ async function generateShareLink(){
 }
 
 // ---- Referral system ----
+// Premium isn't purchasable yet, so this just records real interest —
+// a simple flag on the profile — rather than being a purely
+// decorative button. Gives a genuine signal for later, not just a mockup.
+async function notifyPremiumInterest(){
+  const btn = document.getElementById('premium-notify-btn');
+  const statusEl = document.getElementById('premium-notify-status');
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    statusEl.textContent = 'Sign in first, then tap this again.';
+    return;
+  }
+
+  btn.disabled = true;
+  try{
+    const { error } = await sb.from('user_profile').upsert({
+      user_id: session.user.id,
+      premium_interested: true,
+      premium_interested_at: new Date().toISOString()
+    });
+    if(error){
+      console.error('Could not record premium interest:', error.message);
+      statusEl.textContent = "Something went wrong — try again in a moment.";
+      btn.disabled = false;
+      return;
+    }
+    btn.textContent = "You're on the list! 🎉";
+    statusEl.textContent = "We'll let you know the moment Premium is ready.";
+  }catch(err){
+    console.error('Premium interest failed (thrown):', err.message);
+    statusEl.textContent = "Something went wrong — try again in a moment.";
+    btn.disabled = false;
+  }
+}
+
 async function renderReferralArea(user){
   const areaEl = document.getElementById('referral-area');
   if(!areaEl) return;
