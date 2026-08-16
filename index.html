@@ -2991,6 +2991,20 @@
         <button class="settings-action-btn" onclick="clearActivityLogData()">Clear my activity log</button>
         <button class="settings-action-btn" onclick="clearScoreHistoryData()">Clear my score averages</button>
       </div>
+
+      <div class="section-label" style="margin-top:20px; color:#B4401A;">Delete my account</div>
+      <div class="settings-card">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">This permanently deletes your account and everything tied to it — your progress, streaks, drill history, video checks, saved drills, and themes. This can't be undone.</p>
+        <button class="settings-action-btn" id="delete-account-start-btn" onclick="showDeleteAccountConfirm()">Delete my account</button>
+
+        <div class="hidden" id="delete-account-confirm-area" style="margin-top:12px;">
+          <p style="font-size:12.5px; color:#B4401A; font-weight:600; margin:0 0 8px;">Type DELETE below to confirm. This is permanent.</p>
+          <input type="text" id="delete-account-confirm-input" class="onboard-text-input" placeholder="Type DELETE" oninput="updateDeleteAccountButton()" style="margin-bottom:10px;">
+          <button class="settings-action-btn" id="delete-account-confirm-btn" disabled onclick="confirmDeleteAccount()" style="background:#B4401A; color:#fff;">Permanently delete my account</button>
+          <button class="settings-action-btn" onclick="cancelDeleteAccountConfirm()" style="margin-top:8px;">Cancel</button>
+          <div class="status" id="delete-account-status"></div>
+        </div>
+      </div>
     </div>
 
     <div class="settings-subpage hidden" id="settings-subpage-feedback">
@@ -5215,7 +5229,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.1.1';
+const APP_VERSION = '6.2.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5282,6 +5296,7 @@ function showSettingsSubpage(id){
       if(session) renderReferralArea(session.user);
     });
   }
+  if(id === 'data') cancelDeleteAccountConfirm();
 }
 
 async function renderSettingsPage(){
@@ -5470,6 +5485,66 @@ async function turnOffSharing(){
   }catch(err){
     console.error('Could not turn off sharing (thrown):', err.message);
     alert('Something went wrong — try again in a moment.');
+  }
+}
+
+// ---- Account deletion ----
+// A genuinely destructive, irreversible action, so this uses a real
+// typed-confirmation step ("DELETE") rather than a single tap, and
+// goes through a server-side endpoint that verifies identity before
+// doing anything (see api/delete-account.js).
+function showDeleteAccountConfirm(){
+  document.getElementById('delete-account-confirm-area').classList.remove('hidden');
+  document.getElementById('delete-account-start-btn').classList.add('hidden');
+  document.getElementById('delete-account-confirm-input').value = '';
+  updateDeleteAccountButton();
+}
+
+function cancelDeleteAccountConfirm(){
+  document.getElementById('delete-account-confirm-area').classList.add('hidden');
+  document.getElementById('delete-account-start-btn').classList.remove('hidden');
+  document.getElementById('delete-account-status').textContent = '';
+}
+
+function updateDeleteAccountButton(){
+  const typed = document.getElementById('delete-account-confirm-input').value;
+  document.getElementById('delete-account-confirm-btn').disabled = (typed !== 'DELETE');
+}
+
+async function confirmDeleteAccount(){
+  const statusEl = document.getElementById('delete-account-status');
+  const btn = document.getElementById('delete-account-confirm-btn');
+  btn.disabled = true;
+  statusEl.textContent = 'Deleting your account…';
+
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session){
+      statusEl.textContent = "You're not signed in.";
+      return;
+    }
+
+    const response = await fetch('/api/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: session.access_token })
+    });
+    const data = await response.json();
+    if(!data.ok){
+      statusEl.textContent = "Something went wrong — try again in a moment.";
+      console.error('Account deletion failed:', data.error);
+      btn.disabled = false;
+      return;
+    }
+
+    // Account and all its data are gone server-side — sign out locally
+    // and drop back to the login screen.
+    await sb.auth.signOut();
+    window.location.reload();
+  }catch(err){
+    statusEl.textContent = "Something went wrong — try again in a moment.";
+    console.error('Account deletion failed (thrown):', err.message);
+    btn.disabled = false;
   }
 }
 
