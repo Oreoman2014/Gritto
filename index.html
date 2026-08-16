@@ -5346,7 +5346,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.7.1';
+const APP_VERSION = '6.8.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5512,39 +5512,83 @@ async function generateShareLink(){
 // Premium isn't purchasable yet, so "Notify me" just records real
 // interest — including WHICH tier — rather than being purely
 // decorative. Gives genuine signal for later, not just a mockup.
-const PREMIUM_TIERS = {
+// ---- Pricing catalog resolver ----
+// Prices live in the database (plan_catalog / topup_catalog), editable
+// from the admin panel's Pricing tab, with a draft->publish workflow.
+// This is Layer 0 — the code fallback, always present, used only if
+// the database is unreachable, so a pricing read can never break the
+// app. This is the ONLY place prices should ever be hardcoded again;
+// everywhere else should call resolvePriceCatalog().
+const CODE_PRICE_CONSTANTS = {
+  plans: {
+    starter: { display_name: 'Starter', amount_cents: 199, billing_period: 'one_time', bonus_checks: 10, monthly_check_limit: null },
+    pro: { display_name: 'Gritto Pro', amount_cents: 499, billing_period: 'one_time', bonus_checks: 50, monthly_check_limit: null },
+    studio: { display_name: 'Gritto Studio', amount_cents: 499, billing_period: 'one_time', bonus_checks: 0, monthly_check_limit: null },
+    premium: { display_name: 'Gritto Premium', amount_cents: 499, billing_period: 'monthly', bonus_checks: 0, monthly_check_limit: 175 },
+  },
+  topups: {
+    small: { units: 5, amount_cents: 99 },
+    medium: { units: 15, amount_cents: 249 },
+    large: { units: 30, amount_cents: 399 },
+  }
+};
+
+async function resolvePriceCatalog(){
+  try{
+    const { data: versionData, error: versionError } = await sb.from('catalog_version')
+      .select('id').eq('status', 'published').order('published_at', { ascending: false }).limit(1).maybeSingle();
+    if(versionError || !versionData) throw new Error('No published catalog version found.');
+
+    const [plansRes, topupsRes] = await Promise.all([
+      sb.from('plan_catalog').select('*').eq('version_id', versionData.id).eq('visible', true),
+      sb.from('topup_catalog').select('*').eq('version_id', versionData.id).eq('visible', true),
+    ]);
+    if(plansRes.error || topupsRes.error || !plansRes.data || !topupsRes.data){
+      throw new Error('Could not read catalog rows.');
+    }
+
+    return {
+      plans: Object.fromEntries(plansRes.data.map(p => [p.plan_key, p])),
+      topups: Object.fromEntries(topupsRes.data.map(t => [t.pack_key, t])),
+      provenance: { layer: 'catalog', usedFallback: false, versionId: versionData.id }
+    };
+  }catch(err){
+    console.error('Pricing catalog unreachable, using code fallback:', err.message);
+    return {
+      plans: CODE_PRICE_CONSTANTS.plans,
+      topups: CODE_PRICE_CONSTANTS.topups,
+      provenance: { layer: 'code', usedFallback: true, versionId: null }
+    };
+  }
+}
+
+function formatCents(cents){
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+// Marketing copy only — no prices here anymore. Actual prices come
+// from resolvePriceCatalog() and get merged in at render time.
+const PREMIUM_TIER_FEATURES = {
   starter: {
-    name: 'Starter',
-    price: '$1.99',
-    priceNote: 'One-time purchase — price not final',
     features: [
-      { icon: '🎥', title: '+10 video checks', desc: 'Ten extra form checks added to your account, on top of the free amount.' },
+      { icon: '🎥', title: '+{bonus} video checks', desc: 'Extra form checks added to your account, on top of the free amount.' },
       { icon: '🎨', title: '3 exclusive themes', desc: 'A small set of themes only Starter and above get.' },
     ]
   },
   pro: {
-    name: 'Gritto Pro',
-    price: '$4.99',
-    priceNote: 'One-time purchase — price not final',
     features: [
-      { icon: '🎥', title: '+50 video checks', desc: 'Fifty extra form checks — a lot more room, though not unlimited.' },
+      { icon: '🎥', title: '+{bonus} video checks', desc: 'A lot more room, though not unlimited.' },
       { icon: '📈', title: 'Deeper analytics & trends', desc: 'More detailed breakdowns of your progress over time.' },
       { icon: '⚡', title: 'Priority AI processing', desc: 'Your drills and video checks get processed first.' },
     ]
   },
   studio: {
-    name: 'Gritto Studio',
-    price: '$4.99',
-    priceNote: 'One-time purchase — price not final',
     features: [
       { icon: '🎨', title: 'All exclusive themes', desc: 'Every Premium-only theme, unlocked at once.' },
       { icon: '📄', title: 'Unlimited PDF reports', desc: 'Download as many progress reports as you want.' },
     ]
   },
   premium: {
-    name: 'Gritto Premium',
-    price: '$4.99',
-    priceNote: '/month — price not final',
     features: [
       { icon: '🎥', title: 'Unlimited video checks', desc: 'No cap on how many form checks you can run.' },
       { icon: '🎨', title: 'All exclusive themes', desc: 'Every Premium-only theme, unlocked at once.' },
@@ -5560,23 +5604,40 @@ function switchPremiumTier(tier){
   renderPremiumTier(tier);
 }
 
-function renderPremiumTier(tier){
-  const t = PREMIUM_TIERS[tier];
+async function renderPremiumTier(tier){
   const contentEl = document.getElementById('premium-tier-content');
-  const priceDisplay = tier === 'premium'
-    ? `${t.price}<span>/month</span>`
-    : `${t.price}<span> one-time</span>`;
+  contentEl.innerHTML = '<p style="text-align:center; color:var(--ink-soft); padding:20px;">Loading…</p>';
+
+  const catalog = await resolvePriceCatalog();
+  const planData = catalog.plans[tier];
+  const staticInfo = PREMIUM_TIER_FEATURES[tier];
+  if(!planData || !staticInfo){
+    contentEl.innerHTML = '<p style="text-align:center; color:var(--ink-soft); padding:20px;">This plan isn\'t available right now.</p>';
+    return;
+  }
+
+  const priceDisplay = planData.billing_period === 'monthly'
+    ? `${formatCents(planData.amount_cents)}<span>/month</span>`
+    : `${formatCents(planData.amount_cents)}<span> one-time</span>`;
+  const priceNote = catalog.provenance.usedFallback
+    ? 'Price not final — showing a backup price, pricing service is briefly unreachable'
+    : (planData.billing_period === 'monthly' ? '/month — price not final' : 'One-time purchase — price not final');
+
+  const features = staticInfo.features.map(f => ({
+    ...f,
+    title: f.title.replace('{bonus}', planData.bonus_checks || 0)
+  }));
 
   contentEl.innerHTML = `
     <div class="premium-hero">
       <div class="premium-hero-crown">👑</div>
-      <h2>${t.name}</h2>
+      <h2>${planData.display_name}</h2>
       <div class="premium-hero-price">${priceDisplay}</div>
-      <div class="premium-hero-price-note">${t.priceNote}</div>
+      <div class="premium-hero-price-note">${priceNote}</div>
     </div>
 
     <div class="settings-card premium-feature-list">
-      ${t.features.map(f => `
+      ${features.map(f => `
         <div class="premium-feature-row">
           <div class="premium-feature-icon">${f.icon}</div>
           <div>
@@ -5588,7 +5649,7 @@ function renderPremiumTier(tier){
     </div>
 
     <div class="settings-card" style="text-align:center;">
-      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">${t.name} isn't available to purchase yet — this is a preview of what's coming. Want to know the moment it launches?</p>
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">${planData.display_name} isn't available to purchase yet — this is a preview of what's coming. Want to know the moment it launches?</p>
       <button class="go-btn" id="premium-notify-btn" onclick="notifyPremiumInterest('${tier}')">Notify me when it's ready</button>
       <div class="status" id="premium-notify-status"></div>
     </div>
@@ -5649,11 +5710,7 @@ async function notifyPremiumInterest(tier){
 // No real payment exists yet, so "buying" a pack here records a real
 // request instead, which shows up for manual granting via the admin
 // panel's existing top-up buttons.
-const TOPUP_PACKS = [
-  { size: 5, price: '$0.99' },
-  { size: 15, price: '$2.49' },
-  { size: 30, price: '$3.99' },
-];
+const TOPUP_PACK_KEYS = ['small', 'medium', 'large']; // maps to topup_catalog.pack_key
 
 async function getRemainingChecksDisplay(){
   const { data: { session } } = await sb.auth.getSession();
@@ -5664,8 +5721,10 @@ async function getRemainingChecksDisplay(){
     .eq('user_id', session.user.id).maybeSingle();
   if(error || !data) return null;
 
+  const catalog = await resolvePriceCatalog();
   const tier = data.premium_tier || null;
-  const monthlyLimit = tier === 'premium' ? 175 : 5;
+  const planData = tier ? catalog.plans[tier] : null;
+  const monthlyLimit = (planData && planData.monthly_check_limit) ? planData.monthly_check_limit : 5;
 
   const today = new Date();
   const monthStart = data.checks_month_start ? new Date(data.checks_month_start) : null;
@@ -5683,21 +5742,28 @@ async function renderBuyMoreChecks(){
   const packsEl = document.getElementById('topup-packs-list');
   if(!summaryEl || !packsEl) return;
 
-  const remaining = await getRemainingChecksDisplay();
+  packsEl.innerHTML = '<p style="text-align:center; color:var(--ink-soft);">Loading…</p>';
+
+  const [remaining, catalog] = await Promise.all([getRemainingChecksDisplay(), resolvePriceCatalog()]);
   summaryEl.textContent = remaining
     ? `You have ${remaining.total} video check${remaining.total === 1 ? '' : 's'} left right now.`
     : 'Sign in to see how many video checks you have left.';
 
-  packsEl.innerHTML = TOPUP_PACKS.map(pack => `
-    <div class="premium-feature-row">
-      <div class="premium-feature-icon">🎥</div>
-      <div style="flex:1;">
-        <div class="premium-feature-title">+${pack.size} video checks — ${pack.price}</div>
-        <div class="premium-feature-desc" id="topup-status-${pack.size}">Not purchasable yet — request it and we'll get it to you.</div>
+  packsEl.innerHTML = TOPUP_PACK_KEYS.map(key => {
+    const pack = catalog.topups[key];
+    if(!pack) return '';
+    const priceStr = formatCents(pack.amount_cents);
+    return `
+      <div class="premium-feature-row">
+        <div class="premium-feature-icon">🎥</div>
+        <div style="flex:1;">
+          <div class="premium-feature-title">+${pack.units} video checks — ${priceStr}</div>
+          <div class="premium-feature-desc" id="topup-status-${pack.units}">Not purchasable yet — request it and we'll get it to you.</div>
+        </div>
+        <button class="settings-toggle-btn" onclick="requestTopUp(${pack.units}, '${priceStr}')">Request</button>
       </div>
-      <button class="settings-toggle-btn" onclick="requestTopUp(${pack.size}, '${pack.price}')">Request</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 async function requestTopUp(packSize, packPrice){
