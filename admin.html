@@ -140,6 +140,7 @@
       <button class="tab-btn active" id="tab-users-btn" onclick="switchTab('users')">Beta Users</button>
       <button class="tab-btn" id="tab-feedback-btn" onclick="switchTab('feedback')">Feedback</button>
       <button class="tab-btn" id="tab-profiles-btn" onclick="switchTab('profiles')">Profiles</button>
+      <button class="tab-btn" id="tab-topups-btn" onclick="switchTab('topups')">Top-ups</button>
     </div>
 
     <div id="tab-users">
@@ -160,6 +161,11 @@
     <div id="tab-profiles" class="hidden">
       <p class="sub">Onboarding info for every user — sport, goals, position, injury history, and more.</p>
       <div id="profiles-list"></div>
+    </div>
+
+    <div id="tab-topups" class="hidden">
+      <p class="sub">Video-check top-up requests made from inside the app. Granting one adds the checks to that account and marks the request done.</p>
+      <div id="topups-list"></div>
     </div>
   </div>
 
@@ -252,11 +258,64 @@ function switchTab(tab){
   document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
   document.getElementById('tab-feedback').classList.toggle('hidden', tab !== 'feedback');
   document.getElementById('tab-profiles').classList.toggle('hidden', tab !== 'profiles');
+  document.getElementById('tab-topups').classList.toggle('hidden', tab !== 'topups');
   document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
   document.getElementById('tab-profiles-btn').classList.toggle('active', tab === 'profiles');
+  document.getElementById('tab-topups-btn').classList.toggle('active', tab === 'topups');
   if(tab === 'feedback') loadFeedback();
   if(tab === 'profiles') loadProfiles();
+  if(tab === 'topups') loadTopupRequests();
+}
+
+async function loadTopupRequests(){
+  const listEl = document.getElementById('topups-list');
+  listEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin-topups', {
+      headers: { 'x-admin-password': adminPassword }
+    });
+    const data = await res.json();
+    if(!data.ok){
+      listEl.innerHTML = `<div class="empty">${data.error || 'Could not load top-up requests.'}</div>`;
+      return;
+    }
+    const requests = data.requests || [];
+    if(requests.length === 0){
+      listEl.innerHTML = '<div class="empty">No top-up requests yet.</div>';
+      return;
+    }
+    listEl.innerHTML = requests.map(r => `
+      <div class="profile-card">
+        <div class="profile-top">
+          <span class="profile-email">${r.email}</span>
+          <span class="profile-onboard-badge ${r.status === 'granted' ? 'yes' : 'no'}">${r.status === 'granted' ? 'Granted' : 'Pending'}</span>
+        </div>
+        <div style="font-size:13px; margin:6px 0;">Requested <strong>+${r.pack_size} video checks</strong> (${r.pack_price || 'price n/a'}) — ${new Date(r.created_at).toLocaleDateString()}</div>
+        ${r.status !== 'granted' ? `<button class="btn" style="width:auto; padding:9px 16px;" onclick="grantTopupRequest('${r.id}', '${r.user_id}', ${r.pack_size})">Grant +${r.pack_size} checks</button>` : ''}
+      </div>
+    `).join('');
+  }catch(err){
+    listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+async function grantTopupRequest(requestId, userId, packSize){
+  try{
+    const res = await fetch('/api/admin-topups', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ request_id: requestId, user_id: userId, pack_size: packSize })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not grant this request.');
+      return;
+    }
+    loadTopupRequests();
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
 }
 
 async function loadProfiles(){
