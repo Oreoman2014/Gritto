@@ -3796,6 +3796,47 @@ document.addEventListener('DOMContentLoaded', () => {
 // It looks like: https://YOUR-PROJECT-ID.functions.supabase.co/formfix-ai
 const AI_HELPER_URL = "https://iplvvkvttumbrlueowou.supabase.co/functions/v1/formfix-ai";
 
+// Every AI call in the app goes through this one function instead of
+// calling fetch(AI_HELPER_URL, ...) directly — it attaches the user's
+// real login token (so the server can verify who's actually asking) and
+// a fresh idempotency key (so an accidental double-tap or network retry
+// doesn't get charged twice), and translates the server's specific
+// error types into messages people can actually understand.
+async function callAIHelper(payload){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    throw new Error('Please sign in to use this feature.');
+  }
+
+  const idempotencyKey = crypto.randomUUID();
+
+  const response = await fetch(AI_HELPER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ ...payload, idempotency_key: idempotencyKey })
+  });
+
+  const data = await response.json();
+
+  if(!response.ok){
+    if(data.error === 'rate_limited'){
+      throw new Error(data.message || "You're going a bit fast — try again in a minute.");
+    }
+    if(data.error === 'payload_too_large'){
+      throw new Error(data.message || "That request is too large — try trimming it down.");
+    }
+    if(data.error === 'auth_required' || data.error === 'invalid_session'){
+      throw new Error(data.message || 'Please sign in again.');
+    }
+    throw new Error(data.message || 'Something went wrong — try again in a moment.');
+  }
+
+  return data;
+}
+
 // Every AI call goes through this to safely pull out the response text.
 // If the server hiccups (rate limit, timeout, internal error, etc.) it
 // can return a 200 with an unexpected shape instead of the usual
@@ -3938,21 +3979,18 @@ async function askFollowUp(containerId){
   try{
     const systemPrompt = `You are a knowledgeable youth sports coach. ${getCoachToneInstruction()}${getInjurySafetyInstruction()}${getAppLanguageInstruction()} You just gave a young athlete some drills/feedback for ${followUpContext.sport}, summarized as: "${followUpContext.summary}". They now have a quick follow-up question. Answer it directly and helpfully in 2-4 sentences — no JSON, no markdown, just plain conversational text. Stay focused on their sport and what was just discussed. Keep language age-appropriate and safe (no advice that risks injury).`;
 
-    const response = await fetch(AI_HELPER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_tokens: 400,
-        system: systemPrompt,
-        messages: [{ role: "user", content: question }]
-      })
+    const response = await callAIHelper({
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: "user", content: question }]
     });
-    const data = await response.json();
-    const answer = extractAIText(data).trim();
+    const answer = extractAIText(response).trim();
     followUpThread[qIndex].answer = answer;
   }catch(err){
     console.error('Follow-up question failed:', err.message);
-    followUpThread[qIndex].answer = "Sorry, something went wrong answering that — try again.";
+    followUpThread[qIndex].answer = err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit')
+      ? err.message
+      : "Sorry, something went wrong answering that — try again.";
   }
 
   input.disabled = false;
@@ -4451,17 +4489,12 @@ async function setAppLanguage(languageName){
   if(statusEl) statusEl.textContent = `Translating to ${trimmed}…`;
   try{
     const systemPrompt = `You translate short mobile app UI labels. Translate each value in this JSON object from English to ${trimmed}. Keep translations short, matching typical mobile app button/label length — no long phrases. Respond ONLY with valid JSON using the EXACT same keys, translated values, no markdown fences, no preamble.`;
-    const response = await fetch(AI_HELPER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{ role: "user", content: JSON.stringify(UI_STRINGS) }]
-      })
+    const response = await callAIHelper({
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: JSON.stringify(UI_STRINGS) }]
     });
-    const data = await response.json();
-    const text = extractAIText(data).trim();
+    const text = extractAIText(response).trim();
     const translated = JSON.parse(text);
     localStorage.setItem(cacheKey, JSON.stringify(translated));
     currentTranslations = translated;
@@ -4472,7 +4505,9 @@ async function setAppLanguage(languageName){
     if(statusEl) statusEl.textContent = `Language set to ${trimmed}.`;
   }catch(err){
     console.error('Translation failed:', err.message);
-    if(statusEl) statusEl.textContent = "Couldn't translate right now — try again in a moment.";
+    if(statusEl) statusEl.textContent = err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit')
+      ? err.message
+      : "Couldn't translate right now — try again in a moment.";
   }
 }
 
@@ -5288,7 +5323,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.4.0';
+const APP_VERSION = '6.5.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6626,17 +6661,12 @@ Include 3 to 5 items, ordered from warm-up-style activities to more focused ones
   const userMsg = `Sport: ${selectedSport}\nDaily goal: ${goalText}`;
 
   try{
-    const response = await fetch(AI_HELPER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_tokens: 700,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMsg }]
-      })
+    const response = await callAIHelper({
+      max_tokens: 700,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMsg }]
     });
-    const data = await response.json();
-    const cleaned = extractAIText(data).replace(/```json|```/g,'').trim();
+    const cleaned = extractAIText(response).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
     const newRoutine = {
@@ -6682,7 +6712,9 @@ Include 3 to 5 items, ordered from warm-up-style activities to more focused ones
     statusEl.textContent = '';
     const errBox = document.createElement('div');
     errBox.className = 'error-box';
-    errBox.textContent = "Something went wrong building your routine. Try again in a moment.";
+    errBox.textContent = (err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit'))
+      ? err.message
+      : "Something went wrong building your routine. Try again in a moment.";
     document.getElementById('routine-tab-build').appendChild(errBox);
     console.error(err);
   }finally{
@@ -6969,17 +7001,12 @@ Include exactly 4 drills, ordered from most foundational to more advanced, and t
   const userMsg = `Sport: ${selectedSport}\\nWhat I'm working on: ${skillText}`;
 
   try{
-    const response = await fetch(AI_HELPER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userMsg }]
-      })
+    const response = await callAIHelper({
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMsg }]
     });
-    const data = await response.json();
-    const cleaned = extractAIText(data).replace(/```json|```/g,'').trim();
+    const cleaned = extractAIText(response).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
     statusEl.textContent = '';
@@ -7007,7 +7034,9 @@ Include exactly 4 drills, ordered from most foundational to more advanced, and t
     statusEl.textContent = '';
     const errBox = document.createElement('div');
     errBox.className = 'error-box';
-    errBox.textContent = 'Something went wrong getting your drills. Try again in a moment.';
+    errBox.textContent = (err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit'))
+      ? err.message
+      : 'Something went wrong getting your drills. Try again in a moment.';
     resultsEl.appendChild(errBox);
     console.error(err);
   }finally{
@@ -7842,17 +7871,12 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
   ];
 
   try{
-    const response = await fetch(AI_HELPER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        max_tokens: 1200,
-        system: systemPrompt,
-        messages: [{ role: "user", content }]
-      })
+    const response = await callAIHelper({
+      max_tokens: 1200,
+      system: systemPrompt,
+      messages: [{ role: "user", content }]
     });
-    const data = await response.json();
-    const cleaned = extractAIText(data).replace(/```json|```/g,'').trim();
+    const cleaned = extractAIText(response).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
 
     statusEl.textContent = '';
@@ -7908,7 +7932,9 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
     statusEl.textContent = '';
     const errBox = document.createElement('div');
     errBox.className = 'error-box';
-    errBox.textContent = 'Something went wrong analyzing your video. Try again in a moment.';
+    errBox.textContent = (err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit'))
+      ? err.message
+      : 'Something went wrong analyzing your video. Try again in a moment.';
     resultsEl.appendChild(errBox);
     console.error(err);
   }finally{
