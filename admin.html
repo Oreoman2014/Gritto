@@ -416,6 +416,19 @@ function profileCardHTML(p, editing){
         </select>
         <p style="font-size:11px; color:var(--ink-soft); margin:6px 0 0;">Changing this to a NEW tier resets the bonus-check pool to match (10 for Starter, 50 for Pro). Re-saving the SAME tier leaves their remaining bonus checks alone.</p>
       </div>
+      <div class="profile-grant-section">
+        <div class="profile-field-label" style="margin-bottom:6px;">Top up video checks (no real payment yet — adds on top of whatever they already have)</div>
+        <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Currently has <strong>${Math.max(0, (p.bonus_checks_granted||0) - (p.bonus_checks_used||0))}</strong> bonus checks remaining.</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="settings-toggle-btn" onclick="topUpChecks('${uid}', 5)">+5 (small pack)</button>
+          <button class="settings-toggle-btn" onclick="topUpChecks('${uid}', 15)">+15 (medium pack)</button>
+          <button class="settings-toggle-btn" onclick="topUpChecks('${uid}', 30)">+30 (large pack)</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+          <input type="number" id="custom-topup-${uid}" placeholder="Custom amount" min="1" style="width:120px; padding:6px 8px; border:1px solid var(--line); border-radius:6px;">
+          <button class="settings-toggle-btn" onclick="topUpChecks('${uid}', parseInt(document.getElementById('custom-topup-${uid}').value) || 0)">Add custom amount</button>
+        </div>
+      </div>
       <div style="margin-top:12px; display:flex; gap:10px;">
         <button class="btn" style="width:auto; padding:9px 16px;" onclick="saveProfile('${uid}')">Save</button>
         <button class="feedback-delete" onclick="cancelEditProfile('${uid}')">Cancel</button>
@@ -434,6 +447,37 @@ function cancelEditProfile(userId){
   const p = currentProfiles.find(x => x.user_id === userId);
   if(!p) return;
   document.getElementById(`profile-${userId}`).outerHTML = profileCardHTML(p, false);
+}
+
+// Independent of the general Save button — top-ups are a quick, frequent
+// action, so this adds to the bonus pool immediately rather than
+// requiring the admin to calculate a new total and use the edit form.
+async function topUpChecks(userId, amount){
+  if(!amount || amount <= 0){
+    alert('Enter a valid amount to add.');
+    return;
+  }
+
+  const current = currentProfiles.find(p => p.user_id === userId);
+  const currentGranted = current ? (current.bonus_checks_granted || 0) : 0;
+  const newTotal = currentGranted + amount;
+
+  try{
+    const res = await fetch('/api/admin-profiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ user_id: userId, updates: { bonus_checks_granted: newTotal } })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not add the top-up.');
+      return;
+    }
+    await loadProfiles(); // refresh from the server so the shown count is never stale
+    editProfile(userId); // re-open edit mode on the same profile so the admin sees the update immediately
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
 }
 
 async function saveProfile(userId){
