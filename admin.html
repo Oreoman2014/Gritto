@@ -317,10 +317,14 @@ function profileCardHTML(p, editing){
   const injuryAreasStr = (p.injury_areas && p.injury_areas.length) ? p.injury_areas.join(', ') : '';
   const grantedThemes = p.granted_themes || [];
   const grantedBadges = p.granted_badges || [];
+  const tierLabels = { starter: 'Starter', pro: 'Gritto Pro', studio: 'Gritto Studio', premium: 'Premium' };
 
   if(!editing){
     const grantsNote = (grantedThemes.length || grantedBadges.length)
       ? `<div class="profile-grants-note">🎁 Manually granted: ${grantedThemes.length} theme(s), ${grantedBadges.length} badge(s)</div>`
+      : '';
+    const tierNote = p.premium_tier
+      ? `<div class="profile-grants-note">👑 Premium tier: ${tierLabels[p.premium_tier] || p.premium_tier} (${Math.max(0, (p.bonus_checks_granted||0) - (p.bonus_checks_used||0))} bonus checks left)</div>`
       : '';
     return `
     <div class="profile-card" id="profile-${uid}">
@@ -344,6 +348,7 @@ function profileCardHTML(p, editing){
       </div>
       ${p.has_prior_injury ? `<div class="profile-injury">⚠️ Reported injury history: ${injuryAreasStr || 'area not specified'}</div>` : ''}
       ${grantsNote}
+      ${tierNote}
       <button class="feedback-delete" style="color:var(--ink);" onclick="editProfile('${uid}')">Edit</button>
     </div>
   `;
@@ -400,6 +405,17 @@ function profileCardHTML(p, editing){
         <div class="profile-field-label" style="margin-bottom:6px;">Grant badges (even if not earned)</div>
         <div class="profile-grant-grid">${grantCheckboxes(ADMIN_BADGES, 'badges', grantedBadges)}</div>
       </div>
+      <div class="profile-grant-section">
+        <div class="profile-field-label" style="margin-bottom:6px;">Premium tier (no real payment yet — this grants the actual tier for testing)</div>
+        <select class="profile-edit-input" data-field="premium_tier" data-original-tier="${p.premium_tier || ''}" id="tier-select-${uid}" style="width:auto;">
+          <option value="" ${!p.premium_tier ? 'selected' : ''}>None</option>
+          <option value="starter" ${p.premium_tier === 'starter' ? 'selected' : ''}>Starter ($1.99, +10 checks)</option>
+          <option value="pro" ${p.premium_tier === 'pro' ? 'selected' : ''}>Gritto Pro ($4.99, +50 checks)</option>
+          <option value="studio" ${p.premium_tier === 'studio' ? 'selected' : ''}>Gritto Studio ($4.99, themes/PDF)</option>
+          <option value="premium" ${p.premium_tier === 'premium' ? 'selected' : ''}>Premium ($4.99/mo, unlimited)</option>
+        </select>
+        <p style="font-size:11px; color:var(--ink-soft); margin:6px 0 0;">Changing this to a NEW tier resets the bonus-check pool to match (10 for Starter, 50 for Pro). Re-saving the SAME tier leaves their remaining bonus checks alone.</p>
+      </div>
       <div style="margin-top:12px; display:flex; gap:10px;">
         <button class="btn" style="width:auto; padding:9px 16px;" onclick="saveProfile('${uid}')">Save</button>
         <button class="feedback-delete" onclick="cancelEditProfile('${uid}')">Cancel</button>
@@ -440,6 +456,20 @@ async function saveProfile(userId){
   const grantedBadges = Array.from(card.querySelectorAll('.profile-grant-cb[data-group="badges"]:checked')).map(cb => cb.value);
   updates.granted_themes = grantedThemes;
   updates.granted_badges = grantedBadges;
+
+  // If the tier was actually CHANGED, reset the bonus-check pool to
+  // match the new tier. If the admin just re-saved the SAME tier,
+  // leave the pool alone — don't refill checks someone's already used.
+  const tierSelect = card.querySelector('[data-field="premium_tier"]');
+  if(tierSelect){
+    const originalTier = tierSelect.dataset.originalTier || '';
+    const newTier = tierSelect.value;
+    if(newTier !== originalTier){
+      const bonusForTier = { starter: 10, pro: 50, studio: 0, premium: 0, '': 0 };
+      updates.bonus_checks_granted = bonusForTier[newTier] ?? 0;
+      updates.bonus_checks_used = 0;
+    }
+  }
 
   try{
     const res = await fetch('/api/admin-profiles', {
