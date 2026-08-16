@@ -141,6 +141,7 @@
       <button class="tab-btn" id="tab-feedback-btn" onclick="switchTab('feedback')">Feedback</button>
       <button class="tab-btn" id="tab-profiles-btn" onclick="switchTab('profiles')">Profiles</button>
       <button class="tab-btn" id="tab-topups-btn" onclick="switchTab('topups')">Top-ups</button>
+      <button class="tab-btn" id="tab-pricing-btn" onclick="switchTab('pricing')">Pricing</button>
     </div>
 
     <div id="tab-users">
@@ -166,6 +167,11 @@
     <div id="tab-topups" class="hidden">
       <p class="sub">Video-check top-up requests made from inside the app. Granting one adds the checks to that account and marks the request done.</p>
       <div id="topups-list"></div>
+    </div>
+
+    <div id="tab-pricing" class="hidden">
+      <p class="sub">Prices editable as a draft, previewed with a live margin badge (90% floor), then published atomically. Not connected to real payments yet — this catalog is what the app's pricing screens actually read from.</p>
+      <div id="pricing-content"></div>
     </div>
   </div>
 
@@ -259,16 +265,240 @@ function switchTab(tab){
   document.getElementById('tab-feedback').classList.toggle('hidden', tab !== 'feedback');
   document.getElementById('tab-profiles').classList.toggle('hidden', tab !== 'profiles');
   document.getElementById('tab-topups').classList.toggle('hidden', tab !== 'topups');
+  document.getElementById('tab-pricing').classList.toggle('hidden', tab !== 'pricing');
   document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
   document.getElementById('tab-profiles-btn').classList.toggle('active', tab === 'profiles');
   document.getElementById('tab-topups-btn').classList.toggle('active', tab === 'topups');
+  document.getElementById('tab-pricing-btn').classList.toggle('active', tab === 'pricing');
   if(tab === 'feedback') loadFeedback();
   if(tab === 'profiles') loadProfiles();
   if(tab === 'topups') loadTopupRequests();
+  if(tab === 'pricing') loadPricingCatalog();
 }
 
 let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
+
+let pricingCatalogState = null; // cached so edits can read current values without refetching
+
+async function loadPricingCatalog(){
+  const contentEl = document.getElementById('pricing-content');
+  contentEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin-pricing', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load the pricing catalog.'}</div>`;
+      return;
+    }
+    pricingCatalogState = data;
+    renderPricingCatalog();
+  }catch(err){
+    contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+function marginBadge(margin, floor){
+  if(margin === null || margin === undefined) return '<span style="font-size:11px; color:var(--ink-soft);">—</span>';
+  const pct = (margin * 100).toFixed(1);
+  let color = '#166534', bg = '#DCFCE7'; // green, above floor
+  if(margin < floor) { color = '#991B1B'; bg = '#FEE2E2'; } // red, below floor
+  else if(margin < floor + 0.02) { color = '#92400E'; bg = '#FEF3C7'; } // amber, within 2 points
+  return `<span style="font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; background:${bg}; color:${color};">${pct}% margin</span>`;
+}
+
+function renderPricingCatalog(){
+  const contentEl = document.getElementById('pricing-content');
+  const d = pricingCatalogState;
+  if(!d) return;
+
+  if(!d.hasDraft){
+    contentEl.innerHTML = `
+      <div class="profile-card">
+        <p style="font-size:13px; margin:0 0 12px;">Showing the live published catalog. Start a draft to make changes — nothing goes live until you publish.</p>
+        <button class="btn" style="width:auto; padding:9px 16px;" onclick="startPricingDraft()">Start editing</button>
+      </div>
+      <div style="margin-top:16px;">${renderPricingRows(d.plans, d.topups, false)}</div>
+      ${renderAuditLog(d.audit)}
+    `;
+    return;
+  }
+
+  contentEl.innerHTML = `
+    <div class="profile-card" style="background:#FEF3C7;">
+      <p style="font-size:13px; margin:0 0 12px; font-weight:600;">You're editing a draft. Nothing here is live until you publish.</p>
+      <button class="btn" style="width:auto; padding:9px 16px;" onclick="publishPricingDraft()">Publish</button>
+      <button class="feedback-delete" style="margin-left:10px;" onclick="discardPricingDraft()">Discard draft</button>
+    </div>
+    <div style="margin-top:16px;">${renderPricingRows(d.plans, d.topups, true)}</div>
+    ${renderAuditLog(d.audit)}
+  `;
+}
+
+function renderPricingRows(plans, topups, editable){
+  const planRows = plans.map(p => `
+    <div class="profile-card">
+      <div class="profile-top">
+        <div>
+          <span class="profile-email">${p.display_name}</span>
+          <div style="font-family:monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;">${p.plan_key} · ${p.bonus_checks ? `+${p.bonus_checks} checks` : (p.monthly_check_limit ? `${p.monthly_check_limit}/mo` : 'no check bonus')}</div>
+        </div>
+        ${marginBadge(p.margin, pricingCatalogState.marginFloor)}
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <span style="font-family:monospace; color:var(--ink-soft);">$</span>
+        ${editable
+          ? `<input type="number" step="0.01" value="${(p.amount_cents/100).toFixed(2)}" id="price-plan-${p.id}" style="width:90px; font-family:monospace; padding:6px 8px; border:1px solid var(--line); border-radius:6px;" onchange="editPricingRow('plan', '${p.id}', '${p.plan_key}')">`
+          : `<span style="font-family:monospace;">${(p.amount_cents/100).toFixed(2)}</span>`
+        }
+        <span style="font-size:12px; color:var(--ink-soft);">${p.billing_period === 'monthly' ? '/month' : 'one-time'}</span>
+      </div>
+      <div style="font-size:10.5px; color:var(--ink-soft); margin-top:4px;">Margin assumption: ${p.margin_assumption}</div>
+    </div>
+  `).join('');
+
+  const topupRows = topups.map(t => `
+    <div class="profile-card">
+      <div class="profile-top">
+        <div>
+          <span class="profile-email">+${t.units} video checks</span>
+          <div style="font-family:monospace; font-size:11px; color:var(--ink-soft); margin-top:2px;">${t.pack_key}</div>
+        </div>
+        ${marginBadge(t.margin, pricingCatalogState.marginFloor)}
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+        <span style="font-family:monospace; color:var(--ink-soft);">$</span>
+        ${editable
+          ? `<input type="number" step="0.01" value="${(t.amount_cents/100).toFixed(2)}" id="price-topup-${t.id}" style="width:90px; font-family:monospace; padding:6px 8px; border:1px solid var(--line); border-radius:6px;" onchange="editPricingRow('topup', '${t.id}', '${t.pack_key}')">`
+          : `<span style="font-family:monospace;">${(t.amount_cents/100).toFixed(2)}</span>`
+        }
+        <span style="font-size:12px; color:var(--ink-soft);">one-time</span>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="section-label" style="margin-bottom:8px;">Plans</div>
+    ${planRows}
+    <div class="section-label" style="margin:16px 0 8px;">Top-ups</div>
+    ${topupRows}
+  `;
+}
+
+function renderAuditLog(audit){
+  if(!audit || audit.length === 0) return '';
+  return `
+    <div class="section-label" style="margin:20px 0 8px;">Recent changes</div>
+    <div class="profile-card">
+      ${audit.slice(0, 10).map(a => `
+        <div style="padding:8px 0; border-top:1px solid var(--line); font-size:12px;">
+          <strong>${a.action}</strong> on ${a.target_kind} <span style="font-family:monospace;">${a.target_key}</span> by ${a.actor} — ${new Date(a.at).toLocaleString()}
+          ${a.guardrail_overridden ? `<div style="color:#991B1B; margin-top:2px;">⚠ Margin guardrail overridden: ${a.reason || 'no reason given'}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function startPricingDraft(){
+  try{
+    const res = await fetch('/api/admin-pricing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ action: 'create_draft' })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not start a draft.');
+      return;
+    }
+    loadPricingCatalog();
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
+}
+
+async function discardPricingDraft(){
+  if(!confirm('Discard this draft? All unpublished edits will be lost.')) return;
+  try{
+    const res = await fetch('/api/admin-pricing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ action: 'discard_draft' })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not discard the draft.');
+      return;
+    }
+    loadPricingCatalog();
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
+}
+
+async function publishPricingDraft(){
+  if(!confirm('Publish this draft? It will become the live catalog the app reads from.')) return;
+  try{
+    const res = await fetch('/api/admin-pricing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ action: 'publish', actor: 'admin' })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not publish.');
+      return;
+    }
+    loadPricingCatalog();
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
+}
+
+async function editPricingRow(kind, id, key){
+  const input = document.getElementById(`price-${kind}-${id}`);
+  const newAmountCents = Math.round(parseFloat(input.value) * 100);
+  if(isNaN(newAmountCents) || newAmountCents < 0){
+    alert('Enter a valid price.');
+    loadPricingCatalog();
+    return;
+  }
+
+  const res = await fetch('/api/admin-pricing', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+    body: JSON.stringify({ target_kind: kind, target_id: id, target_key: key, updates: { amount_cents: newAmountCents }, actor: 'admin' })
+  });
+  const data = await res.json();
+
+  if(!data.ok && data.error === 'guardrail_blocked'){
+    const proceed = confirm(`${data.message}\n\nPublish below the floor anyway? You'll need to give a reason.`);
+    if(!proceed){ loadPricingCatalog(); return; }
+    const reason = prompt('Why is this okay? (at least 10 characters)');
+    if(!reason || reason.trim().length < 10){
+      alert('A real reason is required to override the margin floor.');
+      loadPricingCatalog();
+      return;
+    }
+    const overrideRes = await fetch('/api/admin-pricing', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ target_kind: kind, target_id: id, target_key: key, updates: { amount_cents: newAmountCents }, actor: 'admin', reason, override_guardrail: true })
+    });
+    const overrideData = await overrideRes.json();
+    if(!overrideData.ok){
+      alert(overrideData.error || 'Could not save this edit.');
+    }
+    loadPricingCatalog();
+    return;
+  }
+
+  if(!data.ok){
+    alert(data.error || 'Could not save this edit.');
+  }
+  loadPricingCatalog();
+}
 
 async function loadTopupRequests(){
   const listEl = document.getElementById('topups-list');
