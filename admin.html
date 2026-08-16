@@ -268,6 +268,8 @@ function switchTab(tab){
   if(tab === 'topups') loadTopupRequests();
 }
 
+let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
+
 async function loadTopupRequests(){
   const listEl = document.getElementById('topups-list');
   listEl.innerHTML = '<div class="empty">Loading…</div>';
@@ -285,33 +287,82 @@ async function loadTopupRequests(){
       listEl.innerHTML = '<div class="empty">No top-up requests yet.</div>';
       return;
     }
-    const statusLabel = { granted: 'Granted', declined: 'Declined', pending: 'Pending' };
-    listEl.innerHTML = requests.map(r => {
-      const status = r.status || 'pending';
-      let actionButtons = '';
-      if(status === 'pending'){
-        actionButtons = `
-          <button class="btn" style="width:auto; padding:9px 16px;" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'grant')">Grant +${r.pack_size} checks</button>
-          <button class="feedback-delete" style="margin-left:10px;" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'decline')">Decline</button>
-        `;
-      }else{
-        // Already granted or declined — offer to undo it.
-        actionButtons = `<button class="feedback-delete" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'undo')">Undo</button>`;
-      }
+
+    // Group by user
+    const byUser = {};
+    requests.forEach(r => {
+      if(!byUser[r.user_id]) byUser[r.user_id] = { email: r.email, requests: [] };
+      byUser[r.user_id].requests.push(r);
+    });
+
+    // Sort people by pending count first (most to act on rises to the top),
+    // then by total requests as a tiebreaker
+    const grouped = Object.entries(byUser).map(([userId, g]) => {
+      const pending = g.requests.filter(r => (r.status || 'pending') === 'pending').length;
+      const granted = g.requests.filter(r => r.status === 'granted').length;
+      const declined = g.requests.filter(r => r.status === 'declined').length;
+      return { userId, email: g.email, requests: g.requests, pending, granted, declined };
+    }).sort((a, b) => b.pending - a.pending || b.requests.length - a.requests.length);
+
+    listEl.innerHTML = grouped.map(g => {
+      const isOpen = expandedTopupUsers.has(g.userId);
+      const parts = [];
+      if(g.pending) parts.push(`${g.pending} pending`);
+      if(g.granted) parts.push(`${g.granted} granted`);
+      if(g.declined) parts.push(`${g.declined} declined`);
+      const breakdown = parts.join(', ');
+
       return `
-        <div class="profile-card">
-          <div class="profile-top">
-            <span class="profile-email">${r.email}</span>
-            <span class="profile-onboard-badge ${status === 'granted' ? 'yes' : 'no'}">${statusLabel[status] || status}</span>
+        <div class="profile-card" style="padding:0; overflow:hidden;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 16px; cursor:pointer;" onclick="toggleTopupUser('${g.userId}')">
+            <div>
+              <span class="profile-email">${g.email}</span>
+              <span style="font-size:13px; color:var(--ink-soft); margin-left:8px;">${breakdown}</span>
+            </div>
+            <span id="topup-arrow-${g.userId}" style="display:inline-block; transition:transform 0.15s; transform:rotate(${isOpen ? '0' : '-90'}deg); font-size:14px;">▾</span>
           </div>
-          <div style="font-size:13px; margin:6px 0;">Requested <strong>+${r.pack_size} video checks</strong> (${r.pack_price || 'price n/a'}) — ${new Date(r.created_at).toLocaleDateString()}</div>
-          ${actionButtons}
+          <div id="topup-group-${g.userId}" class="${isOpen ? '' : 'hidden'}" style="padding:0 16px 14px; border-top:1px solid var(--line);">
+            ${renderTopupRequestRows(g.requests)}
+          </div>
         </div>
       `;
     }).join('');
   }catch(err){
     listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
   }
+}
+
+function renderTopupRequestRows(requests){
+  const statusLabel = { granted: 'Granted', declined: 'Declined', pending: 'Pending' };
+  return requests.map(r => {
+    const status = r.status || 'pending';
+    let actionButtons = '';
+    if(status === 'pending'){
+      actionButtons = `
+        <button class="btn" style="width:auto; padding:9px 16px;" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'grant')">Grant +${r.pack_size} checks</button>
+        <button class="feedback-delete" style="margin-left:10px;" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'decline')">Decline</button>
+      `;
+    }else{
+      actionButtons = `<button class="feedback-delete" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'undo')">Undo</button>`;
+    }
+    return `
+      <div style="padding:10px 0; border-top:1px solid var(--line);">
+        <span class="profile-onboard-badge ${status === 'granted' ? 'yes' : 'no'}">${statusLabel[status] || status}</span>
+        <div style="font-size:13px; margin:6px 0;">Requested <strong>+${r.pack_size} video checks</strong> (${r.pack_price || 'price n/a'}) — ${new Date(r.created_at).toLocaleDateString()}</div>
+        ${actionButtons}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleTopupUser(userId){
+  const groupEl = document.getElementById(`topup-group-${userId}`);
+  const arrowEl = document.getElementById(`topup-arrow-${userId}`);
+  const isOpen = !groupEl.classList.contains('hidden');
+  groupEl.classList.toggle('hidden', isOpen);
+  arrowEl.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+  if(isOpen) expandedTopupUsers.delete(userId);
+  else expandedTopupUsers.add(userId);
 }
 
 async function actOnTopup(requestId, userId, packSize, action){
