@@ -34,6 +34,7 @@ module.exports = async function handler(req, res) {
       'age_range', 'positions', 'equipment_access', 'team_or_solo',
       'biggest_challenge', 'has_prior_injury', 'injury_areas', 'upcoming_goal',
       'onboarding_completed', 'granted_themes', 'granted_badges',
+      'premium_tier', 'bonus_checks_granted', 'bonus_checks_used',
     ]);
     const safeUpdates = {};
     for (const key of Object.keys(updates)) {
