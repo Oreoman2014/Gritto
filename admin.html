@@ -285,31 +285,45 @@ async function loadTopupRequests(){
       listEl.innerHTML = '<div class="empty">No top-up requests yet.</div>';
       return;
     }
-    listEl.innerHTML = requests.map(r => `
-      <div class="profile-card">
-        <div class="profile-top">
-          <span class="profile-email">${r.email}</span>
-          <span class="profile-onboard-badge ${r.status === 'granted' ? 'yes' : 'no'}">${r.status === 'granted' ? 'Granted' : 'Pending'}</span>
+    const statusLabel = { granted: 'Granted', declined: 'Declined', pending: 'Pending' };
+    listEl.innerHTML = requests.map(r => {
+      const status = r.status || 'pending';
+      let actionButtons = '';
+      if(status === 'pending'){
+        actionButtons = `
+          <button class="btn" style="width:auto; padding:9px 16px;" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'grant')">Grant +${r.pack_size} checks</button>
+          <button class="feedback-delete" style="margin-left:10px;" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'decline')">Decline</button>
+        `;
+      }else{
+        // Already granted or declined — offer to undo it.
+        actionButtons = `<button class="feedback-delete" onclick="actOnTopup('${r.id}', '${r.user_id}', ${r.pack_size}, 'undo')">Undo</button>`;
+      }
+      return `
+        <div class="profile-card">
+          <div class="profile-top">
+            <span class="profile-email">${r.email}</span>
+            <span class="profile-onboard-badge ${status === 'granted' ? 'yes' : 'no'}">${statusLabel[status] || status}</span>
+          </div>
+          <div style="font-size:13px; margin:6px 0;">Requested <strong>+${r.pack_size} video checks</strong> (${r.pack_price || 'price n/a'}) — ${new Date(r.created_at).toLocaleDateString()}</div>
+          ${actionButtons}
         </div>
-        <div style="font-size:13px; margin:6px 0;">Requested <strong>+${r.pack_size} video checks</strong> (${r.pack_price || 'price n/a'}) — ${new Date(r.created_at).toLocaleDateString()}</div>
-        ${r.status !== 'granted' ? `<button class="btn" style="width:auto; padding:9px 16px;" onclick="grantTopupRequest('${r.id}', '${r.user_id}', ${r.pack_size})">Grant +${r.pack_size} checks</button>` : ''}
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }catch(err){
     listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
   }
 }
 
-async function grantTopupRequest(requestId, userId, packSize){
+async function actOnTopup(requestId, userId, packSize, action){
   try{
     const res = await fetch('/api/admin-topups', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-      body: JSON.stringify({ request_id: requestId, user_id: userId, pack_size: packSize })
+      body: JSON.stringify({ request_id: requestId, user_id: userId, pack_size: packSize, action })
     });
     const data = await res.json();
     if(!data.ok){
-      alert(data.error || 'Could not grant this request.');
+      alert(data.error || 'Could not update this request.');
       return;
     }
     loadTopupRequests();
