@@ -3096,56 +3096,15 @@
 
     <div class="settings-subpage hidden" id="settings-subpage-premium">
       <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
-      <div class="premium-hero">
-        <div class="premium-hero-crown">👑</div>
-        <h2>Gritto Premium</h2>
-        <div class="premium-hero-price">$4.99<span>/month</span></div>
-        <div class="premium-hero-price-note">Price not final — just a placeholder for now</div>
+
+      <div class="home-analytics-tabs" id="premium-tier-tabs" style="margin-top:14px;">
+        <button class="home-analytics-tab active" data-tier="starter" onclick="switchPremiumTier('starter')">Starter</button>
+        <button class="home-analytics-tab" data-tier="pro" onclick="switchPremiumTier('pro')">Gritto Pro</button>
+        <button class="home-analytics-tab" data-tier="studio" onclick="switchPremiumTier('studio')">Gritto Studio</button>
+        <button class="home-analytics-tab" data-tier="premium" onclick="switchPremiumTier('premium')">Premium</button>
       </div>
 
-      <div class="settings-card premium-feature-list">
-        <div class="premium-feature-row">
-          <div class="premium-feature-icon">🎨</div>
-          <div>
-            <div class="premium-feature-title">Exclusive themes</div>
-            <div class="premium-feature-desc">A set of app looks only Premium members get.</div>
-          </div>
-        </div>
-        <div class="premium-feature-row">
-          <div class="premium-feature-icon">🎥</div>
-          <div>
-            <div class="premium-feature-title">Unlimited video checks</div>
-            <div class="premium-feature-desc">No cap on how many form checks you can run.</div>
-          </div>
-        </div>
-        <div class="premium-feature-row">
-          <div class="premium-feature-icon">📈</div>
-          <div>
-            <div class="premium-feature-title">Deeper analytics &amp; trends</div>
-            <div class="premium-feature-desc">More detailed breakdowns of your progress over time.</div>
-          </div>
-        </div>
-        <div class="premium-feature-row">
-          <div class="premium-feature-icon">⚡</div>
-          <div>
-            <div class="premium-feature-title">Priority AI processing</div>
-            <div class="premium-feature-desc">Your drills and video checks get processed first.</div>
-          </div>
-        </div>
-        <div class="premium-feature-row">
-          <div class="premium-feature-icon">📄</div>
-          <div>
-            <div class="premium-feature-title">PDF progress reports</div>
-            <div class="premium-feature-desc">Download a clean summary of your progress to share or keep.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-card" style="text-align:center;">
-        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">Premium isn't available to purchase yet — this is a preview of what's coming. Want to know the moment it launches?</p>
-        <button class="go-btn" id="premium-notify-btn" onclick="notifyPremiumInterest()">Notify me when it's ready</button>
-        <div class="status" id="premium-notify-status"></div>
-      </div>
+      <div id="premium-tier-content"></div>
     </div>
   </div>
 
@@ -5329,7 +5288,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.3.0';
+const APP_VERSION = '6.4.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5398,20 +5357,8 @@ function showSettingsSubpage(id){
   }
   if(id === 'data') cancelDeleteAccountConfirm();
   if(id === 'premium'){
-    const btn = document.getElementById('premium-notify-btn');
-    const statusEl = document.getElementById('premium-notify-status');
-    btn.disabled = false;
-    btn.textContent = "Notify me when it's ready";
-    statusEl.textContent = '';
-    sb.auth.getSession().then(async ({ data: { session } }) => {
-      if(!session) return;
-      const { data } = await sb.from('user_profile').select('premium_interested').eq('user_id', session.user.id).maybeSingle();
-      if(data && data.premium_interested){
-        btn.disabled = true;
-        btn.textContent = "You're on the list! 🎉";
-        statusEl.textContent = "We'll let you know the moment Premium is ready.";
-      }
-    });
+    document.querySelectorAll('#premium-tier-tabs .home-analytics-tab').forEach(b => b.classList.toggle('active', b.dataset.tier === 'starter'));
+    renderPremiumTier('starter');
   }
 }
 
@@ -5503,10 +5450,108 @@ async function generateShareLink(){
 }
 
 // ---- Referral system ----
-// Premium isn't purchasable yet, so this just records real interest —
-// a simple flag on the profile — rather than being a purely
-// decorative button. Gives a genuine signal for later, not just a mockup.
-async function notifyPremiumInterest(){
+// Premium isn't purchasable yet, so "Notify me" just records real
+// interest — including WHICH tier — rather than being purely
+// decorative. Gives genuine signal for later, not just a mockup.
+const PREMIUM_TIERS = {
+  starter: {
+    name: 'Starter',
+    price: '$1.99',
+    priceNote: 'One-time purchase — price not final',
+    features: [
+      { icon: '🎥', title: '+10 video checks', desc: 'Ten extra form checks added to your account, on top of the free amount.' },
+      { icon: '🎨', title: '3 exclusive themes', desc: 'A small set of themes only Starter and above get.' },
+    ]
+  },
+  pro: {
+    name: 'Gritto Pro',
+    price: '$4.99',
+    priceNote: 'One-time purchase — price not final',
+    features: [
+      { icon: '🎥', title: '+50 video checks', desc: 'Fifty extra form checks — a lot more room, though not unlimited.' },
+      { icon: '📈', title: 'Deeper analytics & trends', desc: 'More detailed breakdowns of your progress over time.' },
+      { icon: '⚡', title: 'Priority AI processing', desc: 'Your drills and video checks get processed first.' },
+    ]
+  },
+  studio: {
+    name: 'Gritto Studio',
+    price: '$4.99',
+    priceNote: 'One-time purchase — price not final',
+    features: [
+      { icon: '🎨', title: 'All exclusive themes', desc: 'Every Premium-only theme, unlocked at once.' },
+      { icon: '📄', title: 'Unlimited PDF reports', desc: 'Download as many progress reports as you want.' },
+    ]
+  },
+  premium: {
+    name: 'Gritto Premium',
+    price: '$4.99',
+    priceNote: '/month — price not final',
+    features: [
+      { icon: '🎥', title: 'Unlimited video checks', desc: 'No cap on how many form checks you can run.' },
+      { icon: '🎨', title: 'All exclusive themes', desc: 'Every Premium-only theme, unlocked at once.' },
+      { icon: '📈', title: 'Deepest analytics & trends', desc: 'The most detailed breakdown of your progress available.' },
+      { icon: '⚡', title: 'Priority AI processing', desc: 'Your drills and video checks get processed first.' },
+      { icon: '📄', title: 'Unlimited PDF reports', desc: 'Download as many progress reports as you want.' },
+    ]
+  }
+};
+
+function switchPremiumTier(tier){
+  document.querySelectorAll('#premium-tier-tabs .home-analytics-tab').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
+  renderPremiumTier(tier);
+}
+
+function renderPremiumTier(tier){
+  const t = PREMIUM_TIERS[tier];
+  const contentEl = document.getElementById('premium-tier-content');
+  const priceDisplay = tier === 'premium'
+    ? `${t.price}<span>/month</span>`
+    : `${t.price}<span> one-time</span>`;
+
+  contentEl.innerHTML = `
+    <div class="premium-hero">
+      <div class="premium-hero-crown">👑</div>
+      <h2>${t.name}</h2>
+      <div class="premium-hero-price">${priceDisplay}</div>
+      <div class="premium-hero-price-note">${t.priceNote}</div>
+    </div>
+
+    <div class="settings-card premium-feature-list">
+      ${t.features.map(f => `
+        <div class="premium-feature-row">
+          <div class="premium-feature-icon">${f.icon}</div>
+          <div>
+            <div class="premium-feature-title">${f.title}</div>
+            <div class="premium-feature-desc">${f.desc}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="settings-card" style="text-align:center;">
+      <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">${t.name} isn't available to purchase yet — this is a preview of what's coming. Want to know the moment it launches?</p>
+      <button class="go-btn" id="premium-notify-btn" onclick="notifyPremiumInterest('${tier}')">Notify me when it's ready</button>
+      <div class="status" id="premium-notify-status"></div>
+    </div>
+  `;
+
+  // Reflect prior interest in this specific tier, if any
+  sb.auth.getSession().then(async ({ data: { session } }) => {
+    if(!session) return;
+    const { data } = await sb.from('user_profile').select('premium_interested_tier').eq('user_id', session.user.id).maybeSingle();
+    if(data && data.premium_interested_tier === tier){
+      const btn = document.getElementById('premium-notify-btn');
+      const statusEl = document.getElementById('premium-notify-status');
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = "You're on the list! 🎉";
+        statusEl.textContent = "We'll let you know the moment it's ready.";
+      }
+    }
+  });
+}
+
+async function notifyPremiumInterest(tier){
   const btn = document.getElementById('premium-notify-btn');
   const statusEl = document.getElementById('premium-notify-status');
 
@@ -5521,6 +5566,7 @@ async function notifyPremiumInterest(){
     const { error } = await sb.from('user_profile').upsert({
       user_id: session.user.id,
       premium_interested: true,
+      premium_interested_tier: tier,
       premium_interested_at: new Date().toISOString()
     });
     if(error){
@@ -5530,7 +5576,7 @@ async function notifyPremiumInterest(){
       return;
     }
     btn.textContent = "You're on the list! 🎉";
-    statusEl.textContent = "We'll let you know the moment Premium is ready.";
+    statusEl.textContent = "We'll let you know the moment it's ready.";
   }catch(err){
     console.error('Premium interest failed (thrown):', err.message);
     statusEl.textContent = "Something went wrong — try again in a moment.";
