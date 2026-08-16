@@ -1,5 +1,61 @@
 # Gritto — Version Log
 
+## v6.6.0 — Premium tiers actually work now (admin-granted, no payment needed yet)
+- Video-check quotas are real and enforced server-side: free accounts get 5 checks/month, Starter adds 10 one-time bonus checks, Gritto Pro adds 50, Premium gets a generous 175/month (implementing the "unlimited" decision from the pricing analysis — invisible to any honest user, but a real ceiling)
+- Monthly allowance is always spent before the one-time bonus pool, so bonus checks don't quietly expire unused
+- New admin panel control: every user's profile now has a premium tier dropdown (None/Starter/Pro/Studio/Premium) — assign any tier to any account for free, for testing, before real payments exist
+- Changing a tier automatically sets the right bonus-check pool (10 for Starter, 50 for Pro); re-saving the SAME tier deliberately leaves someone's remaining checks alone, so admin edits can't accidentally refill a pool they've already used
+- Video analysis calls are now tagged so the server only enforces this quota on the one thing that's actually metered — every other AI feature (drills, routines, follow-up chat, translation) is untouched
+- Verified extensively with real tests: confirmed quota math across 6 real scenarios (fresh accounts, exhausted monthly-but-full-bonus, fully exhausted, Premium's higher limit, and the tricky month-rollover case), confirmed monthly allowance is always consumed before bonus checks, and confirmed the admin tier-change logic only touches the bonus pool on a genuine tier change, never on a re-save
+
+## v6.5.0 — Real cost-wall protection: auth, rate limits, idempotency, cost logging
+- **Found and fixed a genuinely urgent gap**: the formfix-ai server function had zero identity checking — anyone who found the URL could call it directly and rack up charges on the API key, with no login required at all. Now every call is verified against a real, currently-valid Gritto session before anything else happens.
+- Switched the underlying AI model from Sonnet 4.6 to Haiku 4.5 — same feature set, roughly 1/3 the cost per call, based on real per-unit cost comparison
+- Added rate limiting (15 requests/minute, 300/day per account) using a shared database table, not in-memory — so it actually works across serverless instances instead of resetting constantly
+- Added idempotency: every request now carries a unique key, so an accidental double-tap or a network retry returns the same answer instead of paying for the same request twice
+- Added payload caps: oversized text or too many images now get rejected before they ever reach the AI, not after
+- Added real cost logging: every single call now records its actual token usage and dollar cost from the real API response, not an estimate — this is what turns tomorrow's margin numbers from [MODELED] into [MEASURED]
+- Refactored all 5 places in the app that talk to the AI to go through one shared, consistent function instead of 5 separate copies of the same fetch call — with friendly, accurate messages when something's blocked (rate limit, oversized request, sign-in issue) instead of a generic error
+- Verified extensively with real tests: confirmed the payload-cap thresholds correctly pass real usage (5 video-check images) while rejecting abuse patterns (10+ images, oversized text), confirmed rate-limit boundaries trigger at exactly the right count, confirmed the auth header and a genuine unique idempotency key are attached to every real request, and confirmed every error type (rate limited, oversized, signed out) produces the correct friendly message
+
+## v6.4.0 — 4 Premium tiers instead of 1
+- Premium screen is now a 4-tab comparison: Starter ($1.99 one-time), Gritto Pro ($4.99 one-time), Gritto Studio ($4.99 one-time), and Premium ($4.99/month, unchanged)
+- **Starter**: +10 video checks, 3 exclusive themes
+- **Gritto Pro** (tech-focused): +50 video checks, deeper analytics & trends, priority AI processing
+- **Gritto Studio** (creative-focused): all exclusive themes, unlimited PDF reports
+- **Premium**: everything unlimited, as before
+- "Notify me" now records which specific tier someone's interested in, not just a single yes/no flag — much richer signal for later
+- Each tab correctly shows "one-time" for the 3 one-time tiers vs "/month" for Premium
+- Verified with real tests: confirmed all 4 tiers render with their correct name, price, and exact feature list, confirmed the one-time vs monthly pricing label is correct per tier, and confirmed tapping "Notify me" on a specific tier records that exact tier in the database
+
+## v6.3.0 — Gritto Premium preview screen (not purchasable yet)
+- New "Gritto Premium" section in Settings (own category in the desktop sidebar, own menu item on phone)
+- Shows a pitch layout: crown header, placeholder price ($4.99/month, clearly marked as not final), and 5 features — exclusive themes, unlimited video checks, deeper analytics/trends, priority AI processing, PDF progress reports
+- No actual purchasing yet, as requested — instead there's a real "Notify me when it's ready" button that genuinely records interest (with a timestamp) rather than being purely decorative, so there's real signal for later
+- Button correctly reflects state on return visits — if someone already tapped it, it shows "You're on the list!" instead of the default prompt
+- Verified with real tests: confirmed the full page renders correctly (hero, all 5 features, CTA), and confirmed the notify function correctly records the right user, sets the interest flag, and updates the button/status text
+
+## v6.2.0 — Account deletion (permanent, with a real confirmation step)
+- New "Delete my account" section in Settings → Manage My Data
+- Requires typing "DELETE" exactly before the actual delete button even enables — no accidental single-tap deletions
+- Built as a secure server-side process: verifies the real identity of whoever's requesting deletion using their own login session, so nobody can delete an account that isn't theirs
+- Every single database table already had cascade-delete set up against the account itself, so removing the account automatically and completely removes everything tied to it (progress, streaks, drill history, video history, saved drills, referrals, feedback) — no manual per-table cleanup needed
+- Confirmation state resets automatically if you navigate away and come back, so a half-typed "DELETE" never lingers
+- Verified extensively with real tests: confirmed the typed-confirmation button stays disabled until the exact word "DELETE" is entered (case-sensitive), confirmed canceling resets everything correctly, confirmed the server correctly rejects an invalid or missing session, and confirmed a valid request targets the exact right account with the correct deletion call
+
+## v6.1.1 — Audit pass: fix unstyled Daily Routine history items
+- Ran a systematic code audit looking for real issues: checked for duplicate element IDs, onclick handlers calling functions that don't exist, JS code referencing HTML elements that don't exist, inconsistent database table names, and CSS classes used but never actually styled
+- Found one real issue: expanding a past day in Daily Routine's History tab rendered each item with zero styling (no border, padding, or spacing) since that CSS was never actually written when the feature was built
+- Fixed with real card styling matching the rest of the app, verified with a real test confirming the border, padding, and rounded corners now actually apply
+- Everything else checked came back clean: no duplicate IDs, no broken function references, no missing elements, no database naming inconsistencies
+
+## v6.1.0 — Drill difficulty tags
+- Every drill now gets a Beginner/Intermediate/Advanced badge, generated by the AI alongside the rest of the drill (title, description, cue) — not a separate guess after the fact
+- Color-coded: green for Beginner, amber for Intermediate, red for Advanced
+- Shows everywhere drills appear — freshly generated, in Recent history, and in Saved drills, since it all goes through the same shared card renderer
+- Old drills generated before this update simply show no badge instead of breaking or showing "undefined" — handled gracefully
+- Verified with real tests: confirmed all 3 difficulty levels render with the correct color class and label, confirmed an old drill with no difficulty field correctly shows no badge, and confirmed the difficulty value correctly carries through when a drill gets saved
+
 ## v6.0.1 — Daily Routine: more space between tabs and sport picker
 - The sport-picker grid on the "Build new" tab was sitting right up against the tab bar with very little breathing room
 - Increased the spacing so there's clear separation now
