@@ -3831,6 +3831,9 @@ async function callAIHelper(payload){
     if(data.error === 'auth_required' || data.error === 'invalid_session'){
       throw new Error(data.message || 'Please sign in again.');
     }
+    if(data.error === 'quota_exceeded'){
+      throw new Error(data.message || "You've used all your video checks for now.");
+    }
     throw new Error(data.message || 'Something went wrong — try again in a moment.');
   }
 
@@ -5323,7 +5326,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.5.0';
+const APP_VERSION = '6.6.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -7874,7 +7877,8 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
     const response = await callAIHelper({
       max_tokens: 1200,
       system: systemPrompt,
-      messages: [{ role: "user", content }]
+      messages: [{ role: "user", content }],
+      call_type: 'video_analysis'
     });
     const cleaned = extractAIText(response).replace(/```json|```/g,'').trim();
     const parsed = JSON.parse(cleaned);
