@@ -2960,6 +2960,11 @@
         <span class="settings-menu-label" data-i18n="settings_premium">Gritto Premium</span>
         <span class="settings-menu-chevron">›</span>
       </div>
+      <div class="settings-menu-item" onclick="showSettingsSubpage('topup')">
+        <svg class="settings-menu-icon" viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18" cy="17" r="5" fill="var(--card-bg)" stroke="currentColor" stroke-width="1.5"/><path d="M18 15v4M16 17h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="settings-menu-label" data-i18n="settings_topup">Buy More Video Checks</span>
+        <span class="settings-menu-chevron">›</span>
+      </div>
     </div>
 
     <div class="settings-subpage hidden" id="settings-subpage-appinfo">
@@ -3105,6 +3110,16 @@
       </div>
 
       <div id="premium-tier-content"></div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-topup">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Buy more video checks</div>
+      <div class="settings-card">
+        <p id="topup-remaining-summary" style="font-size:13px; color:var(--ink); font-weight:600; margin:0 0 12px;">Loading…</p>
+        <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Not purchasable yet — this is a preview. Requesting a pack lets us know you want it, and we'll add the checks to your account directly.</p>
+        <div id="topup-packs-list"></div>
+      </div>
     </div>
   </div>
 
@@ -4454,6 +4469,7 @@ const UI_STRINGS = {
   settings_language: 'Language',
   settings_referral: 'Invite a Friend',
   settings_premium: 'Gritto Premium',
+  settings_topup: 'Buy More Video Checks',
 };
 
 let currentLanguage = null; // null = English (default, no translation needed)
@@ -5326,7 +5342,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.6.0';
+const APP_VERSION = '6.7.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5398,6 +5414,7 @@ function showSettingsSubpage(id){
     document.querySelectorAll('#premium-tier-tabs .home-analytics-tab').forEach(b => b.classList.toggle('active', b.dataset.tier === 'starter'));
     renderPremiumTier('starter');
   }
+  if(id === 'topup') renderBuyMoreChecks();
 }
 
 async function renderSettingsPage(){
@@ -5619,6 +5636,89 @@ async function notifyPremiumInterest(tier){
     console.error('Premium interest failed (thrown):', err.message);
     statusEl.textContent = "Something went wrong — try again in a moment.";
     btn.disabled = false;
+  }
+}
+
+// ---- Buy more video checks ----
+// Mirrors the SAME quota math the server enforces (formfix-ai), just
+// for display here — the real enforcement always stays server-side.
+// No real payment exists yet, so "buying" a pack here records a real
+// request instead, which shows up for manual granting via the admin
+// panel's existing top-up buttons.
+const TOPUP_PACKS = [
+  { size: 5, price: '$0.99' },
+  { size: 15, price: '$2.49' },
+  { size: 30, price: '$3.99' },
+];
+
+async function getRemainingChecksDisplay(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session) return null;
+
+  const { data, error } = await sb.from('user_profile')
+    .select('premium_tier, bonus_checks_granted, bonus_checks_used, checks_this_month, checks_month_start')
+    .eq('user_id', session.user.id).maybeSingle();
+  if(error || !data) return null;
+
+  const tier = data.premium_tier || null;
+  const monthlyLimit = tier === 'premium' ? 175 : 5;
+
+  const today = new Date();
+  const monthStart = data.checks_month_start ? new Date(data.checks_month_start) : null;
+  const isNewMonth = !monthStart || monthStart.getUTCMonth() !== today.getUTCMonth() || monthStart.getUTCFullYear() !== today.getUTCFullYear();
+  const checksThisMonth = isNewMonth ? 0 : (data.checks_this_month || 0);
+
+  const bonusRemaining = Math.max(0, (data.bonus_checks_granted || 0) - (data.bonus_checks_used || 0));
+  const monthlyRemaining = Math.max(0, monthlyLimit - checksThisMonth);
+
+  return { total: monthlyRemaining + bonusRemaining, monthlyRemaining, bonusRemaining };
+}
+
+async function renderBuyMoreChecks(){
+  const summaryEl = document.getElementById('topup-remaining-summary');
+  const packsEl = document.getElementById('topup-packs-list');
+  if(!summaryEl || !packsEl) return;
+
+  const remaining = await getRemainingChecksDisplay();
+  summaryEl.textContent = remaining
+    ? `You have ${remaining.total} video check${remaining.total === 1 ? '' : 's'} left right now.`
+    : 'Sign in to see how many video checks you have left.';
+
+  packsEl.innerHTML = TOPUP_PACKS.map(pack => `
+    <div class="premium-feature-row">
+      <div class="premium-feature-icon">🎥</div>
+      <div style="flex:1;">
+        <div class="premium-feature-title">+${pack.size} video checks — ${pack.price}</div>
+        <div class="premium-feature-desc" id="topup-status-${pack.size}">Not purchasable yet — request it and we'll get it to you.</div>
+      </div>
+      <button class="settings-toggle-btn" onclick="requestTopUp(${pack.size}, '${pack.price}')">Request</button>
+    </div>
+  `).join('');
+}
+
+async function requestTopUp(packSize, packPrice){
+  const statusEl = document.getElementById(`topup-status-${packSize}`);
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    if(statusEl) statusEl.textContent = 'Sign in first, then try again.';
+    return;
+  }
+
+  try{
+    const { error } = await sb.from('topup_requests').insert({
+      user_id: session.user.id,
+      pack_size: packSize,
+      pack_price: packPrice,
+    });
+    if(error){
+      console.error('Could not record top-up request:', error.message);
+      if(statusEl) statusEl.textContent = 'Something went wrong — try again in a moment.';
+      return;
+    }
+    if(statusEl) statusEl.textContent = "Requested! We'll add these to your account soon.";
+  }catch(err){
+    console.error('Top-up request failed (thrown):', err.message);
+    if(statusEl) statusEl.textContent = 'Something went wrong — try again in a moment.';
   }
 }
 
@@ -7936,9 +8036,13 @@ Include 2-3 items in "good", 2-3 items in "fix", and exactly 3 drills targeted a
     statusEl.textContent = '';
     const errBox = document.createElement('div');
     errBox.className = 'error-box';
-    errBox.textContent = (err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit'))
-      ? err.message
-      : 'Something went wrong analyzing your video. Try again in a moment.';
+    if(err.message.includes('used all your video checks')){
+      errBox.innerHTML = `${err.message} <a href="#" onclick="switchPage('settings'); showSettingsSubpage('topup'); return false;" style="color:inherit; text-decoration:underline; font-weight:700;">Get more →</a>`;
+    }else if(err.message.includes('sign in') || err.message.includes('fast') || err.message.includes('limit')){
+      errBox.textContent = err.message;
+    }else{
+      errBox.textContent = 'Something went wrong analyzing your video. Try again in a moment.';
+    }
     resultsEl.appendChild(errBox);
     console.error(err);
   }finally{
