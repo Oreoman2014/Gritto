@@ -16,7 +16,7 @@ const VIDEO_CHECK_OUTPUT_TOKENS = 480;
 const VIDEO_CHECK_COST = VIDEO_CHECK_INPUT_TOKENS * HAIKU_INPUT_RATE + VIDEO_CHECK_OUTPUT_TOKENS * HAIKU_OUTPUT_RATE;
 const PAYMENT_RATE = 0.029; // placeholder — not verified for whatever processor this ends up using
 const PAYMENT_FIXED_CENTS = 30;
-const MARGIN_FLOOR = 0.90;
+const MARGIN_FLOOR = 0.85;
 const REALISTIC_WORST_CASE_MONTHLY_CHECKS = 175; // matches the locked "unlimited" cap decision
 
 function computeMargin(amountCents, unitsAssumed) {
