@@ -5351,7 +5351,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.9.1';
+const APP_VERSION = '7.0.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5526,16 +5526,16 @@ async function generateShareLink(){
 // everywhere else should call resolvePriceCatalog().
 const CODE_PRICE_CONSTANTS = {
   plans: {
-    starter: { display_name: 'Starter', amount_cents: 300, billing_period: 'one_time', bonus_checks: 10, monthly_check_limit: null },
-    pro: { display_name: 'Gritto Pro', amount_cents: 600, billing_period: 'one_time', bonus_checks: 50, monthly_check_limit: null },
-    studio: { display_name: 'Gritto Studio', amount_cents: 600, billing_period: 'one_time', bonus_checks: 0, monthly_check_limit: null },
-    premium: { display_name: 'Gritto Premium', amount_cents: 1040, billing_period: 'monthly', bonus_checks: 0, monthly_check_limit: 175 },
-    premium_annual: { display_name: 'Gritto Premium', amount_cents: 9700, billing_period: 'annual', bonus_checks: 0, monthly_check_limit: 175 },
+    starter: { display_name: 'Starter', amount_cents: 299, billing_period: 'one_time', bonus_checks: 10, monthly_check_limit: null },
+    pro: { display_name: 'Gritto Pro', amount_cents: 599, billing_period: 'one_time', bonus_checks: 50, monthly_check_limit: null },
+    studio: { display_name: 'Gritto Studio', amount_cents: 599, billing_period: 'one_time', bonus_checks: 0, monthly_check_limit: null },
+    premium: { display_name: 'Gritto Premium', amount_cents: 1099, billing_period: 'monthly', bonus_checks: 0, monthly_check_limit: 175 },
+    premium_annual: { display_name: 'Gritto Premium', amount_cents: 9999, billing_period: 'annual', bonus_checks: 0, monthly_check_limit: 175 },
   },
   topups: {
-    small: { units: 5, amount_cents: 250 },
-    medium: { units: 15, amount_cents: 320 },
-    large: { units: 30, amount_cents: 385 },
+    small: { units: 10, amount_cents: 299 },
+    medium: { units: 20, amount_cents: 399 },
+    large: { units: 45, amount_cents: 499 },
   }
 };
 
