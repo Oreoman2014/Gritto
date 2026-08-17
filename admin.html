@@ -1110,6 +1110,14 @@ function renderFeedback(reports){
     const aiNote = r.ai_response
       ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">AI replied: "${r.ai_response}"</div>`
       : (r.needs_attention === false ? '' : r.needs_attention === true ? '' : '<div style="font-size:11px; color:var(--ink-soft); margin-top:4px; font-style:italic;">Not yet triaged</div>');
+    const replyNote = r.admin_reply
+      ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">Your reply: "${r.admin_reply}"</div>`
+      : '';
+    const replyBox = needsYou
+      ? `<div style="margin-top:8px;">
+           <textarea id="reply-input-${r.id}" placeholder="Write a reply (optional)…" style="width:100%; min-height:50px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:13px; box-sizing:border-box;"></textarea>
+         </div>`
+      : '';
     return `
       <div class="feedback-row">
         <div class="feedback-top">
@@ -1118,8 +1126,10 @@ function renderFeedback(reports){
         </div>
         <div class="feedback-msg">${r.message}</div>
         ${aiNote}
+        ${replyNote}
+        ${replyBox}
         <div style="margin-top:8px; display:flex; gap:8px;">
-          ${needsYou ? `<button class="btn" style="width:auto; padding:8px 14px;" onclick="markFeedbackReviewed('${r.id}')">Mark reviewed</button>` : ''}
+          ${needsYou ? `<button class="btn" style="width:auto; padding:8px 14px;" onclick="markFeedbackReviewed('${r.id}')">Reply / Mark reviewed</button>` : ''}
           <button class="feedback-delete" onclick="deleteFeedback('${r.id}')">Delete</button>
         </div>
       </div>
@@ -1128,11 +1138,13 @@ function renderFeedback(reports){
 }
 
 async function markFeedbackReviewed(id){
+  const replyInput = document.getElementById(`reply-input-${id}`);
+  const reply = replyInput ? replyInput.value.trim() : '';
   try{
     const res = await fetch('/api/admin?resource=feedback', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-      body: JSON.stringify({ id })
+      body: JSON.stringify(reply ? { id, reply } : { id })
     });
     const data = await res.json();
     if(!data.ok){
