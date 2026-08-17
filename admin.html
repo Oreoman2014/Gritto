@@ -783,6 +783,19 @@ function profileCardHTML(p, editing){
           <button class="settings-toggle-btn" onclick="topUpChecks('${uid}', parseInt(document.getElementById('custom-topup-${uid}').value) || 0)">Add custom amount</button>
         </div>
       </div>
+      <div class="profile-grant-section">
+        <div class="profile-field-label" style="margin-bottom:6px;">Remove video checks</div>
+        <div style="font-size:12px; color:var(--ink-soft); margin-bottom:8px;">Takes checks back out of their bonus pool. Never goes below 0, even if the amount removed is more than they have left.</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="feedback-delete" onclick="removeChecks('${uid}', 5)">-5</button>
+          <button class="feedback-delete" onclick="removeChecks('${uid}', 15)">-15</button>
+          <button class="feedback-delete" onclick="removeChecks('${uid}', 30)">-30</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+          <input type="number" id="custom-remove-${uid}" placeholder="Custom amount" min="1" style="width:120px; padding:6px 8px; border:1px solid var(--line); border-radius:6px;">
+          <button class="feedback-delete" onclick="removeChecks('${uid}', parseInt(document.getElementById('custom-remove-${uid}').value) || 0)">Remove custom amount</button>
+        </div>
+      </div>
       <div style="margin-top:12px; display:flex; gap:10px;">
         <button class="btn" style="width:auto; padding:9px 16px;" onclick="saveProfile('${uid}')">Save</button>
         <button class="feedback-delete" onclick="cancelEditProfile('${uid}')">Cancel</button>
@@ -829,6 +842,37 @@ async function topUpChecks(userId, amount){
     }
     await loadProfiles(); // refresh from the server so the shown count is never stale
     editProfile(userId); // re-open edit mode on the same profile so the admin sees the update immediately
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
+}
+
+// Mirror of topUpChecks — subtracts instead of adds, floored at 0 so
+// it can never push someone's pool negative even if the amount
+// removed is larger than what they actually have left.
+async function removeChecks(userId, amount){
+  if(!amount || amount <= 0){
+    alert('Enter a valid amount to remove.');
+    return;
+  }
+
+  const current = currentProfiles.find(p => p.user_id === userId);
+  const currentGranted = current ? (current.bonus_checks_granted || 0) : 0;
+  const newTotal = Math.max(0, currentGranted - amount);
+
+  try{
+    const res = await fetch('/api/admin-profiles', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ user_id: userId, updates: { bonus_checks_granted: newTotal } })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not remove the checks.');
+      return;
+    }
+    await loadProfiles();
+    editProfile(userId);
   }catch(err){
     alert('Something went wrong — try again.');
   }
