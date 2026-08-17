@@ -142,6 +142,7 @@
       <button class="tab-btn" id="tab-profiles-btn" onclick="switchTab('profiles')">Profiles</button>
       <button class="tab-btn" id="tab-topups-btn" onclick="switchTab('topups')">Top-ups</button>
       <button class="tab-btn" id="tab-pricing-btn" onclick="switchTab('pricing')">Pricing</button>
+      <button class="tab-btn" id="tab-costs-btn" onclick="switchTab('costs')">Costs</button>
     </div>
 
     <div id="tab-users">
@@ -161,6 +162,7 @@
 
     <div id="tab-profiles" class="hidden">
       <p class="sub">Onboarding info for every user — sport, goals, position, injury history, and more.</p>
+      <input type="text" id="profile-search" placeholder="Search by email…" oninput="filterProfiles(this.value)" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:14px; font-size:14px; box-sizing:border-box;">
       <div id="profiles-list"></div>
     </div>
 
@@ -172,6 +174,11 @@
     <div id="tab-pricing" class="hidden">
       <p class="sub">Prices editable as a draft, previewed with a live margin badge (90% floor), then published atomically. Not connected to real payments yet — this catalog is what the app's pricing screens actually read from.</p>
       <div id="pricing-content"></div>
+    </div>
+
+    <div id="tab-costs" class="hidden">
+      <p class="sub">Real spend, from actual logged API costs — not an estimate. Last 60 days.</p>
+      <div id="costs-content"></div>
     </div>
   </div>
 
@@ -199,6 +206,7 @@ async function loadUsers(){
     document.getElementById('admin-login').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
     renderUsers(data.users || []);
+    loadFeedback(); // populates the tab in the background so the red dot shows immediately, not just after opening the tab
   }catch(err){
     document.getElementById('admin-login-error').textContent = 'Something went wrong — try again.';
   }
@@ -266,20 +274,85 @@ function switchTab(tab){
   document.getElementById('tab-profiles').classList.toggle('hidden', tab !== 'profiles');
   document.getElementById('tab-topups').classList.toggle('hidden', tab !== 'topups');
   document.getElementById('tab-pricing').classList.toggle('hidden', tab !== 'pricing');
+  document.getElementById('tab-costs').classList.toggle('hidden', tab !== 'costs');
   document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
   document.getElementById('tab-profiles-btn').classList.toggle('active', tab === 'profiles');
   document.getElementById('tab-topups-btn').classList.toggle('active', tab === 'topups');
   document.getElementById('tab-pricing-btn').classList.toggle('active', tab === 'pricing');
+  document.getElementById('tab-costs-btn').classList.toggle('active', tab === 'costs');
   if(tab === 'feedback') loadFeedback();
   if(tab === 'profiles') loadProfiles();
   if(tab === 'topups') loadTopupRequests();
   if(tab === 'pricing') loadPricingCatalog();
+  if(tab === 'costs') loadCostDashboard();
 }
 
 let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
 
 let pricingCatalogState = null; // cached so edits can read current values without refetching
+
+async function loadCostDashboard(){
+  const contentEl = document.getElementById('costs-content');
+  contentEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin-costs', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load cost data.'}</div>`;
+      return;
+    }
+
+    const maxDayCost = Math.max(...data.dayTrend.map(d => d.cost), 0.01);
+    const trendBars = data.dayTrend.map(d => {
+      const heightPct = Math.max(2, (d.cost / maxDayCost) * 100);
+      const label = new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      return `
+        <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:4px;">
+          <div style="font-size:9px; color:var(--ink-soft);">$${d.cost.toFixed(2)}</div>
+          <div style="width:100%; height:60px; display:flex; align-items:flex-end;">
+            <div style="width:100%; height:${heightPct}%; background:var(--turf); border-radius:3px 3px 0 0;"></div>
+          </div>
+          <div style="font-size:8.5px; color:var(--ink-soft); writing-mode:vertical-rl; transform:rotate(180deg); height:32px;">${label}</div>
+        </div>
+      `;
+    }).join('');
+
+    const topUsersHtml = data.topUsers.length === 0
+      ? '<div class="empty">No spend logged yet.</div>'
+      : data.topUsers.map((u, i) => `
+          <div style="display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--line);">
+            <span style="font-size:13px;">${i+1}. ${u.email}</span>
+            <span style="font-family:monospace; font-weight:700;">$${u.cost.toFixed(4)}</span>
+          </div>
+        `).join('');
+
+    contentEl.innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+        <div class="profile-card" style="text-align:center;">
+          <div style="font-size:11px; color:var(--ink-soft);">Today</div>
+          <div style="font-family:monospace; font-size:20px; font-weight:700;">$${data.totalToday.toFixed(4)}</div>
+        </div>
+        <div class="profile-card" style="text-align:center;">
+          <div style="font-size:11px; color:var(--ink-soft);">This month</div>
+          <div style="font-family:monospace; font-size:20px; font-weight:700;">$${data.totalThisMonth.toFixed(2)}</div>
+        </div>
+        <div class="profile-card" style="text-align:center;">
+          <div style="font-size:11px; color:var(--ink-soft);">Last 60 days</div>
+          <div style="font-family:monospace; font-size:20px; font-weight:700;">$${data.totalAllTime.toFixed(2)}</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-bottom:8px;">Last 14 days</div>
+      <div class="profile-card" style="display:flex; gap:4px; align-items:flex-end;">${trendBars}</div>
+
+      <div class="section-label" style="margin:16px 0 8px;">Top spenders (60 days)</div>
+      <div class="profile-card">${topUsersHtml}</div>
+    `;
+  }catch(err){
+    contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
 
 async function loadPricingCatalog(){
   const contentEl = document.getElementById('pricing-content');
@@ -655,13 +728,28 @@ function renderProfiles(profiles){
     const usageB = getPremiumMonthlyUsage(b);
     return (usageB ? usageB.pct : 0) - (usageA ? usageA.pct : 0);
   });
-  currentProfiles = sorted;
+  currentProfiles = sorted; // full cache — topUpChecks/removeChecks/etc look users up from this regardless of the search filter
+  document.getElementById('profile-search').value = ''; // fresh load, clear any previous search
+  displayProfiles(sorted);
+}
+
+function displayProfiles(profiles){
   const listEl = document.getElementById('profiles-list');
-  if(sorted.length === 0){
+  if(profiles.length === 0){
     listEl.innerHTML = '<div class="empty">No profiles yet.</div>';
     return;
   }
-  listEl.innerHTML = sorted.map(p => profileCardHTML(p, false)).join('');
+  listEl.innerHTML = profiles.map(p => profileCardHTML(p, false)).join('');
+}
+
+function filterProfiles(query){
+  const trimmed = query.trim().toLowerCase();
+  if(!trimmed){
+    displayProfiles(currentProfiles);
+    return;
+  }
+  const filtered = currentProfiles.filter(p => (p.email || '').toLowerCase().includes(trimmed));
+  displayProfiles(filtered);
 }
 
 // Kept in sync with the THEMES/BADGES lists in index.html — just id +
@@ -977,8 +1065,28 @@ async function loadFeedback(){
       return;
     }
     renderFeedback(data.reports || []);
+    updateFeedbackTabDot(data.reports || []);
   }catch(err){
     listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+// Red dot on the tab itself, so it's visible without even opening the
+// tab — only counts items that genuinely need a human and haven't
+// been looked at yet.
+function updateFeedbackTabDot(reports){
+  const needsAttentionCount = reports.filter(r => r.needs_attention && !r.admin_reviewed).length;
+  const btn = document.getElementById('tab-feedback-btn');
+  let dot = document.getElementById('feedback-tab-dot');
+  if(needsAttentionCount > 0){
+    if(!dot){
+      dot = document.createElement('span');
+      dot.id = 'feedback-tab-dot';
+      dot.style.cssText = 'display:inline-block; width:8px; height:8px; border-radius:50%; background:#DC2626; margin-left:6px;';
+      btn.appendChild(dot);
+    }
+  }else if(dot){
+    dot.remove();
   }
 }
 
@@ -988,16 +1096,53 @@ function renderFeedback(reports){
     listEl.innerHTML = '<div class="empty">No feedback yet.</div>';
     return;
   }
-  listEl.innerHTML = reports.map(r => `
-    <div class="feedback-row">
-      <div class="feedback-top">
-        <span class="feedback-email">${r.email}</span>
-        <span class="feedback-date">${new Date(r.created_at).toLocaleString()}</span>
+  // Needs-attention-and-unreviewed items rise to the top, so the ones
+  // that actually need you are the first thing you see.
+  const sorted = [...reports].sort((a, b) => {
+    const aFlag = (a.needs_attention && !a.admin_reviewed) ? 1 : 0;
+    const bFlag = (b.needs_attention && !b.admin_reviewed) ? 1 : 0;
+    return bFlag - aFlag;
+  });
+
+  listEl.innerHTML = sorted.map(r => {
+    const needsYou = r.needs_attention && !r.admin_reviewed;
+    const dot = needsYou ? '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#DC2626; margin-right:6px;"></span>' : '';
+    const aiNote = r.ai_response
+      ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">AI replied: "${r.ai_response}"</div>`
+      : (r.needs_attention === false ? '' : r.needs_attention === true ? '' : '<div style="font-size:11px; color:var(--ink-soft); margin-top:4px; font-style:italic;">Not yet triaged</div>');
+    return `
+      <div class="feedback-row">
+        <div class="feedback-top">
+          <span class="feedback-email">${dot}${r.email}</span>
+          <span class="feedback-date">${new Date(r.created_at).toLocaleString()}</span>
+        </div>
+        <div class="feedback-msg">${r.message}</div>
+        ${aiNote}
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          ${needsYou ? `<button class="btn" style="width:auto; padding:8px 14px;" onclick="markFeedbackReviewed('${r.id}')">Mark reviewed</button>` : ''}
+          <button class="feedback-delete" onclick="deleteFeedback('${r.id}')">Delete</button>
+        </div>
       </div>
-      <div class="feedback-msg">${r.message}</div>
-      <button class="feedback-delete" onclick="deleteFeedback('${r.id}')">Delete</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+async function markFeedbackReviewed(id){
+  try{
+    const res = await fetch('/api/admin-feedback', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not mark this as reviewed.');
+      return;
+    }
+    loadFeedback();
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
 }
 
 async function deleteFeedback(id){
