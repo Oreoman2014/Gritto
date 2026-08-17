@@ -1,5 +1,64 @@
 # Gritto — Version Log
 
+## v7.1.0 — Premium page redesign: mature look, no tabs, everything on one page
+- Removed all emojis (👑🎥🎨📈⚡📄🎉) — plain text throughout, no icons
+- New color scheme: dark charcoal/near-black cards with clean white text, replacing the previous gold-gradient-and-crown look
+- Removed the 4-tab navigation entirely — Starter, Gritto Pro, Gritto Studio, and Premium Monthly now show simultaneously as 4 squares in a 2×2 grid, all on one page
+- Premium Annual sits below as a full-width rectangle, showing the exact dollar savings vs paying monthly
+- Every square/rectangle shows its complete feature list — nothing abbreviated or hidden behind a tab click
+- Verified with real tests: confirmed the grid renders exactly 4 squares plus the annual rectangle, confirmed all prices are correct and pulled from the real pricing catalog, confirmed zero emoji characters remain anywhere on the page, and confirmed each tier's full feature list renders correctly
+
+## v7.0.0 🎉 — .99-style pricing, bigger top-up packs, all verified at 85%+ margin
+- Starter: $3.00 → **$2.99** (85.2%)
+- Gritto Pro: $6.00 → **$5.99** (87.5%)
+- Gritto Studio: $6.00 → **$5.99** (92.1%)
+- Premium Monthly: $10.40 → **$10.99** (85.7%)
+- Premium Annual: $97.00 → **$99.99** (85.4%)
+- Top-up Small: now **+10 checks for $2.99** (was +5 for $2.50) — 85.2% margin
+- Top-up Medium: now **+20 checks for $3.99** (was +15 for $3.20) — 86.9% margin
+- Top-up Large: now **+45 checks for $4.99** (was +30 for $3.85) — 86.2% margin
+- Every single price and unit count was computed and verified against the 85% margin floor before being proposed — none of these are guesses
+- Delivered as a draft, not live automatically — review with live margin badges in the admin Pricing tab and publish when ready
+- **Versioning note going forward:** any update that would land on a v?.9 version now bumps to the next whole number instead (this update would have been v6.10, but per this new rule it's v7.0)
+
+## v6.9.1 — Fix: redundant "‹ Back" button on desktop settings pages
+- Found via a screen recording: clicking "‹ Back" on any desktop settings subpage (App Theme, How Gritto Works, etc.) dropped into the old phone-style full settings menu list — completely redundant since the sidebar already handles all that navigation directly
+- Hidden the Back button on desktop only; phone keeps it exactly as before, since it's genuinely needed there
+- Verified with a real test at both widths: confirmed the button is gone at desktop width and still visible at phone width
+
+## v6.9.0 — Repricing to a real 85% margin floor, Premium split into monthly/annual
+- Starter: $1.99 → $3.00 (85.3% margin)
+- Gritto Pro: $4.99 → $6.00 (87.6% margin)
+- Gritto Studio: $4.99 → $6.00 (92.1% margin)
+- Premium: now offered as **both monthly ($10.40) and annual ($97.00)** — same ~85% margin either way, with annual working out to $3.89/month equivalent vs $10.40 paying monthly, a real ~22% incentive to commit annually
+- Top-ups: Small $0.99 → $2.50 (84.0% margin — knowingly left just under 85% for this small-dollar item, a deliberate call, not an oversight), Medium $2.49 → $3.20 (85.2%), Large $3.99 → $3.85 (85.1% — one case where the 85%-margin price actually came out lower than before)
+- New Premium tab UI: a monthly/annual toggle right in the pricing screen, defaulting to annual since it's the better deal, resets to that default each time the tab is reopened
+- Delivered as a **draft**, not pushed live automatically — open the admin Pricing tab, review the numbers with their live margin badges, and hit Publish when ready. This is the system working exactly as designed: nothing goes live without an explicit final review.
+- Code-fallback constants updated to match, so even if the database is briefly unreachable, the backup prices shown are the current real ones, not stale numbers from before this repricing
+- Verified with real tests: confirmed the monthly/annual toggle correctly switches between $97.00/year and $10.40/month with the right billing labels, confirmed it defaults to annual, and confirmed it resets to that default each time the Premium tab is reopened (so a previous visit's choice doesn't linger unexpectedly)
+
+## v6.8.0 — Real pricing catalog: one resolver, database-driven, code-fallback safe
+- Scoped-down implementation of the Pricing Console framework — the parts that are genuinely usable before real payments exist. Deferred: promotions, grandfathering, and the charge-time contract, since those all depend on a real payment provider being connected.
+- Prices are now real DATA in the database (plan_catalog, topup_catalog), not hardcoded values buried in the app's JS — editable from a new admin Pricing tab
+- **One resolver** (`resolvePriceCatalog()`) is now the single source every price-displaying screen reads from — the app's Premium tiers and Buy More Checks screens, and the exact same catalog the Edge Function reads for quota enforcement, so there's no more risk of the displayed price drifting from the enforced limit
+- **Code-constants fallback**: if the database is ever unreachable, pricing reads fall back to safe defaults instead of breaking — verified with a real test that the resolver never throws even when the database call fails outright
+- **Draft → Publish workflow**: admin edits don't go live instantly — they accumulate in a draft, previewed with a live margin badge, and only take effect on Publish (which atomically archives the old version and promotes the draft)
+- **Real margin guardrail**: editing a price below the 90% floor is blocked by default; publishing below the floor anyway requires an explicit override and a typed reason of at least 10 characters, both recorded in an append-only audit log
+- Margin badges use our actual measured video-check cost (from the real pricing analysis, not a guess), so the numbers shown are grounded in real data
+- Verified extensively with real tests: confirmed the margin math for Starter matches our original pricing analysis exactly (79.3%), confirmed the guardrail blocks a below-floor edit and requires both an override flag and a real reason before allowing it, confirmed publish correctly archives the old version and promotes the draft atomically, and — most importantly — confirmed the resolver's core promise: it correctly reads live catalog data when available, and never throws even when the database is completely unreachable, falling back to code constants instead
+
+## v6.7.1 — Fix: Buy More Video Checks missing from desktop sidebar
+- The last update added "Buy More Video Checks" to the phone-style Settings menu, but I forgot the desktop sidebar has its own separate, parallel list of settings items — so it was never added there
+- Fixed: now shows in both places
+- Verified with a real test that the desktop sidebar genuinely includes it now
+
+## v6.7.0 — Buy More Video Checks, in the app, with a real admin loop
+- New "Buy More Video Checks" screen in Settings, showing how many checks someone has left right now and 3 real pack options (+5/$0.99, +15/$2.49, +30/$3.99)
+- Not purchasable yet, as expected — tapping "Request" records a real request instead, tied to their actual account
+- Hitting the quota limit while running a video check now shows a clickable "Get more →" link that jumps straight to this screen, instead of just a dead-end error message
+- New "Top-ups" tab in the admin panel showing every request with who asked and what pack — tap "Grant" and it adds the checks to that exact account and marks the request done, closing the loop
+- Verified the full path end-to-end with real tests: confirmed the remaining-checks display matches the exact same math the server enforces, confirmed a request gets saved with the right user and pack info, confirmed granting a request correctly adds to (not replaces) their existing check pool, and confirmed the admin panel correctly rejects a wrong password
+
 ## v6.6.0 — Premium tiers actually work now (admin-granted, no payment needed yet)
 - Video-check quotas are real and enforced server-side: free accounts get 5 checks/month, Starter adds 10 one-time bonus checks, Gritto Pro adds 50, Premium gets a generous 175/month (implementing the "unlimited" decision from the pricing analysis — invisible to any honest user, but a real ceiling)
 - Monthly allowance is always spent before the one-time bonus pool, so bonus checks don't quietly expire unused
