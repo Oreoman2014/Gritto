@@ -110,7 +110,7 @@ async function handleUsers(req, res, supabaseUrl, baseHeaders) {
 async function handleFeedback(req, res, supabaseUrl, baseHeaders) {
   if (req.method === 'GET') {
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/feedback_reports?select=id,user_id,message,created_at,needs_attention,ai_response,admin_reviewed&order=created_at.desc`,
+      `${supabaseUrl}/rest/v1/feedback_reports?select=id,user_id,message,created_at,needs_attention,ai_response,admin_reviewed,admin_reply&order=created_at.desc`,
       { headers: baseHeaders }
     );
     const reports = await response.json();
@@ -138,12 +138,17 @@ async function handleFeedback(req, res, supabaseUrl, baseHeaders) {
     return res.status(200).json({ ok: true, reports: withEmails });
   }
 
+  // Marking reviewed and replying are the same action here — sending a
+  // real reply always implies it's been handled, so `reply` (if given)
+  // gets saved alongside admin_reviewed in one write, not two.
   if (req.method === 'PATCH') {
-    const { id } = req.body || {};
+    const { id, reply } = req.body || {};
     if (!id) return res.status(400).json({ ok: false, error: 'Report id is required.' });
+    const updates = { admin_reviewed: true };
+    if (typeof reply === 'string' && reply.trim()) updates.admin_reply = reply.trim();
     const response = await fetch(
       `${supabaseUrl}/rest/v1/feedback_reports?id=eq.${encodeURIComponent(id)}`,
-      { method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ admin_reviewed: true }) }
+      { method: 'PATCH', headers: baseHeaders, body: JSON.stringify(updates) }
     );
     if (!response.ok) {
       const errText = await response.text();
