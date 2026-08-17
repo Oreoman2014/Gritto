@@ -195,7 +195,7 @@ function adminLogin(){
 
 async function loadUsers(){
   try{
-    const res = await fetch('/api/admin-users', {
+    const res = await fetch('/api/admin?resource=users', {
       headers: { 'x-admin-password': adminPassword }
     });
     const data = await res.json();
@@ -237,7 +237,7 @@ async function addUser(){
   if(!email){ errorEl.textContent = 'Enter an email first.'; return; }
 
   try{
-    const res = await fetch('/api/admin-users', {
+    const res = await fetch('/api/admin?resource=users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ email })
@@ -253,7 +253,7 @@ async function addUser(){
 
 async function removeUser(email){
   try{
-    await fetch('/api/admin-users', {
+    await fetch('/api/admin?resource=users', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ email })
@@ -296,7 +296,7 @@ async function loadCostDashboard(){
   const contentEl = document.getElementById('costs-content');
   contentEl.innerHTML = '<div class="empty">Loading…</div>';
   try{
-    const res = await fetch('/api/admin-costs', { headers: { 'x-admin-password': adminPassword } });
+    const res = await fetch('/api/admin?resource=costs', { headers: { 'x-admin-password': adminPassword } });
     const data = await res.json();
     if(!data.ok){
       contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load cost data.'}</div>`;
@@ -358,7 +358,7 @@ async function loadPricingCatalog(){
   const contentEl = document.getElementById('pricing-content');
   contentEl.innerHTML = '<div class="empty">Loading…</div>';
   try{
-    const res = await fetch('/api/admin-pricing', { headers: { 'x-admin-password': adminPassword } });
+    const res = await fetch('/api/admin?resource=pricing', { headers: { 'x-admin-password': adminPassword } });
     const data = await res.json();
     if(!data.ok){
       contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load the pricing catalog.'}</div>`;
@@ -475,7 +475,7 @@ function renderAuditLog(audit){
 
 async function startPricingDraft(){
   try{
-    const res = await fetch('/api/admin-pricing', {
+    const res = await fetch('/api/admin?resource=pricing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ action: 'create_draft' })
@@ -494,7 +494,7 @@ async function startPricingDraft(){
 async function discardPricingDraft(){
   if(!confirm('Discard this draft? All unpublished edits will be lost.')) return;
   try{
-    const res = await fetch('/api/admin-pricing', {
+    const res = await fetch('/api/admin?resource=pricing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ action: 'discard_draft' })
@@ -513,7 +513,7 @@ async function discardPricingDraft(){
 async function publishPricingDraft(){
   if(!confirm('Publish this draft? It will become the live catalog the app reads from.')) return;
   try{
-    const res = await fetch('/api/admin-pricing', {
+    const res = await fetch('/api/admin?resource=pricing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ action: 'publish', actor: 'admin' })
@@ -538,7 +538,7 @@ async function editPricingRow(kind, id, key){
     return;
   }
 
-  const res = await fetch('/api/admin-pricing', {
+  const res = await fetch('/api/admin?resource=pricing', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
     body: JSON.stringify({ target_kind: kind, target_id: id, target_key: key, updates: { amount_cents: newAmountCents }, actor: 'admin' })
@@ -554,7 +554,7 @@ async function editPricingRow(kind, id, key){
       loadPricingCatalog();
       return;
     }
-    const overrideRes = await fetch('/api/admin-pricing', {
+    const overrideRes = await fetch('/api/admin?resource=pricing', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ target_kind: kind, target_id: id, target_key: key, updates: { amount_cents: newAmountCents }, actor: 'admin', reason, override_guardrail: true })
@@ -577,7 +577,7 @@ async function loadTopupRequests(){
   const listEl = document.getElementById('topups-list');
   listEl.innerHTML = '<div class="empty">Loading…</div>';
   try{
-    const res = await fetch('/api/admin-topups', {
+    const res = await fetch('/api/admin?resource=topups', {
       headers: { 'x-admin-password': adminPassword }
     });
     const data = await res.json();
@@ -670,7 +670,7 @@ function toggleTopupUser(userId){
 
 async function actOnTopup(requestId, userId, packSize, action){
   try{
-    const res = await fetch('/api/admin-topups', {
+    const res = await fetch('/api/admin?resource=topups', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ request_id: requestId, user_id: userId, pack_size: packSize, action })
@@ -703,7 +703,7 @@ async function loadProfiles(){
   const listEl = document.getElementById('profiles-list');
   listEl.innerHTML = '<div class="empty">Loading…</div>';
   try{
-    const res = await fetch('/api/admin-profiles', {
+    const res = await fetch('/api/admin?resource=profiles', {
       headers: { 'x-admin-password': adminPassword }
     });
     const data = await res.json();
@@ -952,7 +952,7 @@ async function topUpChecks(userId, amount){
   const newTotal = currentGranted + amount;
 
   try{
-    const res = await fetch('/api/admin-profiles', {
+    const res = await fetch('/api/admin?resource=profiles', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ user_id: userId, updates: { bonus_checks_granted: newTotal } })
@@ -983,7 +983,7 @@ async function removeChecks(userId, amount){
   const newTotal = Math.max(0, currentGranted - amount);
 
   try{
-    const res = await fetch('/api/admin-profiles', {
+    const res = await fetch('/api/admin?resource=profiles', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ user_id: userId, updates: { bonus_checks_granted: newTotal } })
@@ -1036,7 +1036,7 @@ async function saveProfile(userId){
   }
 
   try{
-    const res = await fetch('/api/admin-profiles', {
+    const res = await fetch('/api/admin?resource=profiles', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ user_id: userId, updates })
@@ -1056,7 +1056,7 @@ async function loadFeedback(){
   const listEl = document.getElementById('feedback-list');
   listEl.innerHTML = '<div class="empty">Loading…</div>';
   try{
-    const res = await fetch('/api/admin-feedback', {
+    const res = await fetch('/api/admin?resource=feedback', {
       headers: { 'x-admin-password': adminPassword }
     });
     const data = await res.json();
@@ -1129,7 +1129,7 @@ function renderFeedback(reports){
 
 async function markFeedbackReviewed(id){
   try{
-    const res = await fetch('/api/admin-feedback', {
+    const res = await fetch('/api/admin?resource=feedback', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ id })
@@ -1148,7 +1148,7 @@ async function markFeedbackReviewed(id){
 async function deleteFeedback(id){
   if(!confirm('Delete this feedback report?')) return;
   try{
-    await fetch('/api/admin-feedback', {
+    await fetch('/api/admin?resource=feedback', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ id })
