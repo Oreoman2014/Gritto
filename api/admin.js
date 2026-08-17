@@ -57,6 +57,8 @@ module.exports = async function handler(req, res) {
     if (resource === 'topups') return await handleTopups(req, res, supabaseUrl, baseHeaders);
     if (resource === 'pricing') return await handlePricing(req, res, supabaseUrl, baseHeaders);
     if (resource === 'costs') return await handleCosts(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'overview') return await handleOverview(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'ratelimits') return await handleRateLimits(req, res, supabaseUrl, baseHeaders);
     return res.status(400).json({ ok: false, error: `Unknown resource: ${resource}` });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
@@ -627,4 +629,74 @@ async function handleCosts(req, res, supabaseUrl, baseHeaders) {
     topUsers,
     note: '60-day window — real, measured cost from actual API responses, not an estimate.',
   });
+}
+
+// ---- Overview dashboard ----
+// One summary combining what needs attention across every other tab,
+// so logging in shows the whole picture at a glance instead of
+// requiring a click through all 7 tabs to check what's outstanding.
+async function handleOverview(req, res, supabaseUrl, baseHeaders) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [usersRes, newUsersRes, feedbackRes, topupsRes, catalogRes] = await Promise.all([
+    fetch(`${supabaseUrl}/rest/v1/allowed_users?select=email`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/allowed_users?select=email&added_at=gte.${sevenDaysAgo}`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/feedback_reports?select=id&needs_attention=eq.true&admin_reviewed=eq.false`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/topup_requests?select=id&status=eq.pending`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/catalog_version?select=id&status=eq.draft`, { headers: baseHeaders }),
+  ]);
+
+  const [users, newUsers, feedback, topups, catalog] = await Promise.all([
+    usersRes.json(), newUsersRes.json(), feedbackRes.json(), topupsRes.json(), catalogRes.json(),
+  ]);
+
+  return res.status(200).json({
+    ok: true,
+    totalUsers: Array.isArray(users) ? users.length : 0,
+    newUsersThisWeek: Array.isArray(newUsers) ? newUsers.length : 0,
+    unreviewedFeedback: Array.isArray(feedback) ? feedback.length : 0,
+    pendingTopups: Array.isArray(topups) ? topups.length : 0,
+    hasPricingDraft: Array.isArray(catalog) && catalog.length > 0,
+  });
+}
+
+// ---- Rate limit monitoring ----
+// Shows real request-volume per user over the last 24 hours, so heavy
+// usage (possible abuse, or a power user who might want a higher
+// tier) is visible without waiting for someone to actually hit the
+// 15/min or 300/day ceiling.
+const DAILY_RATE_LIMIT = 300;
+
+async function handleRateLimits(req, res, supabaseUrl, baseHeaders) {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const logRes = await fetch(
+    `${supabaseUrl}/rest/v1/ai_request_log?select=user_id,created_at&created_at=gte.${oneDayAgo}`,
+    { headers: baseHeaders }
+  );
+  const logs = await logRes.json();
+  if (!Array.isArray(logs)) {
+    return res.status(400).json({ ok: false, error: 'Could not load rate limit data.' });
+  }
+
+  const byUser = {};
+  for (const row of logs) {
+    if (!row.user_id) continue;
+    byUser[row.user_id] = (byUser[row.user_id] || 0) + 1;
+  }
+
+  const sorted = Object.entries(byUser).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const results = [];
+  for (const [userId, count] of sorted) {
+    let email = 'Unknown';
+    try {
+      const userRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, { headers: baseHeaders });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        email = userData.email || 'Unknown';
+      }
+    } catch (e) { /* leave as Unknown */ }
+    results.push({ userId, email, requestCount: count, pctOfDailyLimit: count / DAILY_RATE_LIMIT });
+  }
+
+  return res.status(200).json({ ok: true, users: results, dailyLimit: DAILY_RATE_LIMIT });
 }
