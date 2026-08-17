@@ -5422,7 +5422,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.4.0';
+const APP_VERSION = '7.5.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5668,6 +5668,19 @@ async function renderPremiumGrid(){
   const catalog = await resolvePriceCatalog();
   const squareOrder = ['starter', 'pro', 'studio', 'premium'];
 
+  const { data: { session } } = await sb.auth.getSession();
+  let currentTier = null;
+  if(session){
+    const { data } = await sb.from('user_profile').select('premium_tier').eq('user_id', session.user.id).maybeSingle();
+    currentTier = data ? data.premium_tier : null;
+  }
+
+  const testModeBanner = `
+    <div style="background:#FEF3C7; border:1px solid #F2C94C; border-radius:10px; padding:10px 14px; margin:14px 0; font-size:12px; color:#92400E; text-align:center;">
+      Test mode — buying here doesn't charge real money. It's here so the full purchase experience can be tried out before real payments are connected.
+    </div>
+  `;
+
   const squaresHtml = squareOrder.map(tier => {
     const planData = catalog.plans[tier];
     const staticInfo = PREMIUM_TIER_FEATURES[tier];
@@ -5675,17 +5688,18 @@ async function renderPremiumGrid(){
 
     const features = staticInfo.features.map(f => f.replace('{bonus}', planData.bonus_checks || 0));
     const priceStr = `${formatCents(planData.amount_cents)}<span> ${planData.billing_period === 'monthly' ? '/ month' : 'one-time'}</span>`;
+    const isCurrent = currentTier === tier || (tier === 'premium' && currentTier === 'premium_annual');
 
     return `
       <div class="premium-square">
         <div class="premium-square-name">${planData.display_name}</div>
         <div class="premium-square-price">${priceStr}</div>
-        <div class="premium-square-note">Not purchasable yet</div>
+        <div class="premium-square-note">${isCurrent ? 'Your current plan' : 'Test purchase — not a real charge'}</div>
         <div class="premium-square-features">
           ${features.map(f => `<div class="premium-square-feature">${f}</div>`).join('')}
         </div>
-        <button class="premium-square-btn" id="premium-notify-btn-${tier}" onclick="notifyPremiumInterest('${tier}')">Notify me</button>
-        <div class="premium-square-status" id="premium-notify-status-${tier}"></div>
+        <button class="premium-square-btn" id="premium-buy-btn-${tier}" ${isCurrent ? 'disabled' : ''} onclick="buyPlan('${tier}', '${planData.display_name}', '${formatCents(planData.amount_cents)}')">${isCurrent ? 'Current plan' : 'Buy now'}</button>
+        <div class="premium-square-status" id="premium-buy-status-${tier}"></div>
       </div>
     `;
   }).join('');
@@ -5699,48 +5713,38 @@ async function renderPremiumGrid(){
     const savingsNote = monthlyEquivalent
       ? `${formatCents(monthlyEquivalent - annualData.amount_cents)} less per year than paying monthly`
       : '';
+    const isCurrentAnnual = currentTier === 'premium_annual';
     annualHtml = `
       <div class="premium-annual-rect">
         <div class="premium-annual-top">
           <div>
             <div class="premium-annual-name">${annualData.display_name} — Annual</div>
-            <div class="premium-square-note" style="margin:2px 0 0;">${savingsNote}</div>
+            <div class="premium-square-note" style="margin:2px 0 0;">${isCurrentAnnual ? 'Your current plan' : savingsNote}</div>
           </div>
           <div class="premium-annual-price">${formatCents(annualData.amount_cents)}<span> / year</span></div>
         </div>
         <div class="premium-annual-features">
           ${annualFeatures.map(f => `<div class="premium-annual-feature">${f.replace('{bonus}', annualData.bonus_checks || 0)}</div>`).join('')}
         </div>
-        <button class="premium-annual-btn" id="premium-notify-btn-premium_annual" onclick="notifyPremiumInterest('premium_annual')">Notify me</button>
-        <div class="premium-annual-status" id="premium-notify-status-premium_annual"></div>
+        <button class="premium-annual-btn" id="premium-buy-btn-premium_annual" ${isCurrentAnnual ? 'disabled' : ''} onclick="buyPlan('premium_annual', '${annualData.display_name} Annual', '${formatCents(annualData.amount_cents)}')">${isCurrentAnnual ? 'Current plan' : 'Buy now'}</button>
+        <div class="premium-annual-status" id="premium-buy-status-premium_annual"></div>
       </div>
     `;
   }
 
   contentEl.innerHTML = `
+    ${testModeBanner}
     <div class="premium-square-grid">${squaresHtml}</div>
     ${annualHtml}
   `;
-
-  // Reflect prior interest for each plan, if any
-  sb.auth.getSession().then(async ({ data: { session } }) => {
-    if(!session) return;
-    const { data } = await sb.from('user_profile').select('premium_interested_tier').eq('user_id', session.user.id).maybeSingle();
-    if(!data || !data.premium_interested_tier) return;
-    const btn = document.getElementById(`premium-notify-btn-${data.premium_interested_tier}`);
-    const statusEl = document.getElementById(`premium-notify-status-${data.premium_interested_tier}`);
-    if(btn){
-      btn.disabled = true;
-      btn.textContent = "On the list";
-      if(statusEl) statusEl.textContent = "We'll let you know when it's ready.";
-    }
-  });
 }
 
-async function notifyPremiumInterest(planKey){
-  const btn = document.getElementById(`premium-notify-btn-${planKey}`);
-  const statusEl = document.getElementById(`premium-notify-status-${planKey}`);
+async function buyPlan(planKey, displayName, priceStr){
+  const confirmed = confirm(`TEST PURCHASE — no real payment.\n\nConfirm ${displayName} for ${priceStr}?`);
+  if(!confirmed) return;
 
+  const btn = document.getElementById(`premium-buy-btn-${planKey}`);
+  const statusEl = document.getElementById(`premium-buy-status-${planKey}`);
   const { data: { session } } = await sb.auth.getSession();
   if(!session){
     if(statusEl) statusEl.textContent = 'Sign in first, then try again.';
@@ -5748,27 +5752,30 @@ async function notifyPremiumInterest(planKey){
   }
 
   btn.disabled = true;
+  btn.textContent = 'Processing…';
   try{
-    const { error } = await sb.from('user_profile').upsert({
-      user_id: session.user.id,
-      premium_interested: true,
-      premium_interested_tier: planKey,
-      premium_interested_at: new Date().toISOString()
+    const response = await fetch('/api/fake-purchase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, purchase_type: 'plan', plan_key: planKey })
     });
-    if(error){
-      console.error('Could not record premium interest:', error.message);
-      if(statusEl) statusEl.textContent = "Something went wrong — try again.";
+    const data = await response.json();
+    if(!data.ok){
+      if(statusEl) statusEl.textContent = data.error || 'Something went wrong — try again.';
       btn.disabled = false;
+      btn.textContent = 'Buy now';
       return;
     }
-    btn.textContent = "On the list";
-    if(statusEl) statusEl.textContent = "We'll let you know when it's ready.";
+    if(statusEl) statusEl.textContent = "You're on this plan now!";
+    renderPremiumGrid(); // refresh so "Current plan" reflects correctly everywhere
   }catch(err){
-    console.error('Premium interest failed (thrown):', err.message);
-    if(statusEl) statusEl.textContent = "Something went wrong — try again.";
+    console.error('Fake purchase failed:', err.message);
+    if(statusEl) statusEl.textContent = 'Something went wrong — try again.';
     btn.disabled = false;
+    btn.textContent = 'Buy now';
   }
 }
+
 
 // ---- Buy more video checks ----
 // Mirrors the SAME quota math the server enforces (formfix-ai), just
@@ -5826,46 +5833,64 @@ async function renderBuyMoreChecks(){
     summaryEl.textContent = `You have ${remaining.total} video check${remaining.total === 1 ? '' : 's'} left right now.`;
   }
 
-  packsEl.innerHTML = TOPUP_PACK_KEYS.map(key => {
-    const pack = catalog.topups[key];
-    if(!pack) return '';
-    const priceStr = formatCents(pack.amount_cents);
-    return `
-      <div class="topup-pack-row">
-        <div class="topup-pack-icon">🎥</div>
-        <div style="flex:1;">
-          <div class="topup-pack-title">+${pack.units} video checks — ${priceStr}</div>
-          <div class="topup-pack-desc" id="topup-status-${pack.units}">Not purchasable yet — request it and we'll get it to you.</div>
+  packsEl.innerHTML = `
+    <div style="background:#FEF3C7; border:1px solid #F2C94C; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:12px; color:#92400E; text-align:center;">
+      Test mode — buying here doesn't charge real money.
+    </div>
+    ${TOPUP_PACK_KEYS.map(key => {
+      const pack = catalog.topups[key];
+      if(!pack) return '';
+      const priceStr = formatCents(pack.amount_cents);
+      return `
+        <div class="topup-pack-row">
+          <div class="topup-pack-icon">🎥</div>
+          <div style="flex:1;">
+            <div class="topup-pack-title">+${pack.units} video checks — ${priceStr}</div>
+            <div class="topup-pack-desc" id="topup-status-${pack.units}">Test purchase — not a real charge.</div>
+          </div>
+          <button class="settings-toggle-btn" id="topup-buy-btn-${pack.units}" onclick="buyTopup(${pack.units}, '${priceStr}')">Buy now</button>
         </div>
-        <button class="settings-toggle-btn" onclick="requestTopUp(${pack.units}, '${priceStr}')">Request</button>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('')}
+  `;
 }
 
-async function requestTopUp(packSize, packPrice){
-  const statusEl = document.getElementById(`topup-status-${packSize}`);
+async function buyTopup(packUnits, packPrice){
+  const confirmed = confirm(`TEST PURCHASE — no real payment.\n\nConfirm +${packUnits} video checks for ${packPrice}?`);
+  if(!confirmed) return;
+
+  const btn = document.getElementById(`topup-buy-btn-${packUnits}`);
+  const statusEl = document.getElementById(`topup-status-${packUnits}`);
   const { data: { session } } = await sb.auth.getSession();
   if(!session){
     if(statusEl) statusEl.textContent = 'Sign in first, then try again.';
     return;
   }
 
+  btn.disabled = true;
+  btn.textContent = 'Processing…';
   try{
-    const { error } = await sb.from('topup_requests').insert({
-      user_id: session.user.id,
-      pack_size: packSize,
-      pack_price: packPrice,
+    const response = await fetch('/api/fake-purchase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, purchase_type: 'topup', pack_units: packUnits })
     });
-    if(error){
-      console.error('Could not record top-up request:', error.message);
-      if(statusEl) statusEl.textContent = 'Something went wrong — try again in a moment.';
+    const data = await response.json();
+    if(!data.ok){
+      if(statusEl) statusEl.textContent = data.error || 'Something went wrong — try again.';
+      btn.disabled = false;
+      btn.textContent = 'Buy now';
       return;
     }
-    if(statusEl) statusEl.textContent = "Requested! We'll add these to your account soon.";
+    if(statusEl) statusEl.textContent = `Added! +${packUnits} video checks.`;
+    btn.textContent = 'Buy now';
+    btn.disabled = false;
+    renderBuyMoreChecks(); // refresh the "checks left" summary
   }catch(err){
-    console.error('Top-up request failed (thrown):', err.message);
-    if(statusEl) statusEl.textContent = 'Something went wrong — try again in a moment.';
+    console.error('Fake topup purchase failed:', err.message);
+    if(statusEl) statusEl.textContent = 'Something went wrong — try again.';
+    btn.disabled = false;
+    btn.textContent = 'Buy now';
   }
 }
 
