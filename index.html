@@ -2334,6 +2334,11 @@
     .sidebar-nav-btn:hover{background:var(--paper, #F7F9FB);}
     .sidebar-nav-btn.active{background:var(--turf); color:#fff;}
 
+    /* The "‹ Back" button on settings subpages leads to the phone-style
+       full settings menu, which is redundant on desktop — the sidebar
+       already provides direct navigation to every settings item. */
+    .settings-back-btn{display:none;}
+
     main{margin-left:230px;}
     .main-content{max-width:900px;}
   }
@@ -5346,7 +5351,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '6.9.0';
+const APP_VERSION = '6.9.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
