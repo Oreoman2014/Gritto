@@ -137,15 +137,22 @@
   <div id="admin-panel" class="hidden">
     <h1>Admin</h1>
     <div class="tab-row">
-      <button class="tab-btn active" id="tab-users-btn" onclick="switchTab('users')">Beta Users</button>
+      <button class="tab-btn active" id="tab-overview-btn" onclick="switchTab('overview')">Overview</button>
+      <button class="tab-btn" id="tab-users-btn" onclick="switchTab('users')">Beta Users</button>
       <button class="tab-btn" id="tab-feedback-btn" onclick="switchTab('feedback')">Feedback</button>
       <button class="tab-btn" id="tab-profiles-btn" onclick="switchTab('profiles')">Profiles</button>
       <button class="tab-btn" id="tab-topups-btn" onclick="switchTab('topups')">Top-ups</button>
       <button class="tab-btn" id="tab-pricing-btn" onclick="switchTab('pricing')">Pricing</button>
       <button class="tab-btn" id="tab-costs-btn" onclick="switchTab('costs')">Costs</button>
+      <button class="tab-btn" id="tab-ratelimits-btn" onclick="switchTab('ratelimits')">Rate Limits</button>
     </div>
 
-    <div id="tab-users">
+    <div id="tab-overview">
+      <p class="sub">Everything worth checking, in one place.</p>
+      <div id="overview-content"></div>
+    </div>
+
+    <div id="tab-users" class="hidden">
       <p class="sub">People on this list can sign in to Gritto with Google. Everyone else is blocked.</p>
       <div class="add-row">
         <input type="email" id="new-email" placeholder="someone@gmail.com">
@@ -180,6 +187,11 @@
       <p class="sub">Real spend, from actual logged API costs — not an estimate. Last 60 days.</p>
       <div id="costs-content"></div>
     </div>
+
+    <div id="tab-ratelimits" class="hidden">
+      <p class="sub">Real AI request volume per account, last 24 hours. High usage can mean abuse, or a power user who might want a higher tier.</p>
+      <div id="ratelimits-content"></div>
+    </div>
   </div>
 
 </div>
@@ -207,6 +219,7 @@ async function loadUsers(){
     document.getElementById('admin-panel').classList.remove('hidden');
     renderUsers(data.users || []);
     loadFeedback(); // populates the tab in the background so the red dot shows immediately, not just after opening the tab
+    loadOverview(); // Overview is now the default tab shown on login
   }catch(err){
     document.getElementById('admin-login-error').textContent = 'Something went wrong — try again.';
   }
@@ -269,28 +282,103 @@ document.getElementById('admin-password-input').addEventListener('keydown', (e) 
 });
 
 function switchTab(tab){
+  document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
   document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
   document.getElementById('tab-feedback').classList.toggle('hidden', tab !== 'feedback');
   document.getElementById('tab-profiles').classList.toggle('hidden', tab !== 'profiles');
   document.getElementById('tab-topups').classList.toggle('hidden', tab !== 'topups');
   document.getElementById('tab-pricing').classList.toggle('hidden', tab !== 'pricing');
   document.getElementById('tab-costs').classList.toggle('hidden', tab !== 'costs');
+  document.getElementById('tab-ratelimits').classList.toggle('hidden', tab !== 'ratelimits');
+  document.getElementById('tab-overview-btn').classList.toggle('active', tab === 'overview');
   document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
   document.getElementById('tab-profiles-btn').classList.toggle('active', tab === 'profiles');
   document.getElementById('tab-topups-btn').classList.toggle('active', tab === 'topups');
   document.getElementById('tab-pricing-btn').classList.toggle('active', tab === 'pricing');
   document.getElementById('tab-costs-btn').classList.toggle('active', tab === 'costs');
+  document.getElementById('tab-ratelimits-btn').classList.toggle('active', tab === 'ratelimits');
+  if(tab === 'overview') loadOverview();
   if(tab === 'feedback') loadFeedback();
   if(tab === 'profiles') loadProfiles();
   if(tab === 'topups') loadTopupRequests();
   if(tab === 'pricing') loadPricingCatalog();
   if(tab === 'costs') loadCostDashboard();
+  if(tab === 'ratelimits') loadRateLimits();
 }
 
 let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
 
 let pricingCatalogState = null; // cached so edits can read current values without refetching
+
+async function loadOverview(){
+  const contentEl = document.getElementById('overview-content');
+  try{
+    const res = await fetch('/api/admin?resource=overview', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load overview.'}</div>`;
+      return;
+    }
+
+    const needsAttentionItems = [];
+    if(data.unreviewedFeedback > 0) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">💬 <strong>${data.unreviewedFeedback}</strong> feedback message${data.unreviewedFeedback===1?'':'s'} need${data.unreviewedFeedback===1?'s':''} your attention — <a href="#" onclick="switchTab('feedback'); return false;" style="color:var(--turf); font-weight:600;">go to Feedback</a></div>`);
+    if(data.pendingTopups > 0) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">🎥 <strong>${data.pendingTopups}</strong> top-up request${data.pendingTopups===1?'':'s'} pending — <a href="#" onclick="switchTab('topups'); return false;" style="color:var(--turf); font-weight:600;">go to Top-ups</a></div>`);
+    if(data.hasPricingDraft) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">💲 A pricing draft is waiting to be published — <a href="#" onclick="switchTab('pricing'); return false;" style="color:var(--turf); font-weight:600;">go to Pricing</a></div>`);
+
+    const needsAttentionHtml = needsAttentionItems.length > 0
+      ? `<div class="profile-card">${needsAttentionItems.join('')}</div>`
+      : `<div class="empty">Nothing needs your attention right now.</div>`;
+
+    contentEl.innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+        <div class="profile-card" style="text-align:center;">
+          <div style="font-size:11px; color:var(--ink-soft);">Total users</div>
+          <div style="font-family:monospace; font-size:24px; font-weight:700;">${data.totalUsers}</div>
+        </div>
+        <div class="profile-card" style="text-align:center;">
+          <div style="font-size:11px; color:var(--ink-soft);">New this week</div>
+          <div style="font-family:monospace; font-size:24px; font-weight:700;">${data.newUsersThisWeek}</div>
+        </div>
+      </div>
+      <div class="section-label" style="margin-bottom:8px;">Needs your attention</div>
+      ${needsAttentionHtml}
+    `;
+  }catch(err){
+    contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+async function loadRateLimits(){
+  const contentEl = document.getElementById('ratelimits-content');
+  contentEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin?resource=ratelimits', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load rate limit data.'}</div>`;
+      return;
+    }
+    if(data.users.length === 0){
+      contentEl.innerHTML = '<div class="empty">No AI requests in the last 24 hours.</div>';
+      return;
+    }
+    contentEl.innerHTML = data.users.map(u => {
+      const pct = (u.pctOfDailyLimit * 100).toFixed(1);
+      const isHigh = u.pctOfDailyLimit >= 0.5;
+      return `
+        <div class="profile-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px;">${u.email}</span>
+            <span style="font-family:monospace; font-weight:700; ${isHigh ? 'color:#B4401A;' : ''}">${u.requestCount} / ${data.dailyLimit} (${pct}%)</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }catch(err){
+    contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
 
 async function loadCostDashboard(){
   const contentEl = document.getElementById('costs-content');
