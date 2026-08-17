@@ -5414,7 +5414,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.2.0';
+const APP_VERSION = '7.2.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6167,11 +6167,15 @@ async function triageFeedback(feedbackId, message){
   const cleaned = extractAIText(response).replace(/```json|```/g, '').trim();
   const parsed = JSON.parse(cleaned);
 
-  const { error } = await sb.from('feedback_reports').update({
+  const { data: updated, error } = await sb.from('feedback_reports').update({
     needs_attention: !!parsed.needs_attention,
     ai_response: parsed.needs_attention ? null : (parsed.response || null),
-  }).eq('id', feedbackId);
+  }).eq('id', feedbackId).select();
   if(error) throw new Error(error.message);
+  // An RLS policy silently blocking the write looks identical to
+  // success here (no error), except it matches zero rows — catching
+  // that explicitly means this can't fail invisibly again.
+  if(!updated || updated.length === 0) throw new Error('Update matched no rows — check RLS policy on feedback_reports.');
 
   loadMyFeedbackHistory(); // refresh so the response shows up once it's ready
 }
