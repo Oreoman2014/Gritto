@@ -613,6 +613,19 @@ async function actOnTopup(requestId, userId, packSize, action){
   }
 }
 
+const PREMIUM_MONTHLY_CAP = 175; // the real hidden cap behind "unlimited"
+
+// Shared by both the sort below and the profile card display, so the
+// month-rollover logic only lives in one place.
+function getPremiumMonthlyUsage(p){
+  if(p.premium_tier !== 'premium' && p.premium_tier !== 'premium_annual') return null;
+  const today = new Date();
+  const monthStart = p.checks_month_start ? new Date(p.checks_month_start) : null;
+  const isNewMonth = !monthStart || monthStart.getUTCMonth() !== today.getUTCMonth() || monthStart.getUTCFullYear() !== today.getUTCFullYear();
+  const usedThisMonth = isNewMonth ? 0 : (p.checks_this_month || 0);
+  return { usedThisMonth, pct: usedThisMonth / PREMIUM_MONTHLY_CAP };
+}
+
 async function loadProfiles(){
   const listEl = document.getElementById('profiles-list');
   listEl.innerHTML = '<div class="empty">Loading…</div>';
@@ -634,13 +647,21 @@ async function loadProfiles(){
 let currentProfiles = []; // cached so Edit/Cancel can re-render without re-fetching
 
 function renderProfiles(profiles){
-  currentProfiles = profiles;
+  // Anyone approaching their hidden Premium cap rises to the top, so
+  // it's visible at a glance rather than requiring a scroll through
+  // everyone to spot it.
+  const sorted = [...profiles].sort((a, b) => {
+    const usageA = getPremiumMonthlyUsage(a);
+    const usageB = getPremiumMonthlyUsage(b);
+    return (usageB ? usageB.pct : 0) - (usageA ? usageA.pct : 0);
+  });
+  currentProfiles = sorted;
   const listEl = document.getElementById('profiles-list');
-  if(profiles.length === 0){
+  if(sorted.length === 0){
     listEl.innerHTML = '<div class="empty">No profiles yet.</div>';
     return;
   }
-  listEl.innerHTML = profiles.map(p => profileCardHTML(p, false)).join('');
+  listEl.innerHTML = sorted.map(p => profileCardHTML(p, false)).join('');
 }
 
 // Kept in sync with the THEMES/BADGES lists in index.html — just id +
@@ -671,7 +692,7 @@ function profileCardHTML(p, editing){
   const injuryAreasStr = (p.injury_areas && p.injury_areas.length) ? p.injury_areas.join(', ') : '';
   const grantedThemes = p.granted_themes || [];
   const grantedBadges = p.granted_badges || [];
-  const tierLabels = { starter: 'Starter', pro: 'Gritto Pro', studio: 'Gritto Studio', premium: 'Premium' };
+  const tierLabels = { starter: 'Starter', pro: 'Gritto Pro', studio: 'Gritto Studio', premium: 'Premium', premium_annual: 'Premium (Annual)' };
 
   if(!editing){
     const grantsNote = (grantedThemes.length || grantedBadges.length)
@@ -680,6 +701,18 @@ function profileCardHTML(p, editing){
     const tierNote = p.premium_tier
       ? `<div class="profile-grants-note">👑 Premium tier: ${tierLabels[p.premium_tier] || p.premium_tier} (${Math.max(0, (p.bonus_checks_granted||0) - (p.bonus_checks_used||0))} bonus checks left)</div>`
       : '';
+
+    // Only the two "unlimited" plans have a hidden monthly cap worth
+    // watching — every other tier's pool is finite and already shown
+    // above via the bonus-checks note.
+    let usageNote = '';
+    const usage = getPremiumMonthlyUsage(p);
+    if(usage){
+      const isApproaching = usage.pct >= 0.5; // flag at half the hidden cap
+      const style = isApproaching ? 'color:#B4401A; font-weight:600;' : '';
+      usageNote = `<div class="profile-grants-note" style="${style}">📊 ${usage.usedThisMonth} / ${PREMIUM_MONTHLY_CAP} video checks this month${isApproaching ? ' — approaching the hidden cap' : ''}</div>`;
+    }
+
     return `
     <div class="profile-card" id="profile-${uid}">
       <div class="profile-top">
@@ -703,6 +736,7 @@ function profileCardHTML(p, editing){
       ${p.has_prior_injury ? `<div class="profile-injury">⚠️ Reported injury history: ${injuryAreasStr || 'area not specified'}</div>` : ''}
       ${grantsNote}
       ${tierNote}
+      ${usageNote}
       <button class="feedback-delete" style="color:var(--ink);" onclick="editProfile('${uid}')">Edit</button>
     </div>
   `;
