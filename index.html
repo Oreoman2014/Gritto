@@ -980,6 +980,17 @@
     font-family:'Inter',sans-serif;
   }
   .premium-annual-status{font-size:10.5px; color:#8E8E93; margin-top:8px; text-align:center; min-height:14px;}
+  .topup-pack-row{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    padding:10px 0;
+    border-top:1px solid var(--line);
+  }
+  .topup-pack-row:first-child{border-top:none; padding-top:0;}
+  .topup-pack-icon{font-size:20px; flex-shrink:0; line-height:1.3;}
+  .topup-pack-title{font-weight:700; font-size:13.5px; color:var(--ink);}
+  .topup-pack-desc{font-size:12px; color:var(--ink-soft); margin-top:2px;}
   .settings-menu{
     background:var(--card-bg);
     border:1.5px solid var(--line);
@@ -5402,7 +5413,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.1.0';
+const APP_VERSION = '7.1.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5799,11 +5810,11 @@ async function renderBuyMoreChecks(){
     if(!pack) return '';
     const priceStr = formatCents(pack.amount_cents);
     return `
-      <div class="premium-feature-row">
-        <div class="premium-feature-icon">🎥</div>
+      <div class="topup-pack-row">
+        <div class="topup-pack-icon">🎥</div>
         <div style="flex:1;">
-          <div class="premium-feature-title">+${pack.units} video checks — ${priceStr}</div>
-          <div class="premium-feature-desc" id="topup-status-${pack.units}">Not purchasable yet — request it and we'll get it to you.</div>
+          <div class="topup-pack-title">+${pack.units} video checks — ${priceStr}</div>
+          <div class="topup-pack-desc" id="topup-status-${pack.units}">Not purchasable yet — request it and we'll get it to you.</div>
         </div>
         <button class="settings-toggle-btn" onclick="requestTopUp(${pack.units}, '${priceStr}')">Request</button>
       </div>
