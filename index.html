@@ -5414,7 +5414,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.2.1';
+const APP_VERSION = '7.3.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6188,7 +6188,7 @@ async function loadMyFeedbackHistory(){
   if(!session){ listEl.innerHTML = ''; return; }
 
   const { data, error } = await sb.from('feedback_reports')
-    .select('id, message, ai_response, needs_attention, created_at')
+    .select('id, message, ai_response, needs_attention, admin_reply, created_at')
     .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
     .limit(10);
@@ -6199,11 +6199,13 @@ async function loadMyFeedbackHistory(){
     ${data.map(f => `
       <div class="recent-drill-row" style="cursor:default; flex-direction:column; align-items:stretch;">
         <div style="font-size:12.5px; color:var(--ink);">${f.message}</div>
-        ${f.ai_response
-          ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">${f.ai_response}</div>`
-          : f.needs_attention
-            ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-style:italic;">Sent to the developer — you'll hear back if needed.</div>`
-            : `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-style:italic;">Still reviewing this one…</div>`
+        ${f.admin_reply
+          ? `<div style="font-size:12px; color:var(--ink); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);"><strong>Reply:</strong> ${f.admin_reply}</div>`
+          : f.ai_response
+            ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">${f.ai_response}</div>`
+            : f.needs_attention
+              ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-style:italic;">Sent to the developer — you'll hear back if needed.</div>`
+              : `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-style:italic;">Still reviewing this one…</div>`
         }
       </div>
     `).join('')}
