@@ -3133,6 +3133,7 @@
         <button class="go-btn" style="margin-top:10px;" onclick="submitFeedback()">Send</button>
         <div class="status" id="feedback-status"></div>
       </div>
+      <div id="my-feedback-history"></div>
     </div>
 
     <div class="settings-subpage hidden" id="settings-subpage-share">
@@ -5413,7 +5414,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.1.2';
+const APP_VERSION = '7.2.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5481,6 +5482,7 @@ function showSettingsSubpage(id){
     });
   }
   if(id === 'data') cancelDeleteAccountConfirm();
+  if(id === 'feedback') loadMyFeedbackHistory();
   if(id === 'premium') renderPremiumGrid();
   if(id === 'topup') renderBuyMoreChecks();
 }
@@ -6125,10 +6127,10 @@ async function submitFeedback(){
 
   statusEl.textContent = 'Sending…';
   try{
-    const { error } = await sb.from('feedback_reports').insert({
+    const { data: inserted, error } = await sb.from('feedback_reports').insert({
       user_id: session.user.id,
       message
-    });
+    }).select().single();
     if(error){
       console.error('Could not send feedback:', error.message, JSON.stringify(error));
       statusEl.textContent = 'Something went wrong — try again in a moment.';
@@ -6136,10 +6138,72 @@ async function submitFeedback(){
     }
     input.value = '';
     statusEl.textContent = 'Sent — thank you!';
+    loadMyFeedbackHistory(); // show it immediately, before AI triage finishes
+
+    // Best-effort — if this fails, the feedback is still safely sent
+    // and saved, it just won't have an AI response or triage flag yet.
+    triageFeedback(inserted.id, message).catch(err => {
+      console.error('Feedback triage failed (feedback was still sent):', err.message);
+    });
   }catch(err){
     console.error('Could not send feedback (thrown):', err.message);
     statusEl.textContent = 'Something went wrong — try again in a moment.';
   }
+}
+
+// Reads the message and decides: simple enough to answer directly, or
+// does a human need to see this? Simple ones get a real response the
+// user can see; the rest get flagged (shown as a red dot in the admin
+// panel) with no AI response, since guessing at a real bug or a
+// serious concern would be worse than just waiting for a human.
+async function triageFeedback(feedbackId, message){
+  const systemPrompt = `You help triage feedback messages for a youth sports coaching app called Gritto. Given a user's feedback or bug report, decide: is this something SIMPLE you can directly and helpfully answer yourself (confusion about how a feature works, a "where do I find X" question, a minor clarification), or does this need a HUMAN developer's attention (a genuine bug report, a serious complaint, a safety concern, or anything unclear)? Respond ONLY with valid JSON, no markdown fences: {"needs_attention": true or false, "response": "a short, friendly, helpful reply if needs_attention is false, otherwise null"}. Keep language age-appropriate — the person writing this is often a kid. When genuinely unsure, set needs_attention to true — a human checking something unnecessarily is a much smaller cost than an unhelpful or wrong answer to a real problem.`;
+
+  const response = await callAIHelper({
+    max_tokens: 300,
+    system: systemPrompt,
+    messages: [{ role: "user", content: message }]
+  });
+  const cleaned = extractAIText(response).replace(/```json|```/g, '').trim();
+  const parsed = JSON.parse(cleaned);
+
+  const { error } = await sb.from('feedback_reports').update({
+    needs_attention: !!parsed.needs_attention,
+    ai_response: parsed.needs_attention ? null : (parsed.response || null),
+  }).eq('id', feedbackId);
+  if(error) throw new Error(error.message);
+
+  loadMyFeedbackHistory(); // refresh so the response shows up once it's ready
+}
+
+async function loadMyFeedbackHistory(){
+  const listEl = document.getElementById('my-feedback-history');
+  if(!listEl) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){ listEl.innerHTML = ''; return; }
+
+  const { data, error } = await sb.from('feedback_reports')
+    .select('id, message, ai_response, needs_attention, created_at')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  if(error || !data || data.length === 0){ listEl.innerHTML = ''; return; }
+
+  listEl.innerHTML = `
+    <div class="section-label" style="margin-top:20px;">Your past messages</div>
+    ${data.map(f => `
+      <div class="recent-drill-row" style="cursor:default; flex-direction:column; align-items:stretch;">
+        <div style="font-size:12.5px; color:var(--ink);">${f.message}</div>
+        ${f.ai_response
+          ? `<div style="font-size:12px; color:var(--ink-soft); margin-top:6px; padding-top:6px; border-top:1px solid var(--line);">${f.ai_response}</div>`
+          : f.needs_attention
+            ? `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-style:italic;">Sent to the developer — you'll hear back if needed.</div>`
+            : `<div style="font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-style:italic;">Still reviewing this one…</div>`
+        }
+      </div>
+    `).join('')}
+  `;
 }
 
 function setHomeGreeting(user){
