@@ -4435,6 +4435,12 @@ const THEMES = [
     check: s => s.accountAgeDays >= 182 },
   { id: 'polyglot',     name: 'Polyglot',       unlockStreak: 0, turf: '#0E5A60', energy: '#FB923C', img: 'polyglot.png', desc: 'Set the app to any language other than English at least once.',
     check: s => localStorage.getItem('gritto_ever_used_language') === 'true' },
+  { id: 'onyx',       name: 'Onyx',       unlockStreak: 0, turf: '#1A1A1D', energy: '#8E8E93', img: 'onyx.png', desc: 'Unlock with Starter, Gritto Studio, or Premium.',
+    premiumOnly: true, check: s => !!s.premiumTier && ['starter','studio','premium','premium_annual'].includes(s.premiumTier) },
+  { id: 'platinum',   name: 'Platinum',   unlockStreak: 0, turf: '#52565C', energy: '#D4D4D8', img: 'platinum.png', desc: 'Unlock with Starter, Gritto Studio, or Premium.',
+    premiumOnly: true, check: s => !!s.premiumTier && ['starter','studio','premium','premium_annual'].includes(s.premiumTier) },
+  { id: 'copper',     name: 'Copper',     unlockStreak: 0, turf: '#B87333', energy: '#2C2C2E', img: 'copper.png', desc: 'Unlock with Starter, Gritto Studio, or Premium.',
+    premiumOnly: true, check: s => !!s.premiumTier && ['starter','studio','premium','premium_annual'].includes(s.premiumTier) },
   { id: 'grandmaster',  name: 'Grandmaster',    unlockStreak: 0, turf: '#141416', energy: '#D4D4D8', img: 'grandmaster.png', desc: 'Unlock every other theme first — all 24 of them.',
     check: null }, // special-cased in getUnlockedThemes — unlocks only once every OTHER theme is unlocked
   { id: 'original',     name: 'Original',       unlockStreak: 0, turf: '#2F8F4E', energy: '#FF6A1A', img: 'original.png',
@@ -4460,10 +4466,11 @@ function getUnlockedThemes(){
   if(currentUserEmail === THEME_ADMIN_EMAIL) return THEMES;
   const best = getBestEverStreak();
 
-  // Grandmaster is special: it unlocks only once every OTHER theme is
-  // unlocked. Computed separately first (checking against everything
-  // else) to avoid it needing to reference itself.
-  const otherThemes = THEMES.filter(t => t.id !== 'grandmaster');
+  // Grandmaster is special: it unlocks only once every OTHER
+  // ACHIEVEMENT-based theme is unlocked. Premium-exclusive themes are
+  // deliberately excluded from this requirement — Grandmaster should
+  // stay something you earn, not something that requires buying a tier.
+  const otherThemes = THEMES.filter(t => t.id !== 'grandmaster' && !t.premiumOnly);
   const allOthersUnlocked = otherThemes.every(t => {
     if(grantedThemes.includes(t.id)) return true;
     if(t.check) return t.check(badgeStats);
@@ -4682,7 +4689,7 @@ async function loadBadgeStats(){
       sb.from('video_analysis_history').select('score').eq('user_id', session.user.id).not('score', 'is', null),
       sb.from('video_analysis_history').select('sport, score').eq('user_id', session.user.id).not('score', 'is', null),
       sb.from('referrals').select('id', { count: 'exact', head: true }).eq('referrer_id', session.user.id),
-      sb.from('user_profile').select('signup_number').eq('user_id', session.user.id).maybeSingle(),
+      sb.from('user_profile').select('signup_number, premium_tier').eq('user_id', session.user.id).maybeSingle(),
     ]);
 
     const historyRows = historyRes.data || [];
@@ -4707,6 +4714,7 @@ async function loadBadgeStats(){
       sportsWithSixtyPlus,
       accountAgeDays: session.user.created_at ? Math.floor((Date.now() - new Date(session.user.created_at).getTime()) / 86400000) : 0,
       signupNumber: (profileRes.data && profileRes.data.signup_number) || null,
+      premiumTier: (profileRes.data && profileRes.data.premium_tier) || null,
     };
   }catch(err){
     console.error('Could not load badge stats:', err.message);
@@ -5414,7 +5422,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.3.0';
+const APP_VERSION = '7.4.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
