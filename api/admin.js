@@ -19,6 +19,22 @@ const PAYMENT_FIXED_CENTS = 30;
 const MARGIN_FLOOR = 0.85;
 const REALISTIC_WORST_CASE_MONTHLY_CHECKS = 175;
 
+// Shared by several resource handlers below — one place to log an
+// admin action, so profiles/topups/feedback don't each need their own
+// copy of this. Best-effort: if logging itself fails, the actual
+// action (which already succeeded) isn't rolled back over it.
+async function logAdminAction(supabaseUrl, baseHeaders, action, targetUserId, details) {
+  try {
+    await fetch(`${supabaseUrl}/rest/v1/admin_audit_log`, {
+      method: 'POST',
+      headers: baseHeaders,
+      body: JSON.stringify({ actor: 'admin', action, target_user_id: targetUserId || null, details: details || null }),
+    });
+  } catch (e) {
+    console.error('Audit logging failed (action itself still succeeded):', e);
+  }
+}
+
 function computeMargin(amountCents, unitsAssumed) {
   const amount = amountCents / 100;
   const processing = amount * PAYMENT_RATE + PAYMENT_FIXED_CENTS / 100;
@@ -59,6 +75,8 @@ module.exports = async function handler(req, res) {
     if (resource === 'costs') return await handleCosts(req, res, supabaseUrl, baseHeaders);
     if (resource === 'overview') return await handleOverview(req, res, supabaseUrl, baseHeaders);
     if (resource === 'ratelimits') return await handleRateLimits(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'auditlog') return await handleAuditLog(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'announcements') return await handleAnnouncements(req, res, supabaseUrl, baseHeaders);
     return res.status(400).json({ ok: false, error: `Unknown resource: ${resource}` });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
@@ -148,6 +166,11 @@ async function handleFeedback(req, res, supabaseUrl, baseHeaders) {
     if (!id) return res.status(400).json({ ok: false, error: 'Report id is required.' });
     const updates = { admin_reviewed: true };
     if (typeof reply === 'string' && reply.trim()) updates.admin_reply = reply.trim();
+
+    const beforeRes = await fetch(`${supabaseUrl}/rest/v1/feedback_reports?id=eq.${encodeURIComponent(id)}&select=user_id`, { headers: baseHeaders });
+    const beforeRows = await beforeRes.json();
+    const targetUserId = (Array.isArray(beforeRows) && beforeRows[0]) ? beforeRows[0].user_id : null;
+
     const response = await fetch(
       `${supabaseUrl}/rest/v1/feedback_reports?id=eq.${encodeURIComponent(id)}`,
       { method: 'PATCH', headers: baseHeaders, body: JSON.stringify(updates) }
@@ -156,6 +179,7 @@ async function handleFeedback(req, res, supabaseUrl, baseHeaders) {
       const errText = await response.text();
       return res.status(400).json({ ok: false, error: errText });
     }
+    await logAdminAction(supabaseUrl, baseHeaders, updates.admin_reply ? 'feedback_reply' : 'feedback_reviewed', targetUserId, { feedback_id: id, reply: updates.admin_reply || null });
     return res.status(200).json({ ok: true });
   }
 
@@ -206,6 +230,14 @@ async function handleProfiles(req, res, supabaseUrl, baseHeaders) {
       const errText = await response.text();
       return res.status(400).json({ ok: false, error: errText });
     }
+
+    // Tag the action type based on what actually changed, so the
+    // audit log reads clearly rather than just "profile updated".
+    let actionType = 'profile_update';
+    if ('premium_tier' in safeUpdates) actionType = 'change_tier';
+    else if ('granted_themes' in safeUpdates || 'granted_badges' in safeUpdates) actionType = 'grant_themes_badges';
+    await logAdminAction(supabaseUrl, baseHeaders, actionType, user_id, safeUpdates);
+
     return res.status(200).json({ ok: true });
   }
 
@@ -312,6 +344,7 @@ async function handleTopups(req, res, supabaseUrl, baseHeaders) {
       if (!(await setRequestStatus('granted'))) {
         return res.status(400).json({ ok: false, error: 'Checks were added, but could not mark the request as granted.' });
       }
+      await logAdminAction(supabaseUrl, baseHeaders, 'topup_grant', user_id, { pack_size, request_id });
       return res.status(200).json({ ok: true });
     }
 
@@ -319,6 +352,7 @@ async function handleTopups(req, res, supabaseUrl, baseHeaders) {
       if (!(await setRequestStatus('declined'))) {
         return res.status(400).json({ ok: false, error: 'Could not decline this request.' });
       }
+      await logAdminAction(supabaseUrl, baseHeaders, 'topup_decline', user_id, { pack_size, request_id });
       return res.status(200).json({ ok: true });
     }
 
@@ -338,6 +372,7 @@ async function handleTopups(req, res, supabaseUrl, baseHeaders) {
       if (!(await setRequestStatus('pending'))) {
         return res.status(400).json({ ok: false, error: 'Could not undo this request.' });
       }
+      await logAdminAction(supabaseUrl, baseHeaders, 'topup_undo', user_id, { pack_size, request_id, was: currentStatus });
       return res.status(200).json({ ok: true });
     }
 
@@ -699,4 +734,83 @@ async function handleRateLimits(req, res, supabaseUrl, baseHeaders) {
   }
 
   return res.status(200).json({ ok: true, users: results, dailyLimit: DAILY_RATE_LIMIT });
+}
+
+// ---- Admin action audit log ----
+async function handleAuditLog(req, res, supabaseUrl, baseHeaders) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+  const logRes = await fetch(
+    `${supabaseUrl}/rest/v1/admin_audit_log?select=*&order=at.desc&limit=50`,
+    { headers: baseHeaders }
+  );
+  const logs = await logRes.json();
+  if (!Array.isArray(logs)) {
+    return res.status(400).json({ ok: false, error: 'Could not load the audit log.' });
+  }
+
+  const emailCache = {};
+  for (const l of logs) {
+    if (!l.target_user_id || emailCache[l.target_user_id]) continue;
+    try {
+      const userRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${l.target_user_id}`, { headers: baseHeaders });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        emailCache[l.target_user_id] = userData.email || 'Unknown';
+      }
+    } catch (e) { /* leave unset */ }
+  }
+
+  const withEmails = logs.map(l => ({ ...l, target_email: l.target_user_id ? (emailCache[l.target_user_id] || 'Unknown') : null }));
+  return res.status(200).json({ ok: true, logs: withEmails });
+}
+
+// ---- Broadcast announcements ----
+async function handleAnnouncements(req, res, supabaseUrl, baseHeaders) {
+  if (req.method === 'GET') {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/announcements?select=*&order=created_at.desc&limit=20`,
+      { headers: baseHeaders }
+    );
+    const data = await response.json();
+    return res.status(200).json({ ok: true, announcements: Array.isArray(data) ? data : [] });
+  }
+
+  if (req.method === 'POST') {
+    const { message } = req.body || {};
+    if (!message || !message.trim()) {
+      return res.status(400).json({ ok: false, error: 'A message is required.' });
+    }
+    // Only one announcement should be active at a time, so a new one
+    // replaces the last rather than stacking silently underneath it.
+    await fetch(`${supabaseUrl}/rest/v1/announcements?active=eq.true`, {
+      method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+    });
+    const insertRes = await fetch(`${supabaseUrl}/rest/v1/announcements`, {
+      method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
+      body: JSON.stringify({ message: message.trim(), active: true }),
+    });
+    if (!insertRes.ok) {
+      return res.status(400).json({ ok: false, error: 'Could not post the announcement.' });
+    }
+    await logAdminAction(supabaseUrl, baseHeaders, 'announcement_posted', null, { message: message.trim() });
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === 'PATCH') {
+    // Explicit takedown, without posting a replacement.
+    const { id } = req.body || {};
+    if (!id) return res.status(400).json({ ok: false, error: 'id is required.' });
+    const response = await fetch(`${supabaseUrl}/rest/v1/announcements?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+    });
+    if (!response.ok) {
+      return res.status(400).json({ ok: false, error: 'Could not take down the announcement.' });
+    }
+    await logAdminAction(supabaseUrl, baseHeaders, 'announcement_removed', null, { announcement_id: id });
+    return res.status(200).json({ ok: true });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
 }
