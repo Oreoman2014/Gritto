@@ -915,7 +915,7 @@
   }
   .premium-square-price span{font-size:10.5px; color:#8E8E93; font-family:'Inter',sans-serif; font-weight:500;}
   .premium-square-note{font-size:9.5px; color:#6E6E73; margin:3px 0 12px;}
-  .premium-square-features{flex:1; margin-bottom:12px;}
+  .premium-square-features{flex:1; margin-bottom:12px; display:flex; flex-direction:column; justify-content:center;}
   .premium-square-feature{
     font-size:11px;
     color:#C7C7CC;
@@ -2460,22 +2460,25 @@
 
   .debug-toggle{
     position:fixed;
-    bottom:82px;
-    right:18px;
-    width:48px;
-    height:48px;
+    bottom:88px;
+    right:16px;
+    width:38px;
+    height:38px;
     border-radius:50%;
     background:var(--charcoal);
     color:#fff;
-    border:none;
+    border:2px solid rgba(255,255,255,0.25);
     display:flex;
     align-items:center;
     justify-content:center;
     cursor:pointer;
     z-index:200;
-    box-shadow:0 4px 14px rgba(0,0,0,0.3);
+    box-shadow:0 4px 14px rgba(0,0,0,0.35);
+    opacity:0.85;
+    transition:opacity 0.15s;
   }
-  .debug-toggle svg{width:22px;height:22px;}
+  .debug-toggle:hover, .debug-toggle:focus-visible{opacity:1;}
+  .debug-toggle svg{width:17px;height:17px;}
   .debug-badge{
     position:absolute;
     top:-4px; right:-4px;
@@ -5476,7 +5479,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.6.1';
+const APP_VERSION = '7.6.2';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
