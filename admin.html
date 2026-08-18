@@ -138,30 +138,38 @@
     <h1>Admin</h1>
     <div class="tab-row">
       <button class="tab-btn active" id="tab-overview-btn" onclick="switchTab('overview')">Overview</button>
-      <button class="tab-btn" id="tab-users-btn" onclick="switchTab('users')">Beta Users</button>
       <button class="tab-btn" id="tab-feedback-btn" onclick="switchTab('feedback')">Feedback</button>
-      <button class="tab-btn" id="tab-profiles-btn" onclick="switchTab('profiles')">Profiles</button>
-      <button class="tab-btn" id="tab-topups-btn" onclick="switchTab('topups')">Top-ups</button>
-      <button class="tab-btn" id="tab-pricing-btn" onclick="switchTab('pricing')">Pricing</button>
-      <button class="tab-btn" id="tab-costs-btn" onclick="switchTab('costs')">Costs</button>
-      <button class="tab-btn" id="tab-ratelimits-btn" onclick="switchTab('ratelimits')">Rate Limits</button>
-      <button class="tab-btn" id="tab-auditlog-btn" onclick="switchTab('auditlog')">Audit Log</button>
+      <button class="tab-btn" id="tab-finances-btn" onclick="switchTab('finances')">Finances</button>
       <button class="tab-btn" id="tab-announcements-btn" onclick="switchTab('announcements')">Announcements</button>
     </div>
 
     <div id="tab-overview">
-      <p class="sub">Everything worth checking, in one place.</p>
-      <div id="overview-content"></div>
-    </div>
-
-    <div id="tab-users" class="hidden">
-      <p class="sub">People on this list can sign in to Gritto with Google. Everyone else is blocked.</p>
-      <div class="add-row">
-        <input type="email" id="new-email" placeholder="someone@gmail.com">
-        <button class="btn add" style="width:auto; padding:11px 16px;" onclick="addUser()">Add</button>
+      <div class="tab-row" style="margin-bottom:16px;">
+        <button class="tab-btn active" id="subtab-summary-btn" onclick="switchOverviewSubtab('summary')" style="padding:7px 12px; font-size:12.5px;">Summary</button>
+        <button class="tab-btn" id="subtab-profiles-btn" onclick="switchOverviewSubtab('profiles')" style="padding:7px 12px; font-size:12.5px;">Profiles</button>
+        <button class="tab-btn" id="subtab-users-btn" onclick="switchOverviewSubtab('users')" style="padding:7px 12px; font-size:12.5px;">Beta Users</button>
       </div>
-      <div class="error" id="add-error"></div>
-      <div id="user-list"></div>
+
+      <div id="subtab-summary">
+        <p class="sub">Everything worth checking, in one place.</p>
+        <div id="overview-content"></div>
+      </div>
+
+      <div id="subtab-profiles" class="hidden">
+        <p class="sub">Onboarding info for every user — sport, goals, position, injury history, and more.</p>
+        <input type="text" id="profile-search" placeholder="Search by email…" oninput="filterProfiles(this.value)" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:14px; font-size:14px; box-sizing:border-box;">
+        <div id="profiles-list"></div>
+      </div>
+
+      <div id="subtab-users" class="hidden">
+        <p class="sub">People on this list can sign in to Gritto with Google. Everyone else is blocked.</p>
+        <div class="add-row">
+          <input type="email" id="new-email" placeholder="someone@gmail.com">
+          <button class="btn add" style="width:auto; padding:11px 16px;" onclick="addUser()">Add</button>
+        </div>
+        <div class="error" id="add-error"></div>
+        <div id="user-list"></div>
+      </div>
     </div>
 
     <div id="tab-feedback" class="hidden">
@@ -169,40 +177,41 @@
       <div id="feedback-list"></div>
     </div>
 
-    <div id="tab-profiles" class="hidden">
-      <p class="sub">Onboarding info for every user — sport, goals, position, injury history, and more.</p>
-      <input type="text" id="profile-search" placeholder="Search by email…" oninput="filterProfiles(this.value)" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:14px; font-size:14px; box-sizing:border-box;">
-      <div id="profiles-list"></div>
-    </div>
+    <div id="tab-finances" class="hidden">
+      <div class="tab-row" style="margin-bottom:16px;">
+        <button class="tab-btn active" id="subtab-topups-btn" onclick="switchFinancesSubtab('topups')" style="padding:7px 12px; font-size:12.5px;">Top-ups</button>
+        <button class="tab-btn" id="subtab-pricing-btn" onclick="switchFinancesSubtab('pricing')" style="padding:7px 12px; font-size:12.5px;">Pricing</button>
+        <button class="tab-btn" id="subtab-ratelimits-btn" onclick="switchFinancesSubtab('ratelimits')" style="padding:7px 12px; font-size:12.5px;">Rate Limits</button>
+        <button class="tab-btn" id="subtab-costs-btn" onclick="switchFinancesSubtab('costs')" style="padding:7px 12px; font-size:12.5px;">Costs</button>
+      </div>
 
-    <div id="tab-topups" class="hidden">
-      <p class="sub">Video-check top-up requests made from inside the app. Granting one adds the checks to that account and marks the request done.</p>
-      <div id="topups-list"></div>
-    </div>
+      <div id="subtab-topups">
+        <p class="sub">Video-check top-up requests made from inside the app. Granting one adds the checks to that account and marks the request done.</p>
+        <div id="topups-list"></div>
+      </div>
 
-    <div id="tab-pricing" class="hidden">
-      <p class="sub">Prices editable as a draft, previewed with a live margin badge (90% floor), then published atomically. Not connected to real payments yet — this catalog is what the app's pricing screens actually read from.</p>
-      <div id="pricing-content"></div>
-    </div>
+      <div id="subtab-pricing" class="hidden">
+        <p class="sub">Prices editable as a draft, previewed with a live margin badge (90% floor), then published atomically. Not connected to real payments yet — this catalog is what the app's pricing screens actually read from.</p>
+        <div id="pricing-content"></div>
+      </div>
 
-    <div id="tab-costs" class="hidden">
-      <p class="sub">Real spend, from actual logged API costs — not an estimate. Last 60 days.</p>
-      <div id="costs-content"></div>
-    </div>
+      <div id="subtab-ratelimits" class="hidden">
+        <p class="sub">Real AI request volume per account, last 24 hours. High usage can mean abuse, or a power user who might want a higher tier.</p>
+        <div id="ratelimits-content"></div>
+      </div>
 
-    <div id="tab-ratelimits" class="hidden">
-      <p class="sub">Real AI request volume per account, last 24 hours. High usage can mean abuse, or a power user who might want a higher tier.</p>
-      <div id="ratelimits-content"></div>
-    </div>
-
-    <div id="tab-auditlog" class="hidden">
-      <p class="sub">A record of admin actions — grants, tier changes, top-up decisions, feedback replies. (Pricing changes have their own history on the Pricing tab.)</p>
-      <div id="auditlog-content"></div>
+      <div id="subtab-costs" class="hidden">
+        <p class="sub">Real spend, from actual logged API costs — not an estimate. Last 60 days.</p>
+        <div id="costs-content"></div>
+      </div>
     </div>
 
     <div id="tab-announcements" class="hidden">
       <p class="sub">A message shown to every user. Posting a new one replaces whatever's currently live.</p>
       <div id="announcements-content"></div>
+      <div class="section-label" style="margin:20px 0 8px;">Admin activity log</div>
+      <p class="sub" style="margin-top:0;">A record of admin actions — grants, tier changes, top-up decisions, feedback replies. (Pricing changes have their own history on the Finances → Pricing tab.)</p>
+      <div id="auditlog-content"></div>
     </div>
   </div>
 
@@ -293,36 +302,55 @@ document.getElementById('admin-password-input').addEventListener('keydown', (e) 
   if(e.key === 'Enter') adminLogin();
 });
 
+let activeOverviewSubtab = 'summary';
+let activeFinancesSubtab = 'topups';
+
 function switchTab(tab){
   document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
-  document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
   document.getElementById('tab-feedback').classList.toggle('hidden', tab !== 'feedback');
-  document.getElementById('tab-profiles').classList.toggle('hidden', tab !== 'profiles');
-  document.getElementById('tab-topups').classList.toggle('hidden', tab !== 'topups');
-  document.getElementById('tab-pricing').classList.toggle('hidden', tab !== 'pricing');
-  document.getElementById('tab-costs').classList.toggle('hidden', tab !== 'costs');
-  document.getElementById('tab-ratelimits').classList.toggle('hidden', tab !== 'ratelimits');
-  document.getElementById('tab-auditlog').classList.toggle('hidden', tab !== 'auditlog');
+  document.getElementById('tab-finances').classList.toggle('hidden', tab !== 'finances');
   document.getElementById('tab-announcements').classList.toggle('hidden', tab !== 'announcements');
   document.getElementById('tab-overview-btn').classList.toggle('active', tab === 'overview');
-  document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
-  document.getElementById('tab-profiles-btn').classList.toggle('active', tab === 'profiles');
-  document.getElementById('tab-topups-btn').classList.toggle('active', tab === 'topups');
-  document.getElementById('tab-pricing-btn').classList.toggle('active', tab === 'pricing');
-  document.getElementById('tab-costs-btn').classList.toggle('active', tab === 'costs');
-  document.getElementById('tab-ratelimits-btn').classList.toggle('active', tab === 'ratelimits');
-  document.getElementById('tab-auditlog-btn').classList.toggle('active', tab === 'auditlog');
+  document.getElementById('tab-finances-btn').classList.toggle('active', tab === 'finances');
   document.getElementById('tab-announcements-btn').classList.toggle('active', tab === 'announcements');
-  if(tab === 'overview') loadOverview();
+
+  // Opening a combined tab loads whichever sub-tab was last active
+  // within it (defaulting to the first one), rather than always
+  // resetting back to the beginning.
+  if(tab === 'overview') switchOverviewSubtab(activeOverviewSubtab);
   if(tab === 'feedback') loadFeedback();
-  if(tab === 'profiles') loadProfiles();
-  if(tab === 'topups') loadTopupRequests();
-  if(tab === 'pricing') loadPricingCatalog();
-  if(tab === 'costs') loadCostDashboard();
-  if(tab === 'ratelimits') loadRateLimits();
-  if(tab === 'auditlog') loadAuditLog();
+  if(tab === 'finances') switchFinancesSubtab(activeFinancesSubtab);
   if(tab === 'announcements') loadAnnouncements();
+}
+
+function switchOverviewSubtab(subtab){
+  activeOverviewSubtab = subtab;
+  document.getElementById('subtab-summary').classList.toggle('hidden', subtab !== 'summary');
+  document.getElementById('subtab-profiles').classList.toggle('hidden', subtab !== 'profiles');
+  document.getElementById('subtab-users').classList.toggle('hidden', subtab !== 'users');
+  document.getElementById('subtab-summary-btn').classList.toggle('active', subtab === 'summary');
+  document.getElementById('subtab-profiles-btn').classList.toggle('active', subtab === 'profiles');
+  document.getElementById('subtab-users-btn').classList.toggle('active', subtab === 'users');
+  if(subtab === 'summary') loadOverview();
+  if(subtab === 'profiles') loadProfiles();
+  if(subtab === 'users') loadUsers();
+}
+
+function switchFinancesSubtab(subtab){
+  activeFinancesSubtab = subtab;
+  document.getElementById('subtab-topups').classList.toggle('hidden', subtab !== 'topups');
+  document.getElementById('subtab-pricing').classList.toggle('hidden', subtab !== 'pricing');
+  document.getElementById('subtab-ratelimits').classList.toggle('hidden', subtab !== 'ratelimits');
+  document.getElementById('subtab-costs').classList.toggle('hidden', subtab !== 'costs');
+  document.getElementById('subtab-topups-btn').classList.toggle('active', subtab === 'topups');
+  document.getElementById('subtab-pricing-btn').classList.toggle('active', subtab === 'pricing');
+  document.getElementById('subtab-ratelimits-btn').classList.toggle('active', subtab === 'ratelimits');
+  document.getElementById('subtab-costs-btn').classList.toggle('active', subtab === 'costs');
+  if(subtab === 'topups') loadTopupRequests();
+  if(subtab === 'pricing') loadPricingCatalog();
+  if(subtab === 'ratelimits') loadRateLimits();
+  if(subtab === 'costs') loadCostDashboard();
 }
 
 let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
@@ -412,6 +440,7 @@ async function loadAuditLog(){
 async function loadAnnouncements(){
   const contentEl = document.getElementById('announcements-content');
   contentEl.innerHTML = '<div class="empty">Loading…</div>';
+  loadAuditLog(); // shown below announcements now, replacing the old "past announcements" list
   try{
     const res = await fetch('/api/admin?resource=announcements', { headers: { 'x-admin-password': adminPassword } });
     const data = await res.json();
@@ -420,7 +449,6 @@ async function loadAnnouncements(){
       return;
     }
     const active = data.announcements.find(a => a.active);
-    const past = data.announcements.filter(a => !a.active).slice(0, 10);
 
     contentEl.innerHTML = `
       <div class="profile-card">
@@ -435,10 +463,6 @@ async function loadAnnouncements(){
         <textarea id="announcement-input" placeholder="e.g. New feature: exclusive themes are here!" style="width:100%; min-height:60px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:13px; box-sizing:border-box;"></textarea>
         <button class="btn" style="width:auto; padding:9px 16px; margin-top:8px;" onclick="postAnnouncement()">Post</button>
       </div>
-      ${past.length > 0 ? `
-        <div class="section-label" style="margin:16px 0 8px;">Past announcements</div>
-        ${past.map(a => `<div class="profile-card"><div style="font-size:12px; color:var(--ink-soft);">${a.message}</div><div style="font-size:10.5px; color:var(--ink-soft); margin-top:4px;">${new Date(a.created_at).toLocaleDateString()}</div></div>`).join('')}
-      ` : ''}
     `;
   }catch(err){
     contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
