@@ -172,30 +172,27 @@
     </div>
 
     <div id="tab-finances" class="hidden">
-      <div class="tab-row" style="margin-bottom:16px;">
-        <button class="tab-btn active" id="subtab-topups-btn" onclick="switchFinancesSubtab('topups')" style="padding:7px 12px; font-size:12.5px;">Top-ups</button>
-        <button class="tab-btn" id="subtab-pricing-btn" onclick="switchFinancesSubtab('pricing')" style="padding:7px 12px; font-size:12.5px;">Pricing</button>
-        <button class="tab-btn" id="subtab-ratelimits-btn" onclick="switchFinancesSubtab('ratelimits')" style="padding:7px 12px; font-size:12.5px;">Rate Limits</button>
-        <button class="tab-btn" id="subtab-costs-btn" onclick="switchFinancesSubtab('costs')" style="padding:7px 12px; font-size:12.5px;">Costs</button>
-      </div>
-
-      <div id="subtab-topups">
-        <p class="sub">Video-check top-up requests made from inside the app. Granting one adds the checks to that account and marks the request done.</p>
+      <div>
+        <div class="section-label" style="margin-bottom:8px;">Top-ups</div>
+        <p class="sub" style="margin-top:0;">Video-check top-up requests made from inside the app. Granting one adds the checks to that account and marks the request done.</p>
         <div id="topups-list"></div>
       </div>
 
-      <div id="subtab-pricing" class="hidden">
-        <p class="sub">Prices editable as a draft, previewed with a live margin badge (90% floor), then published atomically. Not connected to real payments yet — this catalog is what the app's pricing screens actually read from.</p>
+      <div style="margin-top:28px;">
+        <div class="section-label" style="margin-bottom:8px;">Pricing</div>
+        <p class="sub" style="margin-top:0;">Prices editable as a draft, previewed with a live margin badge (90% floor), then published atomically. Not connected to real payments yet — this catalog is what the app's pricing screens actually read from.</p>
         <div id="pricing-content"></div>
       </div>
 
-      <div id="subtab-ratelimits" class="hidden">
-        <p class="sub">Real AI request volume per account, last 24 hours. High usage can mean abuse, or a power user who might want a higher tier.</p>
+      <div style="margin-top:28px;">
+        <div class="section-label" style="margin-bottom:8px;">Rate limits</div>
+        <p class="sub" style="margin-top:0;">Real AI request volume per account, last 24 hours. High usage can mean abuse, or a power user who might want a higher tier.</p>
         <div id="ratelimits-content"></div>
       </div>
 
-      <div id="subtab-costs" class="hidden">
-        <p class="sub">Real spend, from actual logged API costs — not an estimate. Last 60 days.</p>
+      <div style="margin-top:28px;">
+        <div class="section-label" style="margin-bottom:8px;">Costs</div>
+        <p class="sub" style="margin-top:0;">Real spend, from actual logged API costs — not an estimate. Last 60 days.</p>
         <div id="costs-content"></div>
       </div>
     </div>
@@ -364,7 +361,6 @@ document.getElementById('admin-password-input').addEventListener('keydown', (e) 
 });
 
 let activeOverviewSubtab = 'summary';
-let activeFinancesSubtab = 'topups';
 
 function switchTab(tab){
   document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
@@ -376,12 +372,12 @@ function switchTab(tab){
   document.getElementById('tab-finances-btn').classList.toggle('active', tab === 'finances');
   document.getElementById('tab-announcements-btn').classList.toggle('active', tab === 'announcements');
 
-  // Opening a combined tab loads whichever sub-tab was last active
-  // within it (defaulting to the first one), rather than always
-  // resetting back to the beginning.
+  // Opening Overview loads whichever sub-tab was last active within it
+  // (defaulting to Summary), rather than always resetting. Finances
+  // has no sub-tabs anymore — everything loads together as one page.
   if(tab === 'overview') switchOverviewSubtab(activeOverviewSubtab);
   if(tab === 'feedback') loadFeedback();
-  if(tab === 'finances') switchFinancesSubtab(activeFinancesSubtab);
+  if(tab === 'finances') loadFinances();
   if(tab === 'announcements') loadAnnouncements();
 }
 
@@ -395,20 +391,11 @@ function switchOverviewSubtab(subtab){
   if(subtab === 'users') loadUsersAndProfiles();
 }
 
-function switchFinancesSubtab(subtab){
-  activeFinancesSubtab = subtab;
-  document.getElementById('subtab-topups').classList.toggle('hidden', subtab !== 'topups');
-  document.getElementById('subtab-pricing').classList.toggle('hidden', subtab !== 'pricing');
-  document.getElementById('subtab-ratelimits').classList.toggle('hidden', subtab !== 'ratelimits');
-  document.getElementById('subtab-costs').classList.toggle('hidden', subtab !== 'costs');
-  document.getElementById('subtab-topups-btn').classList.toggle('active', subtab === 'topups');
-  document.getElementById('subtab-pricing-btn').classList.toggle('active', subtab === 'pricing');
-  document.getElementById('subtab-ratelimits-btn').classList.toggle('active', subtab === 'ratelimits');
-  document.getElementById('subtab-costs-btn').classList.toggle('active', subtab === 'costs');
-  if(subtab === 'topups') loadTopupRequests();
-  if(subtab === 'pricing') loadPricingCatalog();
-  if(subtab === 'ratelimits') loadRateLimits();
-  if(subtab === 'costs') loadCostDashboard();
+function loadFinances(){
+  loadTopupRequests();
+  loadPricingCatalog();
+  loadRateLimits();
+  loadCostDashboard();
 }
 
 let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
