@@ -1324,6 +1324,52 @@
     padding:20px;
   }
   .unlock-overlay.show{display:flex;}
+  .announcement-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.6);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:300;
+    padding:20px;
+  }
+  .announcement-overlay.show{display:flex;}
+  .announcement-card{
+    background:#1C1C1E;
+    border-radius:16px;
+    padding:26px 24px 22px;
+    width:100%;
+    max-width:360px;
+    position:relative;
+    animation:unlockPop 0.3s cubic-bezier(0.2,1.4,0.4,1);
+  }
+  .announcement-eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:#8E8E93;
+    margin-bottom:10px;
+  }
+  .announcement-message{
+    color:#F5F5F5;
+    font-size:15px;
+    line-height:1.5;
+    margin-bottom:20px;
+  }
+  .announcement-close-btn{
+    width:100%;
+    background:#F5F5F5;
+    color:#1C1C1E;
+    border:none;
+    border-radius:8px;
+    padding:11px;
+    font-weight:700;
+    font-size:13px;
+    cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
   .unlock-card{
     background:var(--card-bg);
     border-radius:20px;
@@ -1802,29 +1848,6 @@
   }
 
   .home-greeting{margin-bottom:20px;}
-  .announcement-banner{
-    display:flex;
-    align-items:flex-start;
-    justify-content:space-between;
-    gap:10px;
-    background:var(--card-bg);
-    border:1.5px solid var(--turf);
-    border-radius:12px;
-    padding:12px 14px;
-    margin-bottom:16px;
-    font-size:13px;
-    color:var(--ink);
-  }
-  .announcement-banner-close{
-    background:none;
-    border:none;
-    color:var(--ink-soft);
-    font-size:18px;
-    line-height:1;
-    cursor:pointer;
-    flex-shrink:0;
-    padding:0;
-  }
   .home-greeting h2{
     font-family:'Anton',sans-serif;
     font-weight:400;
@@ -2774,8 +2797,6 @@
   </div>
 
   <div id="page-home">
-    <div id="announcement-banner" class="hidden"></div>
-
     <div class="home-greeting" id="home-greeting">
       <h2 id="home-greeting-text">Hey there 👋</h2>
       <p id="home-greeting-sub">Ready to work on something today?</p>
@@ -3241,6 +3262,14 @@
     <h2 id="unlock-title">Nice work!</h2>
     <p id="unlock-desc"></p>
     <button class="go-btn" onclick="closeUnlockCelebration()">Sweet!</button>
+  </div>
+</div>
+
+<div class="announcement-overlay" id="announcement-overlay">
+  <div class="announcement-card">
+    <div class="announcement-eyebrow">Announcement</div>
+    <div class="announcement-message" id="announcement-message"></div>
+    <button class="announcement-close-btn" id="announcement-close-btn">Got it</button>
   </div>
 </div>
 
@@ -5447,7 +5476,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.6.0';
+const APP_VERSION = '7.6.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6697,30 +6726,24 @@ function closeVideoHistoryDetail(){
 // (not just "seen any announcement ever") so a new one always shows
 // even if an old one was dismissed.
 async function loadAnnouncementBanner(){
-  const bannerEl = document.getElementById('announcement-banner');
-  if(!bannerEl) return;
   try{
     const { data, error } = await sb.from('announcements').select('id, message').eq('active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
-    if(error || !data){ bannerEl.classList.add('hidden'); return; }
+    if(error || !data) return;
 
     const dismissedId = localStorage.getItem('gritto_dismissed_announcement');
-    if(dismissedId === data.id){ bannerEl.classList.add('hidden'); return; }
+    if(dismissedId === data.id) return;
 
-    bannerEl.innerHTML = `
-      <div>${data.message}</div>
-      <button class="announcement-banner-close" onclick="dismissAnnouncement('${data.id}')" aria-label="Dismiss">×</button>
-    `;
-    bannerEl.classList.remove('hidden');
+    document.getElementById('announcement-message').textContent = data.message;
+    document.getElementById('announcement-close-btn').onclick = () => closeAnnouncementModal(data.id);
+    document.getElementById('announcement-overlay').classList.add('show');
   }catch(err){
     console.error('Could not load announcement:', err.message);
-    bannerEl.classList.add('hidden');
   }
 }
 
-function dismissAnnouncement(id){
-  localStorage.setItem('gritto_dismissed_announcement', id);
-  const bannerEl = document.getElementById('announcement-banner');
-  if(bannerEl) bannerEl.classList.add('hidden');
+function closeAnnouncementModal(id){
+  if(id) localStorage.setItem('gritto_dismissed_announcement', id);
+  document.getElementById('announcement-overlay').classList.remove('show');
 }
 
 async function loadHomeData(){
