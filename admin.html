@@ -145,6 +145,8 @@
       <button class="tab-btn" id="tab-pricing-btn" onclick="switchTab('pricing')">Pricing</button>
       <button class="tab-btn" id="tab-costs-btn" onclick="switchTab('costs')">Costs</button>
       <button class="tab-btn" id="tab-ratelimits-btn" onclick="switchTab('ratelimits')">Rate Limits</button>
+      <button class="tab-btn" id="tab-auditlog-btn" onclick="switchTab('auditlog')">Audit Log</button>
+      <button class="tab-btn" id="tab-announcements-btn" onclick="switchTab('announcements')">Announcements</button>
     </div>
 
     <div id="tab-overview">
@@ -191,6 +193,16 @@
     <div id="tab-ratelimits" class="hidden">
       <p class="sub">Real AI request volume per account, last 24 hours. High usage can mean abuse, or a power user who might want a higher tier.</p>
       <div id="ratelimits-content"></div>
+    </div>
+
+    <div id="tab-auditlog" class="hidden">
+      <p class="sub">A record of admin actions — grants, tier changes, top-up decisions, feedback replies. (Pricing changes have their own history on the Pricing tab.)</p>
+      <div id="auditlog-content"></div>
+    </div>
+
+    <div id="tab-announcements" class="hidden">
+      <p class="sub">A message shown to every user. Posting a new one replaces whatever's currently live.</p>
+      <div id="announcements-content"></div>
     </div>
   </div>
 
@@ -290,6 +302,8 @@ function switchTab(tab){
   document.getElementById('tab-pricing').classList.toggle('hidden', tab !== 'pricing');
   document.getElementById('tab-costs').classList.toggle('hidden', tab !== 'costs');
   document.getElementById('tab-ratelimits').classList.toggle('hidden', tab !== 'ratelimits');
+  document.getElementById('tab-auditlog').classList.toggle('hidden', tab !== 'auditlog');
+  document.getElementById('tab-announcements').classList.toggle('hidden', tab !== 'announcements');
   document.getElementById('tab-overview-btn').classList.toggle('active', tab === 'overview');
   document.getElementById('tab-users-btn').classList.toggle('active', tab === 'users');
   document.getElementById('tab-feedback-btn').classList.toggle('active', tab === 'feedback');
@@ -298,6 +312,8 @@ function switchTab(tab){
   document.getElementById('tab-pricing-btn').classList.toggle('active', tab === 'pricing');
   document.getElementById('tab-costs-btn').classList.toggle('active', tab === 'costs');
   document.getElementById('tab-ratelimits-btn').classList.toggle('active', tab === 'ratelimits');
+  document.getElementById('tab-auditlog-btn').classList.toggle('active', tab === 'auditlog');
+  document.getElementById('tab-announcements-btn').classList.toggle('active', tab === 'announcements');
   if(tab === 'overview') loadOverview();
   if(tab === 'feedback') loadFeedback();
   if(tab === 'profiles') loadProfiles();
@@ -305,6 +321,8 @@ function switchTab(tab){
   if(tab === 'pricing') loadPricingCatalog();
   if(tab === 'costs') loadCostDashboard();
   if(tab === 'ratelimits') loadRateLimits();
+  if(tab === 'auditlog') loadAuditLog();
+  if(tab === 'announcements') loadAnnouncements();
 }
 
 let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an action
@@ -346,6 +364,127 @@ async function loadOverview(){
     `;
   }catch(err){
     contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+const AUDIT_ACTION_LABELS = {
+  change_tier: 'Changed tier',
+  grant_themes_badges: 'Granted themes/badges',
+  profile_update: 'Updated profile',
+  topup_grant: 'Granted top-up',
+  topup_decline: 'Declined top-up',
+  topup_undo: 'Undid top-up decision',
+  feedback_reply: 'Replied to feedback',
+  feedback_reviewed: 'Marked feedback reviewed',
+  announcement_posted: 'Posted announcement',
+  announcement_removed: 'Removed announcement',
+};
+
+async function loadAuditLog(){
+  const contentEl = document.getElementById('auditlog-content');
+  contentEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin?resource=auditlog', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load the audit log.'}</div>`;
+      return;
+    }
+    if(data.logs.length === 0){
+      contentEl.innerHTML = '<div class="empty">No admin actions logged yet.</div>';
+      return;
+    }
+    contentEl.innerHTML = data.logs.map(l => {
+      const label = AUDIT_ACTION_LABELS[l.action] || l.action;
+      const target = l.target_email ? ` — ${l.target_email}` : '';
+      return `
+        <div class="profile-card">
+          <div style="font-size:13px;"><strong>${label}</strong>${target}</div>
+          <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${new Date(l.at).toLocaleString()}</div>
+        </div>
+      `;
+    }).join('');
+  }catch(err){
+    contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+async function loadAnnouncements(){
+  const contentEl = document.getElementById('announcements-content');
+  contentEl.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch('/api/admin?resource=announcements', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      contentEl.innerHTML = `<div class="empty">${data.error || 'Could not load announcements.'}</div>`;
+      return;
+    }
+    const active = data.announcements.find(a => a.active);
+    const past = data.announcements.filter(a => !a.active).slice(0, 10);
+
+    contentEl.innerHTML = `
+      <div class="profile-card">
+        <div class="profile-field-label" style="margin-bottom:6px;">${active ? 'Currently live' : 'Nothing live right now'}</div>
+        ${active ? `
+          <div style="font-size:13px; margin-bottom:8px;">${active.message}</div>
+          <button class="feedback-delete" onclick="takeDownAnnouncement('${active.id}')">Take down</button>
+        ` : ''}
+      </div>
+      <div class="profile-card" style="margin-top:12px;">
+        <div class="profile-field-label" style="margin-bottom:6px;">Post a new one (replaces whatever's live)</div>
+        <textarea id="announcement-input" placeholder="e.g. New feature: exclusive themes are here!" style="width:100%; min-height:60px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:inherit; font-size:13px; box-sizing:border-box;"></textarea>
+        <button class="btn" style="width:auto; padding:9px 16px; margin-top:8px;" onclick="postAnnouncement()">Post</button>
+      </div>
+      ${past.length > 0 ? `
+        <div class="section-label" style="margin:16px 0 8px;">Past announcements</div>
+        ${past.map(a => `<div class="profile-card"><div style="font-size:12px; color:var(--ink-soft);">${a.message}</div><div style="font-size:10.5px; color:var(--ink-soft); margin-top:4px;">${new Date(a.created_at).toLocaleDateString()}</div></div>`).join('')}
+      ` : ''}
+    `;
+  }catch(err){
+    contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+async function postAnnouncement(){
+  const input = document.getElementById('announcement-input');
+  const message = input.value.trim();
+  if(!message){
+    alert('Type a message first.');
+    return;
+  }
+  try{
+    const res = await fetch('/api/admin?resource=announcements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not post the announcement.');
+      return;
+    }
+    loadAnnouncements();
+  }catch(err){
+    alert('Something went wrong — try again.');
+  }
+}
+
+async function takeDownAnnouncement(id){
+  if(!confirm('Take this announcement down?')) return;
+  try{
+    const res = await fetch('/api/admin?resource=announcements', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ id })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      alert(data.error || 'Could not take it down.');
+      return;
+    }
+    loadAnnouncements();
+  }catch(err){
+    alert('Something went wrong — try again.');
   }
 }
 
