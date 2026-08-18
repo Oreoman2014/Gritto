@@ -1802,6 +1802,29 @@
   }
 
   .home-greeting{margin-bottom:20px;}
+  .announcement-banner{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    background:var(--card-bg);
+    border:1.5px solid var(--turf);
+    border-radius:12px;
+    padding:12px 14px;
+    margin-bottom:16px;
+    font-size:13px;
+    color:var(--ink);
+  }
+  .announcement-banner-close{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:18px;
+    line-height:1;
+    cursor:pointer;
+    flex-shrink:0;
+    padding:0;
+  }
   .home-greeting h2{
     font-family:'Anton',sans-serif;
     font-weight:400;
@@ -2751,6 +2774,8 @@
   </div>
 
   <div id="page-home">
+    <div id="announcement-banner" class="hidden"></div>
+
     <div class="home-greeting" id="home-greeting">
       <h2 id="home-greeting-text">Hey there 👋</h2>
       <p id="home-greeting-sub">Ready to work on something today?</p>
@@ -5422,7 +5447,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.5.0';
+const APP_VERSION = '7.6.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -6667,7 +6692,40 @@ function closeVideoHistoryDetail(){
   document.querySelectorAll('.video-history-thumb').forEach(el => el.classList.remove('active'));
 }
 
+// Shows the current live announcement, if there is one and the person
+// hasn't already dismissed THIS specific one. Keyed by announcement id
+// (not just "seen any announcement ever") so a new one always shows
+// even if an old one was dismissed.
+async function loadAnnouncementBanner(){
+  const bannerEl = document.getElementById('announcement-banner');
+  if(!bannerEl) return;
+  try{
+    const { data, error } = await sb.from('announcements').select('id, message').eq('active', true).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if(error || !data){ bannerEl.classList.add('hidden'); return; }
+
+    const dismissedId = localStorage.getItem('gritto_dismissed_announcement');
+    if(dismissedId === data.id){ bannerEl.classList.add('hidden'); return; }
+
+    bannerEl.innerHTML = `
+      <div>${data.message}</div>
+      <button class="announcement-banner-close" onclick="dismissAnnouncement('${data.id}')" aria-label="Dismiss">×</button>
+    `;
+    bannerEl.classList.remove('hidden');
+  }catch(err){
+    console.error('Could not load announcement:', err.message);
+    bannerEl.classList.add('hidden');
+  }
+}
+
+function dismissAnnouncement(id){
+  localStorage.setItem('gritto_dismissed_announcement', id);
+  const bannerEl = document.getElementById('announcement-banner');
+  if(bannerEl) bannerEl.classList.add('hidden');
+}
+
 async function loadHomeData(){
+  loadAnnouncementBanner(); // independent of everything else below, fine to run in parallel
+
   // The routine's streak/stats only exist in memory once the Daily
   // Routine page has loaded them. If Home loads first (it's the default
   // landing page), make sure that happens now instead of showing 0.
