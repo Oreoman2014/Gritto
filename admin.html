@@ -146,8 +146,7 @@
     <div id="tab-overview">
       <div class="tab-row" style="margin-bottom:16px;">
         <button class="tab-btn active" id="subtab-summary-btn" onclick="switchOverviewSubtab('summary')" style="padding:7px 12px; font-size:12.5px;">Summary</button>
-        <button class="tab-btn" id="subtab-profiles-btn" onclick="switchOverviewSubtab('profiles')" style="padding:7px 12px; font-size:12.5px;">Profiles</button>
-        <button class="tab-btn" id="subtab-users-btn" onclick="switchOverviewSubtab('users')" style="padding:7px 12px; font-size:12.5px;">Beta Users</button>
+        <button class="tab-btn" id="subtab-users-btn" onclick="switchOverviewSubtab('users')" style="padding:7px 12px; font-size:12.5px;">Users</button>
       </div>
 
       <div id="subtab-summary">
@@ -155,19 +154,14 @@
         <div id="overview-content"></div>
       </div>
 
-      <div id="subtab-profiles" class="hidden">
-        <p class="sub">Onboarding info for every user — sport, goals, position, injury history, and more.</p>
-        <input type="text" id="profile-search" placeholder="Search by email…" oninput="filterProfiles(this.value)" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:14px; font-size:14px; box-sizing:border-box;">
-        <div id="profiles-list"></div>
-      </div>
-
       <div id="subtab-users" class="hidden">
-        <p class="sub">People on this list can sign in to Gritto with Google. Everyone else is blocked.</p>
+        <p class="sub">Everyone allowed to sign in. Tap a name to see their onboarding profile, if they've gotten that far.</p>
         <div class="add-row">
           <input type="email" id="new-email" placeholder="someone@gmail.com">
           <button class="btn add" style="width:auto; padding:11px 16px;" onclick="addUser()">Add</button>
         </div>
         <div class="error" id="add-error"></div>
+        <input type="text" id="profile-search" placeholder="Search by email…" oninput="filterProfiles(this.value)" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin:10px 0 14px; font-size:14px; box-sizing:border-box;">
         <div id="user-list"></div>
       </div>
     </div>
@@ -238,7 +232,7 @@ async function loadUsers(){
     }
     document.getElementById('admin-login').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    renderUsers(data.users || []);
+    loadUsersAndProfiles();
     loadFeedback(); // populates the tab in the background so the red dot shows immediately, not just after opening the tab
     loadOverview(); // Overview is now the default tab shown on login
   }catch(err){
@@ -246,21 +240,88 @@ async function loadUsers(){
   }
 }
 
-function renderUsers(users){
+let allBetaUsers = []; // cached alongside currentProfiles, so search can filter without re-fetching
+let currentProfiles = []; // matched profiles, keyed by email to allBetaUsers — also used by topUpChecks/removeChecks lookups
+let expandedUserEmails = new Set(); // keeps a profile open across refreshes after an action
+
+async function loadUsersAndProfiles(){
+  const listEl = document.getElementById('user-list');
+  try{
+    const [usersRes, profilesRes] = await Promise.all([
+      fetch('/api/admin?resource=users', { headers: { 'x-admin-password': adminPassword } }),
+      fetch('/api/admin?resource=profiles', { headers: { 'x-admin-password': adminPassword } }),
+    ]);
+    const usersData = await usersRes.json();
+    const profilesData = await profilesRes.json();
+
+    if(!usersData.ok){
+      document.getElementById('admin-login-error').textContent = usersData.error || 'Wrong password.';
+      return;
+    }
+
+    allBetaUsers = usersData.users || [];
+    currentProfiles = profilesData.ok ? (profilesData.profiles || []) : []; // reused by topUpChecks/removeChecks lookups
+    renderCombinedUserList(allBetaUsers);
+  }catch(err){
+    if(listEl) listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
+}
+
+function renderCombinedUserList(users){
   const list = document.getElementById('user-list');
   if(users.length === 0){
     list.innerHTML = '<div class="empty">No beta users added yet.</div>';
     return;
   }
-  list.innerHTML = users.map(u => `
-    <div class="user-row">
-      <div>
-        <div class="user-email">${u.email}</div>
-        <div class="user-date">added ${new Date(u.added_at).toLocaleDateString()}</div>
+
+  // Anyone approaching their hidden Premium cap rises to the top, so
+  // it's visible at a glance rather than requiring a scroll through
+  // everyone to spot it — same behavior as before this view merged
+  // with Profiles, just computed against the matched profile now.
+  const sorted = [...users].sort((a, b) => {
+    const profileA = currentProfiles.find(p => (p.email || '').toLowerCase() === a.email.toLowerCase());
+    const profileB = currentProfiles.find(p => (p.email || '').toLowerCase() === b.email.toLowerCase());
+    const usageA = profileA ? getPremiumMonthlyUsage(profileA) : null;
+    const usageB = profileB ? getPremiumMonthlyUsage(profileB) : null;
+    return (usageB ? usageB.pct : 0) - (usageA ? usageA.pct : 0);
+  });
+
+  list.innerHTML = sorted.map(u => {
+    const profile = currentProfiles.find(p => (p.email || '').toLowerCase() === u.email.toLowerCase());
+    const isOpen = expandedUserEmails.has(u.email);
+    return `
+      <div class="user-row" style="cursor:pointer; flex-direction:column; align-items:stretch;" onclick="toggleUserProfile('${u.email}', event)">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div class="user-email">${u.email}</div>
+            <div class="user-date">added ${new Date(u.added_at).toLocaleDateString()}${profile ? '' : ' · hasn\'t onboarded yet'}</div>
+          </div>
+          <button class="btn small" onclick="event.stopPropagation(); removeUser('${u.email}')">Remove</button>
+        </div>
+        <div id="user-profile-${u.email.replace(/[^a-zA-Z0-9]/g,'_')}" class="${isOpen ? '' : 'hidden'}" style="margin-top:10px;" onclick="event.stopPropagation()">
+          ${profile ? profileCardHTML(profile, false) : '<div class="empty">Hasn\'t completed onboarding yet — no profile to show.</div>'}
+        </div>
       </div>
-      <button class="btn small" onclick="removeUser('${u.email}')">Remove</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+function toggleUserProfile(email, evt){
+  const safeId = email.replace(/[^a-zA-Z0-9]/g, '_');
+  const el = document.getElementById(`user-profile-${safeId}`);
+  if(!el) return;
+  const isOpen = !el.classList.contains('hidden');
+  el.classList.toggle('hidden', isOpen);
+  if(isOpen) expandedUserEmails.delete(email);
+  else expandedUserEmails.add(email);
+}
+
+function filterProfiles(query){
+  const trimmed = query.trim().toLowerCase();
+  const filtered = trimmed
+    ? allBetaUsers.filter(u => u.email.toLowerCase().includes(trimmed))
+    : allBetaUsers;
+  renderCombinedUserList(filtered);
 }
 
 async function addUser(){
@@ -279,7 +340,7 @@ async function addUser(){
     const data = await res.json();
     if(!data.ok){ errorEl.textContent = data.error || 'Could not add that email.'; return; }
     emailInput.value = '';
-    loadUsers();
+    loadUsersAndProfiles();
   }catch(err){
     errorEl.textContent = 'Something went wrong — try again.';
   }
@@ -292,7 +353,7 @@ async function removeUser(email){
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
       body: JSON.stringify({ email })
     });
-    loadUsers();
+    loadUsersAndProfiles();
   }catch(err){
     alert('Could not remove that user — try again.');
   }
@@ -327,14 +388,11 @@ function switchTab(tab){
 function switchOverviewSubtab(subtab){
   activeOverviewSubtab = subtab;
   document.getElementById('subtab-summary').classList.toggle('hidden', subtab !== 'summary');
-  document.getElementById('subtab-profiles').classList.toggle('hidden', subtab !== 'profiles');
   document.getElementById('subtab-users').classList.toggle('hidden', subtab !== 'users');
   document.getElementById('subtab-summary-btn').classList.toggle('active', subtab === 'summary');
-  document.getElementById('subtab-profiles-btn').classList.toggle('active', subtab === 'profiles');
   document.getElementById('subtab-users-btn').classList.toggle('active', subtab === 'users');
   if(subtab === 'summary') loadOverview();
-  if(subtab === 'profiles') loadProfiles();
-  if(subtab === 'users') loadUsers();
+  if(subtab === 'users') loadUsersAndProfiles();
 }
 
 function switchFinancesSubtab(subtab){
@@ -950,59 +1008,6 @@ function getPremiumMonthlyUsage(p){
   return { usedThisMonth, pct: usedThisMonth / PREMIUM_MONTHLY_CAP };
 }
 
-async function loadProfiles(){
-  const listEl = document.getElementById('profiles-list');
-  listEl.innerHTML = '<div class="empty">Loading…</div>';
-  try{
-    const res = await fetch('/api/admin?resource=profiles', {
-      headers: { 'x-admin-password': adminPassword }
-    });
-    const data = await res.json();
-    if(!data.ok){
-      listEl.innerHTML = `<div class="empty">${data.error || 'Could not load profiles.'}</div>`;
-      return;
-    }
-    renderProfiles(data.profiles || []);
-  }catch(err){
-    listEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
-  }
-}
-
-let currentProfiles = []; // cached so Edit/Cancel can re-render without re-fetching
-
-function renderProfiles(profiles){
-  // Anyone approaching their hidden Premium cap rises to the top, so
-  // it's visible at a glance rather than requiring a scroll through
-  // everyone to spot it.
-  const sorted = [...profiles].sort((a, b) => {
-    const usageA = getPremiumMonthlyUsage(a);
-    const usageB = getPremiumMonthlyUsage(b);
-    return (usageB ? usageB.pct : 0) - (usageA ? usageA.pct : 0);
-  });
-  currentProfiles = sorted; // full cache — topUpChecks/removeChecks/etc look users up from this regardless of the search filter
-  document.getElementById('profile-search').value = ''; // fresh load, clear any previous search
-  displayProfiles(sorted);
-}
-
-function displayProfiles(profiles){
-  const listEl = document.getElementById('profiles-list');
-  if(profiles.length === 0){
-    listEl.innerHTML = '<div class="empty">No profiles yet.</div>';
-    return;
-  }
-  listEl.innerHTML = profiles.map(p => profileCardHTML(p, false)).join('');
-}
-
-function filterProfiles(query){
-  const trimmed = query.trim().toLowerCase();
-  if(!trimmed){
-    displayProfiles(currentProfiles);
-    return;
-  }
-  const filtered = currentProfiles.filter(p => (p.email || '').toLowerCase().includes(trimmed));
-  displayProfiles(filtered);
-}
-
 // Kept in sync with the THEMES/BADGES lists in index.html — just id +
 // name, enough to render grant checkboxes here in the admin panel.
 const ADMIN_THEMES = [
@@ -1214,7 +1219,7 @@ async function topUpChecks(userId, amount){
       alert(data.error || 'Could not add the top-up.');
       return;
     }
-    await loadProfiles(); // refresh from the server so the shown count is never stale
+    await loadUsersAndProfiles(); // refresh from the server so the shown count is never stale
     editProfile(userId); // re-open edit mode on the same profile so the admin sees the update immediately
   }catch(err){
     alert('Something went wrong — try again.');
@@ -1245,7 +1250,7 @@ async function removeChecks(userId, amount){
       alert(data.error || 'Could not remove the checks.');
       return;
     }
-    await loadProfiles();
+    await loadUsersAndProfiles();
     editProfile(userId);
   }catch(err){
     alert('Something went wrong — try again.');
@@ -1298,7 +1303,7 @@ async function saveProfile(userId){
       alert(data.error || 'Could not save changes.');
       return;
     }
-    loadProfiles(); // refresh from the server so the card reflects what actually saved
+    loadUsersAndProfiles(); // refresh from the server so the card reflects what actually saved
   }catch(err){
     alert('Something went wrong saving that — try again.');
   }
