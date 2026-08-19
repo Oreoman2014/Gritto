@@ -78,6 +78,7 @@ module.exports = async function handler(req, res) {
     if (resource === 'auditlog') return await handleAuditLog(req, res, supabaseUrl, baseHeaders);
     if (resource === 'announcements') return await handleAnnouncements(req, res, supabaseUrl, baseHeaders);
     if (resource === 'resettestpurchases') return await handleResetTestPurchases(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'promotions') return await handlePromotions(req, res, supabaseUrl, baseHeaders);
     return res.status(400).json({ ok: false, error: `Unknown resource: ${resource}` });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
@@ -870,6 +871,142 @@ async function handleResetTestPurchases(req, res, supabaseUrl, baseHeaders) {
 
     await logAdminAction(supabaseUrl, baseHeaders, 'reset_test_purchases', null, { accounts_reset: affectedCount });
     return res.status(200).json({ ok: true, accounts_reset: affectedCount });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
+// ---- Promotions ----
+// Time-limited discounted pricing on a single plan or top-up, fully
+// separate from the catalog draft/publish workflow. Creating one
+// automatically posts an announcement (auto-generated text, per the
+// decision to keep this simple rather than have the admin write
+// their own copy each time).
+async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
+  if (req.method === 'GET') {
+    const promoRes = await fetch(
+      `${supabaseUrl}/rest/v1/promotions?active=eq.true&select=*&order=created_at.desc`,
+      { headers: baseHeaders }
+    );
+    const promos = await promoRes.json();
+    return res.status(200).json({ ok: true, promotions: Array.isArray(promos) ? promos : [] });
+  }
+
+  if (req.method === 'POST') {
+    const { target_type, target_key, promo_price_cents, days, hours, minutes, override_guardrail, reason } = req.body || {};
+    if (!target_type || !target_key || !promo_price_cents) {
+      return res.status(400).json({ ok: false, error: 'target_type, target_key, and promo_price_cents are required.' });
+    }
+    const totalMinutes = (Number(days) || 0) * 1440 + (Number(hours) || 0) * 60 + (Number(minutes) || 0);
+    if (totalMinutes <= 0) {
+      return res.status(400).json({ ok: false, error: 'Duration must be at least a minute.' });
+    }
+
+    // Snapshot the current published price for this item.
+    const versionRes = await fetch(
+      `${supabaseUrl}/rest/v1/catalog_version?status=eq.published&select=id&order=published_at.desc&limit=1`,
+      { headers: baseHeaders }
+    );
+    const versionRows = await versionRes.json();
+    const versionId = Array.isArray(versionRows) && versionRows[0] ? versionRows[0].id : null;
+    if (!versionId) {
+      return res.status(400).json({ ok: false, error: 'No published catalog to promote from.' });
+    }
+
+    const table = target_type === 'plan' ? 'plan_catalog' : 'topup_catalog';
+    const itemRes = await fetch(
+      `${supabaseUrl}/rest/v1/${table}?version_id=eq.${versionId}&${target_type === 'plan' ? 'plan_key' : 'pack_key'}=eq.${target_key}&select=*`,
+      { headers: baseHeaders }
+    );
+    const itemRows = await itemRes.json();
+    const item = Array.isArray(itemRows) && itemRows[0] ? itemRows[0] : null;
+    if (!item) {
+      return res.status(404).json({ ok: false, error: 'Item not found in the published catalog.' });
+    }
+
+    // Same margin guardrail the regular pricing edits use — a
+    // promotion is still a real price, and the same 85% floor
+    // reasoning applies, with the same override path.
+    const unitsAssumed = target_type === 'plan'
+      ? (target_key === 'premium' ? REALISTIC_WORST_CASE_MONTHLY_CHECKS : (item.bonus_checks || 0))
+      : (item.units || 0);
+    const { margin } = computeMargin(promo_price_cents, unitsAssumed);
+    if (margin !== null && margin < MARGIN_FLOOR && !override_guardrail) {
+      return res.status(400).json({
+        ok: false, error: 'guardrail_blocked',
+        message: `This promo price puts margin at ${(margin * 100).toFixed(1)}%, below the ${(MARGIN_FLOOR * 100).toFixed(0)}% floor. Override with a reason to run it anyway.`,
+        margin,
+      });
+    }
+    if (margin !== null && margin < MARGIN_FLOOR && override_guardrail && (!reason || reason.trim().length < 10)) {
+      return res.status(400).json({ ok: false, error: 'A reason of at least 10 characters is required to override the margin guardrail.' });
+    }
+
+    const endsAt = new Date(Date.now() + totalMinutes * 60000).toISOString();
+    const pctOff = Math.round((1 - promo_price_cents / item.amount_cents) * 100);
+    const displayName = item.display_name || target_key;
+    const announcementMessage = `${displayName} is ${pctOff}% off for a limited time!`;
+
+    // Deactivate any currently-live announcement, then post the
+    // auto-generated one — same one-active-at-a-time rule the regular
+    // announcement flow already uses.
+    await fetch(`${supabaseUrl}/rest/v1/announcements?active=eq.true`, {
+      method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+    });
+    const annRes = await fetch(`${supabaseUrl}/rest/v1/announcements`, {
+      method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
+      body: JSON.stringify({ message: announcementMessage, active: true, created_by: 'promotion' }),
+    });
+    const annRows = await annRes.json();
+    const announcementId = Array.isArray(annRows) && annRows[0] ? annRows[0].id : null;
+
+    const promoRes = await fetch(`${supabaseUrl}/rest/v1/promotions`, {
+      method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        target_type, target_key,
+        original_price_cents: item.amount_cents,
+        promo_price_cents,
+        ends_at: endsAt,
+        active: true,
+        announcement_id: announcementId,
+      }),
+    });
+    if (!promoRes.ok) {
+      return res.status(400).json({ ok: false, error: 'Could not create the promotion.' });
+    }
+
+    await logAdminAction(supabaseUrl, baseHeaders, 'promotion_created', null, {
+      target_type, target_key, promo_price_cents, original_price_cents: item.amount_cents, ends_at: endsAt,
+      guardrail_overridden: !!override_guardrail, reason: reason || null,
+    });
+
+    return res.status(200).json({ ok: true, margin });
+  }
+
+  if (req.method === 'PATCH') {
+    const { id } = req.body || {};
+    if (!id) return res.status(400).json({ ok: false, error: 'Promotion id is required.' });
+
+    const promoRes = await fetch(`${supabaseUrl}/rest/v1/promotions?id=eq.${id}&select=*`, { headers: baseHeaders });
+    const promoRows = await promoRes.json();
+    const promo = Array.isArray(promoRows) && promoRows[0] ? promoRows[0] : null;
+    if (!promo) return res.status(404).json({ ok: false, error: 'Promotion not found.' });
+
+    await fetch(`${supabaseUrl}/rest/v1/promotions?id=eq.${id}`, {
+      method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+    });
+
+    // Retire the announcement too, if it's still the live one — a
+    // stale "10% off!" announcement after the promo is taken down
+    // would be actively misleading.
+    if (promo.announcement_id) {
+      await fetch(`${supabaseUrl}/rest/v1/announcements?id=eq.${promo.announcement_id}&active=eq.true`, {
+        method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+      });
+    }
+
+    await logAdminAction(supabaseUrl, baseHeaders, 'promotion_taken_down', null, { target_type: promo.target_type, target_key: promo.target_key });
+    return res.status(200).json({ ok: true });
   }
 
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
