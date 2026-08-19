@@ -435,6 +435,30 @@ async function resetTestPurchases(){
   }
 }
 
+function renderGrowthChart(trend){
+  if(!trend || trend.length === 0) return '';
+  const maxTotal = Math.max(...trend.map(d => d.total), 1);
+  // 30 days is too dense to label every bar — only every 5th gets a
+  // visible date, matching how the Costs trend chart stays readable.
+  const bars = trend.map((d, i) => {
+    const heightPct = Math.max(2, (d.total / maxTotal) * 100);
+    const showLabel = i % 5 === 0 || i === trend.length - 1;
+    const label = showLabel ? new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+    return `
+      <div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:4px;">
+        <div style="width:100%; height:50px; display:flex; align-items:flex-end;">
+          <div style="width:100%; height:${heightPct}%; background:var(--turf); border-radius:2px 2px 0 0;"></div>
+        </div>
+        <div style="font-size:8px; color:var(--ink-soft); writing-mode:vertical-rl; transform:rotate(180deg); height:28px;">${label}</div>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="section-label" style="margin-bottom:8px;">Total users, last 30 days</div>
+    <div class="profile-card" style="display:flex; gap:2px; align-items:flex-end; margin-bottom:16px;">${bars}</div>
+  `;
+}
+
 async function loadOverview(){
   const contentEl = document.getElementById('overview-content');
   try{
@@ -465,6 +489,7 @@ async function loadOverview(){
           <div style="font-family:monospace; font-size:24px; font-weight:700;">${data.newUsersThisWeek}</div>
         </div>
       </div>
+      ${renderGrowthChart(data.growthTrend)}
       <div class="section-label" style="margin-bottom:8px;">Needs your attention</div>
       ${needsAttentionHtml}
 
@@ -786,6 +811,22 @@ function renderPromotionForm(){
       <input type="number" step="0.01" id="promo-price-input" style="width:120px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:monospace;" oninput="updatePromoMarginPreview()">
       <div id="promo-margin-preview" style="font-size:12px; margin:6px 0 12px;"></div>
 
+      <div class="profile-field-label" style="margin-bottom:6px;">Starts in <span style="font-weight:400; color:var(--ink-soft);">(leave at 0 to start right away)</span></div>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+        <div>
+          <input type="number" min="0" id="promo-start-days" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">days</div>
+        </div>
+        <div>
+          <input type="number" min="0" id="promo-start-hours" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">hours</div>
+        </div>
+        <div>
+          <input type="number" min="0" id="promo-start-minutes" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">minutes</div>
+        </div>
+      </div>
+
       <div class="profile-field-label" style="margin-bottom:6px;">Runs for</div>
       <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
         <div>
@@ -837,6 +878,9 @@ async function createPromotion(){
   const select = document.getElementById('promo-item-select');
   const [target_type, target_key] = select.value.split(':');
   const promo_price_cents = Math.round(parseFloat(document.getElementById('promo-price-input').value || '0') * 100);
+  const start_days = parseInt(document.getElementById('promo-start-days').value) || 0;
+  const start_hours = parseInt(document.getElementById('promo-start-hours').value) || 0;
+  const start_minutes = parseInt(document.getElementById('promo-start-minutes').value) || 0;
   const days = parseInt(document.getElementById('promo-days').value) || 0;
   const hours = parseInt(document.getElementById('promo-hours').value) || 0;
   const minutes = parseInt(document.getElementById('promo-minutes').value) || 0;
@@ -853,7 +897,7 @@ async function createPromotion(){
   const res = await fetch('/api/admin?resource=promotions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-    body: JSON.stringify({ target_type, target_key, promo_price_cents, days, hours, minutes })
+    body: JSON.stringify({ target_type, target_key, promo_price_cents, days, hours, minutes, start_days, start_hours, start_minutes })
   });
   const data = await res.json();
 
@@ -868,7 +912,7 @@ async function createPromotion(){
     const overrideRes = await fetch('/api/admin?resource=promotions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-      body: JSON.stringify({ target_type, target_key, promo_price_cents, days, hours, minutes, override_guardrail: true, reason })
+      body: JSON.stringify({ target_type, target_key, promo_price_cents, days, hours, minutes, start_days, start_hours, start_minutes, override_guardrail: true, reason })
     });
     const overrideData = await overrideRes.json();
     if(!overrideData.ok){
@@ -908,20 +952,23 @@ async function loadPromotions(){
       return;
     }
     const now = Date.now();
-    const live = data.promotions.filter(p => new Date(p.ends_at).getTime() > now);
-    if(live.length === 0){
+    const notEnded = data.promotions.filter(p => new Date(p.ends_at).getTime() > now);
+    if(notEnded.length === 0){
       areaEl.innerHTML = '';
       return;
     }
     areaEl.innerHTML = `
-      <div class="section-label" style="margin:16px 0 8px;">Active promotions</div>
-      ${live.map(p => {
-        const remaining = new Date(p.ends_at).getTime() - now;
+      <div class="section-label" style="margin:16px 0 8px;">Promotions</div>
+      ${notEnded.map(p => {
+        const isScheduled = new Date(p.starts_at).getTime() > now;
+        const statusText = isScheduled
+          ? `Starts in ${formatDuration(new Date(p.starts_at).getTime() - now)}`
+          : `Ends in ${formatDuration(new Date(p.ends_at).getTime() - now)}`;
         return `
           <div class="profile-card" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-size:13px; font-weight:600;">${p.target_key} — $${(p.original_price_cents/100).toFixed(2)} → $${(p.promo_price_cents/100).toFixed(2)}</div>
-              <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">Ends in ${formatDuration(remaining)}</div>
+              <div style="font-size:13px; font-weight:600;">${p.target_key} — $${(p.original_price_cents/100).toFixed(2)} → $${(p.promo_price_cents/100).toFixed(2)}${isScheduled ? ' <span style="font-weight:400; color:var(--ink-soft);">(scheduled)</span>' : ''}</div>
+              <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">${statusText}</div>
             </div>
             <button class="feedback-delete" onclick="takeDownPromotion('${p.id}')">Take down</button>
           </div>
@@ -1313,7 +1360,11 @@ function profileCardHTML(p, editing){
       ${grantsNote}
       ${tierNote}
       ${usageNote}
-      <button class="feedback-delete" style="color:var(--ink);" onclick="editProfile('${uid}')">Edit</button>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button class="feedback-delete" style="color:var(--ink);" onclick="editProfile('${uid}')">Edit</button>
+        <button class="feedback-delete" style="color:var(--ink);" onclick="toggleUserActivity('${uid}')">View activity</button>
+      </div>
+      <div id="user-activity-${uid}" class="hidden" style="margin-top:10px;"></div>
     </div>
   `;
   }
