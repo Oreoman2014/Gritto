@@ -785,6 +785,14 @@ let promotionFormOpen = false;
 
 function togglePromotionForm(){
   promotionFormOpen = !promotionFormOpen;
+  promoScheduleMode = false; // always start a fresh form in the default immediate mode
+  renderPromotionForm();
+}
+
+let promoScheduleMode = false;
+
+function togglePromoScheduleMode(){
+  promoScheduleMode = !promoScheduleMode;
   renderPromotionForm();
 }
 
@@ -800,35 +808,17 @@ function renderPromotionForm(){
   const planOptions = d.plans.map(p => `<option value="plan:${p.plan_key}">${p.display_name} — $${(p.amount_cents/100).toFixed(2)}</option>`).join('');
   const topupOptions = d.topups.map(t => `<option value="topup:${t.pack_key}">+${t.units} checks — $${(t.amount_cents/100).toFixed(2)}</option>`).join('');
 
-  areaEl.innerHTML = `
-    <div class="profile-card" style="margin-top:12px;">
-      <div class="profile-field-label" style="margin-bottom:4px;">Item</div>
-      <select id="promo-item-select" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-bottom:12px;" onchange="updatePromoMarginPreview()">
-        ${planOptions}${topupOptions}
-      </select>
-
-      <div class="profile-field-label" style="margin-bottom:4px;">Promo price</div>
-      <input type="number" step="0.01" id="promo-price-input" style="width:120px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:monospace;" oninput="updatePromoMarginPreview()">
-      <div id="promo-margin-preview" style="font-size:12px; margin:6px 0 12px;"></div>
-
-      <div class="profile-field-label" style="margin-bottom:6px;">Starts in <span style="font-weight:400; color:var(--ink-soft);">(leave at 0 to start right away)</span></div>
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
-        <div>
-          <input type="number" min="0" id="promo-start-days" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
-          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">days</div>
-        </div>
-        <div>
-          <input type="number" min="0" id="promo-start-hours" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
-          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">hours</div>
-        </div>
-        <div>
-          <input type="number" min="0" id="promo-start-minutes" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
-          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">minutes</div>
-        </div>
-      </div>
-
+  const durationFieldsHtml = promoScheduleMode
+    ? `
+      <div class="profile-field-label" style="margin-bottom:4px;">Starts on</div>
+      <input type="datetime-local" id="promo-start-datetime" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-bottom:12px;">
+      <div class="profile-field-label" style="margin-bottom:4px;">Ends on</div>
+      <input type="datetime-local" id="promo-end-datetime" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-bottom:6px;">
+      <div style="margin-bottom:12px;"><a href="#" onclick="togglePromoScheduleMode(); return false;" style="font-size:12px; color:var(--turf);">‹ Back to starting right away</a></div>
+    `
+    : `
       <div class="profile-field-label" style="margin-bottom:6px;">Runs for</div>
-      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:8px;">
         <div>
           <input type="number" min="0" id="promo-days" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
           <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">days</div>
@@ -842,6 +832,21 @@ function renderPromotionForm(){
           <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">minutes</div>
         </div>
       </div>
+      <div style="margin-bottom:12px;"><a href="#" onclick="togglePromoScheduleMode(); return false;" style="font-size:12px; color:var(--turf);">Schedule a promo instead ›</a></div>
+    `;
+
+  areaEl.innerHTML = `
+    <div class="profile-card" style="margin-top:12px;">
+      <div class="profile-field-label" style="margin-bottom:4px;">Item</div>
+      <select id="promo-item-select" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-bottom:12px;" onchange="updatePromoMarginPreview()">
+        ${planOptions}${topupOptions}
+      </select>
+
+      <div class="profile-field-label" style="margin-bottom:4px;">Promo price</div>
+      <input type="number" step="0.01" id="promo-price-input" style="width:120px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:monospace;" oninput="updatePromoMarginPreview()">
+      <div id="promo-margin-preview" style="font-size:12px; margin:6px 0 12px;"></div>
+
+      ${durationFieldsHtml}
 
       <button class="btn" style="width:auto; padding:9px 16px;" onclick="createPromotion()">Go live</button>
       <button class="feedback-delete" onclick="togglePromotionForm()">Cancel</button>
@@ -878,20 +883,43 @@ async function createPromotion(){
   const select = document.getElementById('promo-item-select');
   const [target_type, target_key] = select.value.split(':');
   const promo_price_cents = Math.round(parseFloat(document.getElementById('promo-price-input').value || '0') * 100);
-  const start_days = parseInt(document.getElementById('promo-start-days').value) || 0;
-  const start_hours = parseInt(document.getElementById('promo-start-hours').value) || 0;
-  const start_minutes = parseInt(document.getElementById('promo-start-minutes').value) || 0;
-  const days = parseInt(document.getElementById('promo-days').value) || 0;
-  const hours = parseInt(document.getElementById('promo-hours').value) || 0;
-  const minutes = parseInt(document.getElementById('promo-minutes').value) || 0;
 
   if(!promo_price_cents){
     alert('Enter a promo price.');
     return;
   }
-  if(days === 0 && hours === 0 && minutes === 0){
-    alert('Set how long this should run.');
-    return;
+
+  let start_days = 0, start_hours = 0, start_minutes = 0, days = 0, hours = 0, minutes = 0;
+
+  if(promoScheduleMode){
+    const startVal = document.getElementById('promo-start-datetime').value;
+    const endVal = document.getElementById('promo-end-datetime').value;
+    if(!startVal || !endVal){
+      alert('Pick both a start and end date/time.');
+      return;
+    }
+    const startMs = new Date(startVal).getTime();
+    const endMs = new Date(endVal).getTime();
+    if(endMs <= startMs){
+      alert('The end date has to be after the start date.');
+      return;
+    }
+    const startDelayMinutes = Math.max(0, Math.round((startMs - Date.now()) / 60000));
+    const runMinutes = Math.round((endMs - startMs) / 60000);
+    start_days = Math.floor(startDelayMinutes / 1440);
+    start_hours = Math.floor((startDelayMinutes % 1440) / 60);
+    start_minutes = startDelayMinutes % 60;
+    days = Math.floor(runMinutes / 1440);
+    hours = Math.floor((runMinutes % 1440) / 60);
+    minutes = runMinutes % 60;
+  }else{
+    days = parseInt(document.getElementById('promo-days').value) || 0;
+    hours = parseInt(document.getElementById('promo-hours').value) || 0;
+    minutes = parseInt(document.getElementById('promo-minutes').value) || 0;
+    if(days === 0 && hours === 0 && minutes === 0){
+      alert('Set how long this should run.');
+      return;
+    }
   }
 
   const res = await fetch('/api/admin?resource=promotions', {
@@ -925,6 +953,7 @@ async function createPromotion(){
   }
 
   promotionFormOpen = false;
+  promoScheduleMode = false;
   loadPricingCatalog();
 }
 
@@ -1463,6 +1492,82 @@ function profileCardHTML(p, editing){
       </div>
     </div>
   `;
+}
+
+let loadedUserActivity = new Set(); // avoid re-fetching every time a card is re-expanded
+
+async function toggleUserActivity(userId){
+  const el = document.getElementById(`user-activity-${userId}`);
+  if(!el) return;
+  const isOpen = !el.classList.contains('hidden');
+  if(isOpen){
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+  if(loadedUserActivity.has(userId)) return; // already fetched, just showing it again
+
+  el.innerHTML = '<div class="empty">Loading…</div>';
+  try{
+    const res = await fetch(`/api/admin?resource=useractivity&user_id=${userId}`, { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok){
+      el.innerHTML = `<div class="empty">${data.error || 'Could not load activity.'}</div>`;
+      return;
+    }
+    loadedUserActivity.add(userId);
+
+    const recentDrillsHtml = data.recentDrills.length
+      ? data.recentDrills.map(d => `<div style="font-size:11.5px; padding:4px 0; border-top:1px solid var(--line);">${d.sport} — ${new Date(d.created_at).toLocaleDateString()}</div>`).join('')
+      : '<div style="font-size:11.5px; color:var(--ink-soft);">No drills yet.</div>';
+
+    const recentVideosHtml = data.recentVideos.length
+      ? data.recentVideos.map(v => `<div style="font-size:11.5px; padding:4px 0; border-top:1px solid var(--line);">${v.sport} — ${v.score != null ? v.score : '—'} — ${new Date(v.created_at).toLocaleDateString()}</div>`).join('')
+      : '<div style="font-size:11.5px; color:var(--ink-soft);">No video checks yet.</div>';
+
+    const feedbackHtml = data.feedback.length
+      ? data.feedback.map(f => `
+          <div style="font-size:11.5px; padding:6px 0; border-top:1px solid var(--line);">
+            <div>${f.message}</div>
+            ${f.admin_reply ? `<div style="color:var(--ink-soft); margin-top:2px;">Your reply: "${f.admin_reply}"</div>` : f.ai_response ? `<div style="color:var(--ink-soft); margin-top:2px;">AI replied: "${f.ai_response}"</div>` : ''}
+          </div>
+        `).join('')
+      : '<div style="font-size:11.5px; color:var(--ink-soft);">No feedback sent.</div>';
+
+    const topupsHtml = data.topupRequests.length
+      ? data.topupRequests.map(t => `<div style="font-size:11.5px; padding:4px 0; border-top:1px solid var(--line);">+${t.pack_size} checks — ${t.status} — ${new Date(t.created_at).toLocaleDateString()}</div>`).join('')
+      : '<div style="font-size:11.5px; color:var(--ink-soft);">No top-up requests.</div>';
+
+    el.innerHTML = `
+      <div class="profile-card" style="background:var(--paper, #F7F9FB);">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:var(--ink-soft);">Total drills</div>
+            <div style="font-family:monospace; font-size:18px; font-weight:700;">${data.totalDrills}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:var(--ink-soft);">Video checks</div>
+            <div style="font-family:monospace; font-size:18px; font-weight:700;">${data.totalVideoChecks}</div>
+          </div>
+        </div>
+        ${data.avgScore !== null ? `<div style="text-align:center; font-size:11.5px; margin-bottom:12px;">Average score: <strong>${data.avgScore.toFixed(1)}</strong></div>` : ''}
+
+        <div class="profile-field-label" style="margin-bottom:4px;">Recent drills</div>
+        ${recentDrillsHtml}
+
+        <div class="profile-field-label" style="margin:10px 0 4px;">Recent video checks</div>
+        ${recentVideosHtml}
+
+        <div class="profile-field-label" style="margin:10px 0 4px;">Feedback sent</div>
+        ${feedbackHtml}
+
+        <div class="profile-field-label" style="margin:10px 0 4px;">Top-up requests</div>
+        ${topupsHtml}
+      </div>
+    `;
+  }catch(err){
+    el.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
+  }
 }
 
 function editProfile(userId){
