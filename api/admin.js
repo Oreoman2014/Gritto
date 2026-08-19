@@ -77,6 +77,7 @@ module.exports = async function handler(req, res) {
     if (resource === 'ratelimits') return await handleRateLimits(req, res, supabaseUrl, baseHeaders);
     if (resource === 'auditlog') return await handleAuditLog(req, res, supabaseUrl, baseHeaders);
     if (resource === 'announcements') return await handleAnnouncements(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'resettestpurchases') return await handleResetTestPurchases(req, res, supabaseUrl, baseHeaders);
     return res.status(400).json({ ok: false, error: `Unknown resource: ${resource}` });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
@@ -221,6 +222,12 @@ async function handleProfiles(req, res, supabaseUrl, baseHeaders) {
     if (Object.keys(safeUpdates).length === 0) {
       return res.status(400).json({ ok: false, error: 'No editable fields were provided.' });
     }
+
+    // Tag this as an admin grant whenever the tier itself is being
+    // set here — the counterpart to api/fake-purchase.js tagging its
+    // own writes as 'test_purchase'. This is what lets a future
+    // "reset test purchases" action safely leave admin grants alone.
+    if ('premium_tier' in safeUpdates) safeUpdates.purchase_source = 'admin_grant';
 
     const response = await fetch(
       `${supabaseUrl}/rest/v1/user_profile?user_id=eq.${encodeURIComponent(user_id)}`,
@@ -810,6 +817,59 @@ async function handleAnnouncements(req, res, supabaseUrl, baseHeaders) {
     }
     await logAdminAction(supabaseUrl, baseHeaders, 'announcement_removed', null, { announcement_id: id });
     return res.status(200).json({ ok: true });
+  }
+
+  return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
+// ---- Reset test purchases ----
+// Only resets accounts tagged purchase_source='test_purchase' — set
+// by api/fake-purchase.js whenever someone uses the test-mode Buy Now
+// flow. Tiers Aaryav grants manually through this panel are tagged
+// 'admin_grant' instead and are never touched by this action.
+async function handleResetTestPurchases(req, res, supabaseUrl, baseHeaders) {
+  if (req.method === 'GET') {
+    // Preview: how many accounts would this affect, before anyone commits.
+    const previewRes = await fetch(
+      `${supabaseUrl}/rest/v1/user_profile?purchase_source=eq.test_purchase&select=user_id`,
+      { headers: baseHeaders }
+    );
+    const rows = await previewRes.json();
+    return res.status(200).json({ ok: true, count: Array.isArray(rows) ? rows.length : 0 });
+  }
+
+  if (req.method === 'POST') {
+    const { confirm } = req.body || {};
+    if (confirm !== true) {
+      return res.status(400).json({ ok: false, error: 'Confirmation required.' });
+    }
+
+    const previewRes = await fetch(
+      `${supabaseUrl}/rest/v1/user_profile?purchase_source=eq.test_purchase&select=user_id`,
+      { headers: baseHeaders }
+    );
+    const rows = await previewRes.json();
+    const affectedCount = Array.isArray(rows) ? rows.length : 0;
+
+    const resetRes = await fetch(
+      `${supabaseUrl}/rest/v1/user_profile?purchase_source=eq.test_purchase`,
+      {
+        method: 'PATCH', headers: baseHeaders,
+        body: JSON.stringify({
+          premium_tier: null,
+          bonus_checks_granted: 0,
+          bonus_checks_used: 0,
+          checks_this_month: 0,
+          purchase_source: null,
+        }),
+      }
+    );
+    if (!resetRes.ok) {
+      return res.status(400).json({ ok: false, error: 'Could not reset test purchases.' });
+    }
+
+    await logAdminAction(supabaseUrl, baseHeaders, 'reset_test_purchases', null, { accounts_reset: affectedCount });
+    return res.status(200).json({ ok: true, accounts_reset: affectedCount });
   }
 
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
