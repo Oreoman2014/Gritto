@@ -725,23 +725,227 @@ function renderPricingCatalog(){
     contentEl.innerHTML = `
       <div class="profile-card">
         <p style="font-size:13px; margin:0 0 12px;">Showing the live published catalog. Start a draft to make changes — nothing goes live until you publish.</p>
-        <button class="btn" style="width:auto; padding:9px 16px;" onclick="startPricingDraft()">Start editing</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" style="width:auto; padding:9px 16px;" onclick="startPricingDraft()">Start editing</button>
+          <button class="btn" style="width:auto; padding:9px 16px; background:#fff; color:var(--turf); border:1.5px solid var(--turf);" onclick="togglePromotionForm()">New promotion</button>
+        </div>
       </div>
+      <div id="promotion-form-area"></div>
+      <div id="active-promotions-area"></div>
       <div style="margin-top:16px;">${renderPricingRows(d.plans, d.topups, false)}</div>
       ${renderAuditLog(d.audit)}
     `;
+    loadPromotions();
     return;
   }
 
   contentEl.innerHTML = `
     <div class="profile-card" style="background:#FEF3C7;">
       <p style="font-size:13px; margin:0 0 12px; font-weight:600;">You're editing a draft. Nothing here is live until you publish.</p>
-      <button class="btn" style="width:auto; padding:9px 16px;" onclick="publishPricingDraft()">Publish</button>
-      <button class="feedback-delete" style="margin-left:10px;" onclick="discardPricingDraft()">Discard draft</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" style="width:auto; padding:9px 16px;" onclick="publishPricingDraft()">Publish</button>
+        <button class="feedback-delete" onclick="discardPricingDraft()">Discard draft</button>
+        <button class="btn" style="width:auto; padding:9px 16px; background:#fff; color:var(--turf); border:1.5px solid var(--turf);" onclick="togglePromotionForm()">New promotion</button>
+      </div>
     </div>
+    <div id="promotion-form-area"></div>
+    <div id="active-promotions-area"></div>
     <div style="margin-top:16px;">${renderPricingRows(d.plans, d.topups, true)}</div>
     ${renderAuditLog(d.audit)}
   `;
+  loadPromotions();
+}
+
+let promotionFormOpen = false;
+
+function togglePromotionForm(){
+  promotionFormOpen = !promotionFormOpen;
+  renderPromotionForm();
+}
+
+function renderPromotionForm(){
+  const areaEl = document.getElementById('promotion-form-area');
+  if(!areaEl) return;
+  if(!promotionFormOpen){
+    areaEl.innerHTML = '';
+    return;
+  }
+
+  const d = pricingCatalogState;
+  const planOptions = d.plans.map(p => `<option value="plan:${p.plan_key}">${p.display_name} — $${(p.amount_cents/100).toFixed(2)}</option>`).join('');
+  const topupOptions = d.topups.map(t => `<option value="topup:${t.pack_key}">+${t.units} checks — $${(t.amount_cents/100).toFixed(2)}</option>`).join('');
+
+  areaEl.innerHTML = `
+    <div class="profile-card" style="margin-top:12px;">
+      <div class="profile-field-label" style="margin-bottom:4px;">Item</div>
+      <select id="promo-item-select" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; margin-bottom:12px;" onchange="updatePromoMarginPreview()">
+        ${planOptions}${topupOptions}
+      </select>
+
+      <div class="profile-field-label" style="margin-bottom:4px;">Promo price</div>
+      <input type="number" step="0.01" id="promo-price-input" style="width:120px; padding:8px; border:1px solid var(--line); border-radius:6px; font-family:monospace;" oninput="updatePromoMarginPreview()">
+      <div id="promo-margin-preview" style="font-size:12px; margin:6px 0 12px;"></div>
+
+      <div class="profile-field-label" style="margin-bottom:6px;">Runs for</div>
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:14px;">
+        <div>
+          <input type="number" min="0" id="promo-days" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">days</div>
+        </div>
+        <div>
+          <input type="number" min="0" id="promo-hours" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">hours</div>
+        </div>
+        <div>
+          <input type="number" min="0" id="promo-minutes" value="0" style="width:100%; padding:8px; border:1px solid var(--line); border-radius:6px; text-align:center;">
+          <div style="font-size:10.5px; color:var(--ink-soft); text-align:center; margin-top:2px;">minutes</div>
+        </div>
+      </div>
+
+      <button class="btn" style="width:auto; padding:9px 16px;" onclick="createPromotion()">Go live</button>
+      <button class="feedback-delete" onclick="togglePromotionForm()">Cancel</button>
+    </div>
+  `;
+  updatePromoMarginPreview();
+}
+
+function updatePromoMarginPreview(){
+  const select = document.getElementById('promo-item-select');
+  const priceInput = document.getElementById('promo-price-input');
+  const previewEl = document.getElementById('promo-margin-preview');
+  if(!select || !priceInput || !previewEl) return;
+
+  const [kind, key] = select.value.split(':');
+  const d = pricingCatalogState;
+  const item = kind === 'plan' ? d.plans.find(p => p.plan_key === key) : d.topups.find(t => t.pack_key === key);
+  if(!item) return;
+
+  const priceCents = Math.round(parseFloat(priceInput.value || '0') * 100);
+  if(!priceCents){ previewEl.innerHTML = ''; return; }
+
+  const unitsAssumed = kind === 'plan' ? (key === 'premium' ? 175 : (item.bonus_checks || 0)) : (item.units || 0);
+  const cost = 0.00544 * unitsAssumed; // matches VIDEO_CHECK_COST used server-side
+  const amount = priceCents / 100;
+  const net = amount * (1 - 0.029) - 0.30;
+  const margin = amount > 0 ? (net - cost) / amount : null;
+  const pctOff = Math.round((1 - priceCents / item.amount_cents) * 100);
+
+  previewEl.innerHTML = `${pctOff}% off · ${marginBadge(margin, pricingCatalogState.marginFloor)}`;
+}
+
+async function createPromotion(){
+  const select = document.getElementById('promo-item-select');
+  const [target_type, target_key] = select.value.split(':');
+  const promo_price_cents = Math.round(parseFloat(document.getElementById('promo-price-input').value || '0') * 100);
+  const days = parseInt(document.getElementById('promo-days').value) || 0;
+  const hours = parseInt(document.getElementById('promo-hours').value) || 0;
+  const minutes = parseInt(document.getElementById('promo-minutes').value) || 0;
+
+  if(!promo_price_cents){
+    alert('Enter a promo price.');
+    return;
+  }
+  if(days === 0 && hours === 0 && minutes === 0){
+    alert('Set how long this should run.');
+    return;
+  }
+
+  const res = await fetch('/api/admin?resource=promotions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+    body: JSON.stringify({ target_type, target_key, promo_price_cents, days, hours, minutes })
+  });
+  const data = await res.json();
+
+  if(!data.ok && data.error === 'guardrail_blocked'){
+    const proceed = confirm(`${data.message}\n\nRun it below the floor anyway? You'll need to give a reason.`);
+    if(!proceed) return;
+    const reason = prompt('Why is this okay? (at least 10 characters)');
+    if(!reason || reason.trim().length < 10){
+      alert('A real reason is required to override the margin floor.');
+      return;
+    }
+    const overrideRes = await fetch('/api/admin?resource=promotions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ target_type, target_key, promo_price_cents, days, hours, minutes, override_guardrail: true, reason })
+    });
+    const overrideData = await overrideRes.json();
+    if(!overrideData.ok){
+      alert(overrideData.error || 'Could not create the promotion.');
+      return;
+    }
+  }else if(!data.ok){
+    alert(data.error || 'Could not create the promotion.');
+    return;
+  }
+
+  promotionFormOpen = false;
+  loadPricingCatalog();
+}
+
+function formatDuration(ms){
+  if(ms <= 0) return 'ended';
+  const totalMinutes = Math.floor(ms / 60000);
+  const d = Math.floor(totalMinutes / 1440);
+  const h = Math.floor((totalMinutes % 1440) / 60);
+  const m = totalMinutes % 60;
+  const parts = [];
+  if(d > 0) parts.push(`${d}d`);
+  if(h > 0) parts.push(`${h}h`);
+  if(d === 0 && m > 0) parts.push(`${m}m`);
+  return parts.length ? parts.join(' ') : 'less than a minute';
+}
+
+async function loadPromotions(){
+  const areaEl = document.getElementById('active-promotions-area');
+  if(!areaEl) return;
+  try{
+    const res = await fetch('/api/admin?resource=promotions', { headers: { 'x-admin-password': adminPassword } });
+    const data = await res.json();
+    if(!data.ok || data.promotions.length === 0){
+      areaEl.innerHTML = '';
+      return;
+    }
+    const now = Date.now();
+    const live = data.promotions.filter(p => new Date(p.ends_at).getTime() > now);
+    if(live.length === 0){
+      areaEl.innerHTML = '';
+      return;
+    }
+    areaEl.innerHTML = `
+      <div class="section-label" style="margin:16px 0 8px;">Active promotions</div>
+      ${live.map(p => {
+        const remaining = new Date(p.ends_at).getTime() - now;
+        return `
+          <div class="profile-card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:13px; font-weight:600;">${p.target_key} — $${(p.original_price_cents/100).toFixed(2)} → $${(p.promo_price_cents/100).toFixed(2)}</div>
+              <div style="font-size:11px; color:var(--ink-soft); margin-top:2px;">Ends in ${formatDuration(remaining)}</div>
+            </div>
+            <button class="feedback-delete" onclick="takeDownPromotion('${p.id}')">Take down</button>
+          </div>
+        `;
+      }).join('')}
+    `;
+  }catch(err){
+    areaEl.innerHTML = '';
+  }
+}
+
+async function takeDownPromotion(id){
+  if(!confirm('Take this promotion down now?')) return;
+  const res = await fetch('/api/admin?resource=promotions', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+    body: JSON.stringify({ id })
+  });
+  const data = await res.json();
+  if(!data.ok){
+    alert(data.error || 'Could not take this down.');
+    return;
+  }
+  loadPromotions();
 }
 
 function renderPricingRows(plans, topups, editable){
