@@ -402,6 +402,39 @@ let expandedTopupUsers = new Set(); // keeps rows open across refreshes after an
 
 let pricingCatalogState = null; // cached so edits can read current values without refetching
 
+async function resetTestPurchases(){
+  const statusEl = document.getElementById('reset-purchases-status');
+  try{
+    const previewRes = await fetch('/api/admin?resource=resettestpurchases', { headers: { 'x-admin-password': adminPassword } });
+    const previewData = await previewRes.json();
+    if(!previewData.ok){
+      statusEl.textContent = previewData.error || 'Could not check how many accounts this would affect.';
+      return;
+    }
+    if(previewData.count === 0){
+      statusEl.textContent = 'No test purchases to reset right now.';
+      return;
+    }
+
+    const confirmed = confirm(`This resets ${previewData.count} account${previewData.count === 1 ? '' : 's'} that used the test-mode Buy Now flow back to no tier. Tiers you've granted manually are never touched. This can't be undone. Continue?`);
+    if(!confirmed) return;
+
+    const res = await fetch('/api/admin?resource=resettestpurchases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+      body: JSON.stringify({ confirm: true })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      statusEl.textContent = data.error || 'Could not reset test purchases.';
+      return;
+    }
+    statusEl.textContent = `Done — reset ${data.accounts_reset} account${data.accounts_reset === 1 ? '' : 's'}.`;
+  }catch(err){
+    statusEl.textContent = 'Something went wrong — try again.';
+  }
+}
+
 async function loadOverview(){
   const contentEl = document.getElementById('overview-content');
   try{
@@ -414,8 +447,8 @@ async function loadOverview(){
 
     const needsAttentionItems = [];
     if(data.unreviewedFeedback > 0) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">💬 <strong>${data.unreviewedFeedback}</strong> feedback message${data.unreviewedFeedback===1?'':'s'} need${data.unreviewedFeedback===1?'s':''} your attention — <a href="#" onclick="switchTab('feedback'); return false;" style="color:var(--turf); font-weight:600;">go to Feedback</a></div>`);
-    if(data.pendingTopups > 0) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">🎥 <strong>${data.pendingTopups}</strong> top-up request${data.pendingTopups===1?'':'s'} pending — <a href="#" onclick="switchTab('topups'); return false;" style="color:var(--turf); font-weight:600;">go to Top-ups</a></div>`);
-    if(data.hasPricingDraft) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">💲 A pricing draft is waiting to be published — <a href="#" onclick="switchTab('pricing'); return false;" style="color:var(--turf); font-weight:600;">go to Pricing</a></div>`);
+    if(data.pendingTopups > 0) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">🎥 <strong>${data.pendingTopups}</strong> top-up request${data.pendingTopups===1?'':'s'} pending — <a href="#" onclick="switchTab('finances'); return false;" style="color:var(--turf); font-weight:600;">go to Finances</a></div>`);
+    if(data.hasPricingDraft) needsAttentionItems.push(`<div style="padding:10px 0; border-top:1px solid var(--line);">💲 A pricing draft is waiting to be published — <a href="#" onclick="switchTab('finances'); return false;" style="color:var(--turf); font-weight:600;">go to Finances</a></div>`);
 
     const needsAttentionHtml = needsAttentionItems.length > 0
       ? `<div class="profile-card">${needsAttentionItems.join('')}</div>`
@@ -434,6 +467,13 @@ async function loadOverview(){
       </div>
       <div class="section-label" style="margin-bottom:8px;">Needs your attention</div>
       ${needsAttentionHtml}
+
+      <div class="section-label" style="margin:20px 0 8px;">Test data</div>
+      <div class="profile-card">
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 10px;">Resets everyone who's used the test-mode Buy Now flow back to no tier. Tiers you've granted manually in Profiles are never touched.</p>
+        <div id="reset-purchases-status" style="font-size:12.5px; margin-bottom:8px;"></div>
+        <button class="feedback-delete" onclick="resetTestPurchases()">Reset test purchases</button>
+      </div>
     `;
   }catch(err){
     contentEl.innerHTML = '<div class="empty">Something went wrong — try again.</div>';
