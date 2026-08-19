@@ -5540,7 +5540,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.9.0';
+const APP_VERSION = '7.9.1';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5767,7 +5767,7 @@ async function resolveActivePromotions(){
     const { data, error } = await sb.from('promotions').select('*').eq('active', true);
     if(error || !data) return {};
     const now = Date.now();
-    const live = data.filter(p => new Date(p.ends_at).getTime() > now);
+    const live = data.filter(p => new Date(p.starts_at).getTime() <= now && new Date(p.ends_at).getTime() > now);
     return Object.fromEntries(live.map(p => [`${p.target_type}:${p.target_key}`, p]));
   }catch(err){
     console.error('Could not load promotions:', err.message);
