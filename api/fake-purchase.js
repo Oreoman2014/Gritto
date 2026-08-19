@@ -89,7 +89,7 @@ module.exports = async function handler(req, res) {
     const normalizedCurrent = (currentTier === 'premium' || currentTier === 'premium_annual') ? 'premium' : currentTier;
     const normalizedNew = (plan_key === 'premium' || plan_key === 'premium_annual') ? 'premium' : plan_key;
 
-    const updates = { premium_tier: plan_key };
+    const updates = { premium_tier: plan_key, purchase_source: 'test_purchase' };
     if (normalizedNew !== normalizedCurrent) {
       // Genuinely a different tier — reset the one-time bonus pool to
       // match, same rule the admin panel uses for a real tier change.
