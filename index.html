@@ -3117,6 +3117,11 @@
           <span class="settings-menu-label" data-i18n="settings_topup">Buy More Video Checks</span>
           <span class="settings-menu-chevron">›</span>
         </div>
+        <div class="settings-menu-item" onclick="showSettingsSubpage('report')">
+          <svg class="settings-menu-icon" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.5 15.5l2-2 1.5 1.5 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="settings-menu-label" data-i18n="settings_report">Download Progress Report</span>
+          <span class="settings-menu-chevron">›</span>
+        </div>
       </div>
     </div>
 
@@ -3267,6 +3272,12 @@
         <p style="font-size:12px; color:var(--ink-soft); margin:0 0 12px;">Not purchasable yet — this is a preview. Requesting a pack lets us know you want it, and we'll add the checks to your account directly.</p>
         <div id="topup-packs-list"></div>
       </div>
+    </div>
+
+    <div class="settings-subpage hidden" id="settings-subpage-report">
+      <button class="settings-back-btn" onclick="showSettingsMenu()">‹ Back</button>
+      <div class="section-label" style="margin-top:14px;">Download progress report</div>
+      <div id="report-content"></div>
     </div>
   </div>
 
@@ -3485,6 +3496,10 @@
   <button class="sidebar-nav-btn sidebar-nav-sub" onclick="openSidebarSettings('topup', this)">
     <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="18" cy="17" r="5" fill="var(--card-bg)" stroke="currentColor" stroke-width="1.5"/><path d="M18 15v4M16 17h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     <span data-i18n="settings_topup">Buy More Video Checks</span>
+  </button>
+  <button class="sidebar-nav-btn sidebar-nav-sub" onclick="openSidebarSettings('report', this)">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.5 15.5l2-2 1.5 1.5 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span data-i18n="settings_report">Download Progress Report</span>
   </button>
 </nav>
 
@@ -5525,7 +5540,7 @@ async function toggleReminders(){
 }
 
 // ---- Settings page ----
-const APP_VERSION = '7.7.0';
+const APP_VERSION = '7.9.0';
 
 // Checks the LIVE copy of the site (bypassing any cache) to see if a
 // newer version has been deployed than the one currently running —
@@ -5594,6 +5609,7 @@ function showSettingsSubpage(id){
   }
   if(id === 'data') cancelDeleteAccountConfirm();
   if(id === 'feedback') loadMyFeedbackHistory();
+  if(id === 'report') renderReportPage();
   if(id === 'premium') renderPremiumGrid();
   if(id === 'topup') renderBuyMoreChecks();
 }
@@ -5728,6 +5744,7 @@ async function resolvePriceCatalog(){
     return {
       plans: Object.fromEntries(plansRes.data.map(p => [p.plan_key, p])),
       topups: Object.fromEntries(topupsRes.data.map(t => [t.pack_key, t])),
+      promotions: await resolveActivePromotions(),
       provenance: { layer: 'catalog', usedFallback: false, versionId: versionData.id }
     };
   }catch(err){
@@ -5735,8 +5752,26 @@ async function resolvePriceCatalog(){
     return {
       plans: CODE_PRICE_CONSTANTS.plans,
       topups: CODE_PRICE_CONSTANTS.topups,
+      promotions: {},
       provenance: { layer: 'code', usedFallback: true, versionId: null }
     };
+  }
+}
+
+// Promotions are a separate, optional overlay — if this fails for any
+// reason, prices still resolve normally, just without a discount
+// shown. Keyed "plan:studio" / "topup:small" so plans and top-ups
+// with the same key string can never collide.
+async function resolveActivePromotions(){
+  try{
+    const { data, error } = await sb.from('promotions').select('*').eq('active', true);
+    if(error || !data) return {};
+    const now = Date.now();
+    const live = data.filter(p => new Date(p.ends_at).getTime() > now);
+    return Object.fromEntries(live.map(p => [`${p.target_type}:${p.target_key}`, p]));
+  }catch(err){
+    console.error('Could not load promotions:', err.message);
+    return {};
   }
 }
 
@@ -5790,7 +5825,12 @@ async function renderPremiumGrid(){
     if(!planData || !staticInfo) return '';
 
     const features = staticInfo.features.map(f => f.replace('{bonus}', planData.bonus_checks || 0));
-    const priceStr = `${formatCents(planData.amount_cents)}<span> ${planData.billing_period === 'monthly' ? '/ month' : 'one-time'}</span>`;
+    const promo = catalog.promotions[`plan:${tier}`];
+    const unitLabel = planData.billing_period === 'monthly' ? '/ month' : 'one-time';
+    const priceStr = promo
+      ? `<span style="text-decoration:line-through; opacity:0.55; font-size:0.7em;">${formatCents(promo.original_price_cents)}</span> ${formatCents(promo.promo_price_cents)}<span> ${unitLabel}</span>`
+      : `${formatCents(planData.amount_cents)}<span> ${unitLabel}</span>`;
+    const buyPriceStr = promo ? formatCents(promo.promo_price_cents) : formatCents(planData.amount_cents);
     const isCurrent = currentTier === tier || (tier === 'premium' && currentTier === 'premium_annual');
 
     return `
@@ -5801,7 +5841,7 @@ async function renderPremiumGrid(){
         <div class="premium-square-features">
           ${features.map(f => `<div class="premium-square-feature">${f}</div>`).join('')}
         </div>
-        <button class="premium-square-btn" id="premium-buy-btn-${tier}" ${isCurrent ? 'disabled' : ''} onclick="buyPlan('${tier}', '${planData.display_name}', '${formatCents(planData.amount_cents)}')">${isCurrent ? 'Current plan' : 'Buy now'}</button>
+        <button class="premium-square-btn" id="premium-buy-btn-${tier}" ${isCurrent ? 'disabled' : ''} onclick="buyPlan('${tier}', '${planData.display_name}', '${buyPriceStr}')">${isCurrent ? 'Current plan' : 'Buy now'}</button>
         <div class="premium-square-status" id="premium-buy-status-${tier}"></div>
       </div>
     `;
@@ -5817,6 +5857,11 @@ async function renderPremiumGrid(){
       ? `${formatCents(monthlyEquivalent - annualData.amount_cents)} less per year than paying monthly`
       : '';
     const isCurrentAnnual = currentTier === 'premium_annual';
+    const annualPromo = catalog.promotions['plan:premium_annual'];
+    const annualPriceStr = annualPromo
+      ? `<span style="text-decoration:line-through; opacity:0.55; font-size:0.7em;">${formatCents(annualPromo.original_price_cents)}</span> ${formatCents(annualPromo.promo_price_cents)}<span> / year</span>`
+      : `${formatCents(annualData.amount_cents)}<span> / year</span>`;
+    const annualBuyPriceStr = annualPromo ? formatCents(annualPromo.promo_price_cents) : formatCents(annualData.amount_cents);
     annualHtml = `
       <div class="premium-annual-rect">
         <div class="premium-annual-top">
@@ -5824,12 +5869,12 @@ async function renderPremiumGrid(){
             <div class="premium-annual-name">${annualData.display_name} — Annual</div>
             <div class="premium-square-note" style="margin:2px 0 0;">${isCurrentAnnual ? 'Your current plan' : savingsNote}</div>
           </div>
-          <div class="premium-annual-price">${formatCents(annualData.amount_cents)}<span> / year</span></div>
+          <div class="premium-annual-price">${annualPriceStr}</div>
         </div>
         <div class="premium-annual-features">
           ${annualFeatures.map(f => `<div class="premium-annual-feature">${f.replace('{bonus}', annualData.bonus_checks || 0)}</div>`).join('')}
         </div>
-        <button class="premium-annual-btn" id="premium-buy-btn-premium_annual" ${isCurrentAnnual ? 'disabled' : ''} onclick="buyPlan('premium_annual', '${annualData.display_name} Annual', '${formatCents(annualData.amount_cents)}')">${isCurrentAnnual ? 'Current plan' : 'Buy now'}</button>
+        <button class="premium-annual-btn" id="premium-buy-btn-premium_annual" ${isCurrentAnnual ? 'disabled' : ''} onclick="buyPlan('premium_annual', '${annualData.display_name} Annual', '${annualBuyPriceStr}')">${isCurrentAnnual ? 'Current plan' : 'Buy now'}</button>
         <div class="premium-annual-status" id="premium-buy-status-premium_annual"></div>
       </div>
     `;
@@ -5920,6 +5965,158 @@ async function getRemainingChecksDisplay(){
   return { total: monthlyRemaining + bonusRemaining, monthlyRemaining, bonusRemaining, isUnlimitedTier };
 }
 
+// Only Studio, Premium, and Premium Annual include PDF reports —
+// matches the exact same tier list used for the exclusive themes.
+const PDF_REPORT_TIERS = ['studio', 'premium', 'premium_annual'];
+
+async function renderReportPage(){
+  const contentEl = document.getElementById('report-content');
+  contentEl.innerHTML = '<p style="text-align:center; color:var(--ink-soft); padding:20px;">Loading…</p>';
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    contentEl.innerHTML = `
+      <div class="settings-card" style="text-align:center;">
+        <p style="font-size:13px; color:var(--ink-soft);">Sign in to download a progress report.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const { data: profile } = await sb.from('user_profile').select('premium_tier').eq('user_id', session.user.id).maybeSingle();
+  const tier = profile ? profile.premium_tier : null;
+
+  if(!PDF_REPORT_TIERS.includes(tier)){
+    contentEl.innerHTML = `
+      <div class="settings-card" style="text-align:center;">
+        <p style="font-size:13px; color:var(--ink); font-weight:600; margin:0 0 8px;">Progress reports are a Studio and Premium feature.</p>
+        <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 14px;">Upgrade to download a PDF summary of your streaks, stats, and scores.</p>
+        <button class="go-btn" onclick="showSettingsSubpage('premium')">See Premium</button>
+      </div>
+    `;
+    return;
+  }
+
+  contentEl.innerHTML = `
+    <div class="settings-card" style="text-align:center;">
+      <p style="font-size:13px; color:var(--ink-soft); margin:0 0 14px;">A PDF summary of your streaks, stats, and scores by sport — ready to download or share.</p>
+      <button class="go-btn" id="report-download-btn" onclick="downloadProgressReport()">Download PDF</button>
+      <div class="status" id="report-status"></div>
+    </div>
+  `;
+}
+
+// jsPDF is only fetched the first time someone actually downloads a
+// report — no reason to load it for every user on every page.
+function loadJsPDFLibrary(){
+  return new Promise((resolve, reject) => {
+    if(window.jspdf && window.jspdf.jsPDF){ resolve(); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Could not load the PDF library.'));
+    document.head.appendChild(script);
+  });
+}
+
+async function downloadProgressReport(){
+  const btn = document.getElementById('report-download-btn');
+  const statusEl = document.getElementById('report-status');
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(!session){
+    if(statusEl) statusEl.textContent = 'Sign in first, then try again.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Building your report…';
+  try{
+    await loadJsPDFLibrary();
+
+    // Per-sport score breakdown — badgeStats doesn't carry this, so
+    // it's queried fresh here rather than adding it to that shared
+    // object just for this one feature.
+    const { data: sportScoreRows } = await sb.from('video_analysis_history')
+      .select('sport, score').eq('user_id', session.user.id).not('score', 'is', null);
+    const bySport = {};
+    (sportScoreRows || []).forEach(r => {
+      if(!bySport[r.sport]) bySport[r.sport] = [];
+      bySport[r.sport].push(r.score);
+    });
+
+    const routineBestStreak = (userRoutines || []).reduce((max, r) => Math.max(max, r.longest_streak || 0), 0);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const marginX = 20;
+    let y = 24;
+
+    doc.setFontSize(20);
+    doc.text('Gritto Progress Report', marginX, y);
+    y += 8;
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`${session.user.email} · ${new Date().toLocaleDateString()}`, marginX, y);
+    doc.setTextColor(0);
+    y += 14;
+
+    doc.setFontSize(13);
+    doc.text('Streaks', marginX, y);
+    y += 7;
+    doc.setFontSize(10.5);
+    doc.text(`Drills streak: ${drillProgress.current_streak || 0} days (best: ${drillProgress.longest_streak || 0})`, marginX, y);
+    y += 6;
+    doc.text(`Routine streak best: ${routineBestStreak} days`, marginX, y);
+    y += 12;
+
+    doc.setFontSize(13);
+    doc.text('Overall stats', marginX, y);
+    y += 7;
+    doc.setFontSize(10.5);
+    doc.text(`Total drills completed: ${badgeStats.totalDrills || 0}`, marginX, y);
+    y += 6;
+    doc.text(`Total video checks: ${badgeStats.videoCount || 0}`, marginX, y);
+    y += 6;
+    doc.text(`Average score: ${badgeStats.avgScore ? badgeStats.avgScore.toFixed(1) : '—'}`, marginX, y);
+    y += 6;
+    doc.text(`Best score: ${badgeStats.maxScore || '—'}`, marginX, y);
+    y += 6;
+    doc.text(`Active days: ${badgeStats.activeDays || 0}`, marginX, y);
+    y += 12;
+
+    doc.setFontSize(13);
+    doc.text('Average score by sport', marginX, y);
+    y += 7;
+    doc.setFontSize(10.5);
+    const sportNames = Object.keys(bySport);
+    if(sportNames.length === 0){
+      doc.text('No video checks yet.', marginX, y);
+      y += 6;
+    }else{
+      sportNames.forEach(sport => {
+        const scores = bySport[sport];
+        const avg = scores.reduce((a,b) => a+b, 0) / scores.length;
+        doc.text(`${sport}: ${avg.toFixed(1)} (${scores.length} check${scores.length===1?'':'s'})`, marginX, y);
+        y += 6;
+      });
+    }
+    y += 6;
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(140);
+    doc.text('Prototype — advice is general coaching info, not a substitute for an in-person coach.', marginX, 280);
+
+    doc.save(`gritto-progress-report-${new Date().toISOString().slice(0,10)}.pdf`);
+    if(statusEl) statusEl.textContent = 'Downloaded!';
+  }catch(err){
+    console.error('PDF report generation failed:', err.message);
+    if(statusEl) statusEl.textContent = 'Something went wrong — try again.';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Download PDF';
+  }
+}
+
 async function renderBuyMoreChecks(){
   const summaryEl = document.getElementById('topup-remaining-summary');
   const packsEl = document.getElementById('topup-packs-list');
@@ -5943,7 +6140,11 @@ async function renderBuyMoreChecks(){
     ${TOPUP_PACK_KEYS.map(key => {
       const pack = catalog.topups[key];
       if(!pack) return '';
-      const priceStr = formatCents(pack.amount_cents);
+      const promo = catalog.promotions[`topup:${key}`];
+      const priceStr = promo
+        ? `<span style="text-decoration:line-through; opacity:0.6;">${formatCents(promo.original_price_cents)}</span> ${formatCents(promo.promo_price_cents)}`
+        : formatCents(pack.amount_cents);
+      const buyPriceStr = promo ? formatCents(promo.promo_price_cents) : formatCents(pack.amount_cents);
       return `
         <div class="topup-pack-row">
           <div class="topup-pack-icon">🎥</div>
@@ -5951,7 +6152,7 @@ async function renderBuyMoreChecks(){
             <div class="topup-pack-title">+${pack.units} video checks — ${priceStr}</div>
             <div class="topup-pack-desc" id="topup-status-${pack.units}">Test purchase — not a real charge.</div>
           </div>
-          <button class="settings-toggle-btn" id="topup-buy-btn-${pack.units}" onclick="buyTopup(${pack.units}, '${priceStr}')">Buy now</button>
+          <button class="settings-toggle-btn" id="topup-buy-btn-${pack.units}" onclick="buyTopup(${pack.units}, '${buyPriceStr}')">Buy now</button>
         </div>
       `;
     }).join('')}
