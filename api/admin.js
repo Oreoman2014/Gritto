@@ -79,6 +79,7 @@ module.exports = async function handler(req, res) {
     if (resource === 'announcements') return await handleAnnouncements(req, res, supabaseUrl, baseHeaders);
     if (resource === 'resettestpurchases') return await handleResetTestPurchases(req, res, supabaseUrl, baseHeaders);
     if (resource === 'promotions') return await handlePromotions(req, res, supabaseUrl, baseHeaders);
+    if (resource === 'useractivity') return await handleUserActivity(req, res, supabaseUrl, baseHeaders);
     return res.status(400).json({ ok: false, error: `Unknown resource: ${resource}` });
   } catch (err) {
     return res.status(500).json({ ok: false, error: String(err) });
@@ -682,7 +683,7 @@ async function handleOverview(req, res, supabaseUrl, baseHeaders) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const [usersRes, newUsersRes, feedbackRes, topupsRes, catalogRes] = await Promise.all([
-    fetch(`${supabaseUrl}/rest/v1/allowed_users?select=email`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/allowed_users?select=email,added_at`, { headers: baseHeaders }),
     fetch(`${supabaseUrl}/rest/v1/allowed_users?select=email&added_at=gte.${sevenDaysAgo}`, { headers: baseHeaders }),
     fetch(`${supabaseUrl}/rest/v1/feedback_reports?select=id&needs_attention=eq.true&admin_reviewed=eq.false`, { headers: baseHeaders }),
     fetch(`${supabaseUrl}/rest/v1/topup_requests?select=id&status=eq.pending`, { headers: baseHeaders }),
@@ -693,13 +694,36 @@ async function handleOverview(req, res, supabaseUrl, baseHeaders) {
     usersRes.json(), newUsersRes.json(), feedbackRes.json(), topupsRes.json(), catalogRes.json(),
   ]);
 
+  // Cumulative total-users-over-time, last 30 days — signups per day,
+  // running total from before the window plus each day's additions.
+  const allUsers = Array.isArray(users) ? users : [];
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  let cumulativeBeforeWindow = allUsers.filter(u => new Date(u.added_at) < windowStart).length;
+  const signupsByDay = {};
+  allUsers.forEach(u => {
+    const d = new Date(u.added_at);
+    if(d >= windowStart) {
+      const key = d.toISOString().slice(0, 10);
+      signupsByDay[key] = (signupsByDay[key] || 0) + 1;
+    }
+  });
+  const growthTrend = [];
+  let running = cumulativeBeforeWindow;
+  for(let i = 29; i >= 0; i--){
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    running += signupsByDay[d] || 0;
+    growthTrend.push({ date: d, total: running });
+  }
+
   return res.status(200).json({
     ok: true,
-    totalUsers: Array.isArray(users) ? users.length : 0,
+    totalUsers: allUsers.length,
     newUsersThisWeek: Array.isArray(newUsers) ? newUsers.length : 0,
     unreviewedFeedback: Array.isArray(feedback) ? feedback.length : 0,
     pendingTopups: Array.isArray(topups) ? topups.length : 0,
     hasPricingDraft: Array.isArray(catalog) && catalog.length > 0,
+    growthTrend,
   });
 }
 
@@ -882,8 +906,60 @@ async function handleResetTestPurchases(req, res, supabaseUrl, baseHeaders) {
 // automatically posts an announcement (auto-generated text, per the
 // decision to keep this simple rather than have the admin write
 // their own copy each time).
+// Finds scheduled promotions whose starts_at has now passed but that
+// never got their announcement posted (announcement_id is still
+// null), and posts it now. This is what makes "scheduled" promotions
+// actually work without any cron — the trigger point is simply the
+// next time anyone loads the admin Promotions view.
+async function triggerDuePromotionAnnouncements(supabaseUrl, baseHeaders) {
+  try {
+    const nowIso = new Date().toISOString();
+    const dueRes = await fetch(
+      `${supabaseUrl}/rest/v1/promotions?active=eq.true&announcement_id=is.null&starts_at=lte.${nowIso}&select=*`,
+      { headers: baseHeaders }
+    );
+    const due = await dueRes.json();
+    if (!Array.isArray(due) || due.length === 0) return;
+
+    for (const promo of due) {
+      const table = promo.target_type === 'plan' ? 'plan_catalog' : 'topup_catalog';
+      const keyField = promo.target_type === 'plan' ? 'plan_key' : 'pack_key';
+      const itemRes = await fetch(
+        `${supabaseUrl}/rest/v1/${table}?${keyField}=eq.${promo.target_key}&select=display_name&limit=1`,
+        { headers: baseHeaders }
+      );
+      const itemRows = await itemRes.json();
+      const displayName = (Array.isArray(itemRows) && itemRows[0] && itemRows[0].display_name) || promo.target_key;
+      const pctOff = Math.round((1 - promo.promo_price_cents / promo.original_price_cents) * 100);
+
+      await fetch(`${supabaseUrl}/rest/v1/announcements?active=eq.true`, {
+        method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+      });
+      const annRes = await fetch(`${supabaseUrl}/rest/v1/announcements`, {
+        method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
+        body: JSON.stringify({ message: `${displayName} is ${pctOff}% off for a limited time!`, active: true, created_by: 'promotion' }),
+      });
+      const annRows = await annRes.json();
+      const announcementId = Array.isArray(annRows) && annRows[0] ? annRows[0].id : null;
+
+      await fetch(`${supabaseUrl}/rest/v1/promotions?id=eq.${promo.id}`, {
+        method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ announcement_id: announcementId }),
+      });
+    }
+  } catch (e) {
+    console.error('Could not trigger due promotion announcements:', e);
+  }
+}
+
 async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
   if (req.method === 'GET') {
+    // Lazy-trigger: no cron exists, so this is where a scheduled
+    // promotion's announcement actually gets posted — the first time
+    // anyone loads promotions after its starts_at has passed. Not
+    // perfectly real-time, but correct and safe without needing a
+    // background job.
+    await triggerDuePromotionAnnouncements(supabaseUrl, baseHeaders);
+
     const promoRes = await fetch(
       `${supabaseUrl}/rest/v1/promotions?active=eq.true&select=*&order=created_at.desc`,
       { headers: baseHeaders }
@@ -893,7 +969,7 @@ async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
   }
 
   if (req.method === 'POST') {
-    const { target_type, target_key, promo_price_cents, days, hours, minutes, override_guardrail, reason } = req.body || {};
+    const { target_type, target_key, promo_price_cents, days, hours, minutes, start_days, start_hours, start_minutes, override_guardrail, reason } = req.body || {};
     if (!target_type || !target_key || !promo_price_cents) {
       return res.status(400).json({ ok: false, error: 'target_type, target_key, and promo_price_cents are required.' });
     }
@@ -901,6 +977,7 @@ async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
     if (totalMinutes <= 0) {
       return res.status(400).json({ ok: false, error: 'Duration must be at least a minute.' });
     }
+    const startDelayMinutes = (Number(start_days) || 0) * 1440 + (Number(start_hours) || 0) * 60 + (Number(start_minutes) || 0);
 
     // Snapshot the current published price for this item.
     const versionRes = await fetch(
@@ -942,23 +1019,27 @@ async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
       return res.status(400).json({ ok: false, error: 'A reason of at least 10 characters is required to override the margin guardrail.' });
     }
 
-    const endsAt = new Date(Date.now() + totalMinutes * 60000).toISOString();
+    const startsAt = new Date(Date.now() + startDelayMinutes * 60000);
+    const endsAt = new Date(startsAt.getTime() + totalMinutes * 60000).toISOString();
     const pctOff = Math.round((1 - promo_price_cents / item.amount_cents) * 100);
     const displayName = item.display_name || target_key;
     const announcementMessage = `${displayName} is ${pctOff}% off for a limited time!`;
 
-    // Deactivate any currently-live announcement, then post the
-    // auto-generated one — same one-active-at-a-time rule the regular
-    // announcement flow already uses.
-    await fetch(`${supabaseUrl}/rest/v1/announcements?active=eq.true`, {
-      method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
-    });
-    const annRes = await fetch(`${supabaseUrl}/rest/v1/announcements`, {
-      method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
-      body: JSON.stringify({ message: announcementMessage, active: true, created_by: 'promotion' }),
-    });
-    const annRows = await annRes.json();
-    const announcementId = Array.isArray(annRows) && annRows[0] ? annRows[0].id : null;
+    // Only post the announcement immediately if this promotion starts
+    // now — a promotion scheduled for later gets its announcement
+    // later too, via the lazy-trigger check above, not at creation time.
+    let announcementId = null;
+    if (startDelayMinutes <= 0) {
+      await fetch(`${supabaseUrl}/rest/v1/announcements?active=eq.true`, {
+        method: 'PATCH', headers: baseHeaders, body: JSON.stringify({ active: false }),
+      });
+      const annRes = await fetch(`${supabaseUrl}/rest/v1/announcements`, {
+        method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
+        body: JSON.stringify({ message: announcementMessage, active: true, created_by: 'promotion' }),
+      });
+      const annRows = await annRes.json();
+      announcementId = Array.isArray(annRows) && annRows[0] ? annRows[0].id : null;
+    }
 
     const promoRes = await fetch(`${supabaseUrl}/rest/v1/promotions`, {
       method: 'POST', headers: { ...baseHeaders, Prefer: 'return=representation' },
@@ -966,6 +1047,7 @@ async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
         target_type, target_key,
         original_price_cents: item.amount_cents,
         promo_price_cents,
+        starts_at: startsAt.toISOString(),
         ends_at: endsAt,
         active: true,
         announcement_id: announcementId,
@@ -976,7 +1058,8 @@ async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
     }
 
     await logAdminAction(supabaseUrl, baseHeaders, 'promotion_created', null, {
-      target_type, target_key, promo_price_cents, original_price_cents: item.amount_cents, ends_at: endsAt,
+      target_type, target_key, promo_price_cents, original_price_cents: item.amount_cents,
+      starts_at: startsAt.toISOString(), ends_at: endsAt, scheduled: startDelayMinutes > 0,
       guardrail_overridden: !!override_guardrail, reason: reason || null,
     });
 
@@ -1010,4 +1093,46 @@ async function handlePromotions(req, res, supabaseUrl, baseHeaders) {
   }
 
   return res.status(405).json({ ok: false, error: 'Method not allowed' });
+}
+
+// ---- User activity detail ----
+// Everything a specific user has actually done, in one read-only
+// view — drill history, video check scores, feedback they've sent,
+// top-up requests. Lets Aaryav see the full picture without ever
+// signing in as them.
+async function handleUserActivity(req, res, supabaseUrl, baseHeaders) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+  const userId = req.query.user_id;
+  if (!userId) {
+    return res.status(400).json({ ok: false, error: 'user_id is required.' });
+  }
+
+  const [drillsRes, videosRes, feedbackRes, topupsRes] = await Promise.all([
+    fetch(`${supabaseUrl}/rest/v1/drill_history?user_id=eq.${userId}&select=sport,created_at&order=created_at.desc`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/video_analysis_history?user_id=eq.${userId}&select=sport,score,created_at&order=created_at.desc`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/feedback_reports?user_id=eq.${userId}&select=message,created_at,needs_attention,ai_response,admin_reply&order=created_at.desc`, { headers: baseHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/topup_requests?user_id=eq.${userId}&select=pack_size,status,created_at&order=created_at.desc`, { headers: baseHeaders }),
+  ]);
+
+  const [drills, videos, feedback, topups] = await Promise.all([
+    drillsRes.json(), videosRes.json(), feedbackRes.json(), topupsRes.json(),
+  ]);
+
+  const drillList = Array.isArray(drills) ? drills : [];
+  const videoList = Array.isArray(videos) ? videos : [];
+  const scoredVideos = videoList.filter(v => typeof v.score === 'number');
+  const avgScore = scoredVideos.length ? scoredVideos.reduce((sum, v) => sum + v.score, 0) / scoredVideos.length : null;
+
+  return res.status(200).json({
+    ok: true,
+    totalDrills: drillList.length,
+    recentDrills: drillList.slice(0, 5),
+    totalVideoChecks: videoList.length,
+    avgScore,
+    recentVideos: videoList.slice(0, 5),
+    feedback: Array.isArray(feedback) ? feedback : [],
+    topupRequests: Array.isArray(topups) ? topups : [],
+  });
 }
